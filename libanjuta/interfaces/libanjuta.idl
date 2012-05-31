@@ -6662,3 +6662,48 @@ interface IAnjutaIndenter
 }
 
 
+/**
+ * SECTION:ianjuta-parser
+ * @title: IAnjutaParser
+ * @short_description: Interface to manage multiple parser
+ * @see_also:
+ * @stability: Unstable
+ * @include: libanjuta/interfaces/ianjuta-parser.h
+ *
+ */
+
+interface IAnjutaParser
+{
+  #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
+  #include <libanjuta/interfaces/ianjuta-iterable.h>
+
+	/**
+	 * ianjuta_parser_init:
+	 * @obj: Self
+	 * @manager: the symbol manager
+	 */
+	 void init (IAnjutaSymbolManager * manager);
+
+	/**
+	 * ianjuta_parser_deinit:
+	 * @obj: Self
+	 */
+	 void deinit ();
+
+	/**
+	 * ianjuta_parser_process_expression:
+	 * @obj: Self
+	 * @stmt: A statement like "((FooKlass*) B).", "foo_klass1->get_foo_klass2 ()->",
+	 * "foo_klass1->member2->", etc.
+	 * @above_text: Text of the buffer/file before the statement up to the first byte.
+	 * @full_file_path: The full path to the file. This is for engine scanning purposes.
+	 * @linenum: The line number where the statement is.
+	 * @err: Error propagation and reporting.
+	 *
+	 * Returns: IAnjutaIterable * with the actual completions symbols.
+	 *
+	 * The function parse the C++ statement, try to get the type of objects to be
+	 * completed and returns an iterator with those symbols.
+	 */
+	 IAnjutaIterable* process_expression (const gchar *stmt, const gchar * above_text, const gchar * full_file_path, gulong linenum);
+}

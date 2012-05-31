@@ -37,6 +37,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-glade-signal.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-editor-search.h>
+#include <libanjuta/interfaces/ianjuta-parser.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
@@ -58,7 +59,6 @@
 #define ICON_FILE "anjuta-language-cpp-java-plugin.png"
 
 /* Preferences keys */
-
 #define ANJUTA_PREF_SCHEMA_PREFIX "org.gnome.anjuta."
 #define PREF_SCHEMA "org.gnome.anjuta.plugins.cpp"
 #define PREF_USER_PACKAGES "user-packages"
@@ -776,16 +776,18 @@ install_support (CppJavaPlugin *lang_plugin)
         g_str_equal (lang_plugin->current_language, "C++"))
     {
         CppJavaAssist *assist;
-
+		
         g_assert (lang_plugin->assist == NULL);
 
         assist = cpp_java_assist_new (IANJUTA_EDITOR (lang_plugin->current_editor),
+                    anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
+                                                IAnjutaParser,
+                                                NULL),
                     anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
                                                 IAnjutaSymbolManager,
                                                 NULL),
                     lang_plugin->settings);
         lang_plugin->assist = assist;
-
 
         if (IANJUTA_IS_EDITOR_GLADE_SIGNAL (lang_plugin->current_editor))
         {

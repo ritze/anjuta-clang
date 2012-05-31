@@ -1,5 +1,3 @@
-SUBDIRS = cxxparser
-
 # Plugin glade file
 cpp_java_gladedir = $(anjuta_glade_dir)
 cpp_java_glade_DATA = anjuta-language-cpp-java.ui
