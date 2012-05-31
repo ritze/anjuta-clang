@@ -53,13 +53,9 @@ libanjuta_language_cpp_java_la_SOURCES = \
 
 libanjuta_language_cpp_java_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
-# Use C++ linking
-nodist_EXTRA_libanjuta_language_cpp_java_la_SOURCES = dummy.cxx
-
 # Plugin dependencies
 libanjuta_language_cpp_java_la_LIBADD = \
-	$(LIBANJUTA_LIBS) \
-	cxxparser/libcxxparser.la
+	$(LIBANJUTA_LIBS)
 	
 gsettings_in_file = org.gnome.anjuta.plugins.cpp.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
