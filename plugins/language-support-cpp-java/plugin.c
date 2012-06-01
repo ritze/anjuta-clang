@@ -746,7 +746,7 @@ install_support (CppJavaPlugin *lang_plugin)
     IAnjutaLanguage* lang_manager =
         anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
                                     IAnjutaLanguage, NULL);
-
+	
     if (!lang_manager)
         return;
 
@@ -770,22 +770,27 @@ install_support (CppJavaPlugin *lang_plugin)
     }
 
     init_file_type (lang_plugin);
-
-
+	
     if (g_str_equal (lang_plugin->current_language, "C" ) ||
         g_str_equal (lang_plugin->current_language, "C++"))
     {
         CppJavaAssist *assist;
+		IAnjutaParser* parser;
+
+		parser =
+			anjuta_shell_get_interface (anjuta_plugin_get_shell (ANJUTA_PLUGIN (lang_plugin)),
+			                            IAnjutaParser, NULL);
+		
+		//TODO: only load assist, if a parser for c/c++ is available
+		if (!parser)
+			return;
 		
         g_assert (lang_plugin->assist == NULL);
-
+		
         assist = cpp_java_assist_new (IANJUTA_EDITOR (lang_plugin->current_editor),
-                    anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
-                                                IAnjutaParser,
-                                                NULL),
-                    anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
-                                                IAnjutaSymbolManager,
-                                                NULL),
+                    parser,
+                    anjuta_shell_get_interface (anjuta_plugin_get_shell (ANJUTA_PLUGIN (lang_plugin)),
+                                                IAnjutaSymbolManager, NULL),
                     lang_plugin->settings);
         lang_plugin->assist = assist;
 
@@ -1155,7 +1160,7 @@ cpp_java_plugin_activate_plugin (AnjutaPlugin *plugin)
 
     lang_plugin->editor_watch_id =
         anjuta_plugin_add_watch (plugin,
-                                  IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
+                                 IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
                                  on_value_added_current_editor,
                                  on_value_removed_current_editor,
                                  plugin);
