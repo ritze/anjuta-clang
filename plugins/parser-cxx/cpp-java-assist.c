@@ -32,11 +32,11 @@
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
-#include <libanjuta/interfaces/ianjuta-parser.h>
 #include <libanjuta/interfaces/ianjuta-provider.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "cpp-java-assist.h"
+#include "engine-parser.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
 #define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
@@ -65,7 +65,6 @@ struct _CppJavaAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
-	IAnjutaParser* parser;
 
 	GCompletion *completion_cache;
 
@@ -456,12 +455,10 @@ cpp_java_assist_parse_expression (CppJavaAssist* assist, IAnjutaIterable* iter, 
 		/* the parser works even for the "Gtk::" like expressions, so it shouldn't be 
 		 * created a specific case to handle this.
 		 */
-		res = ianjuta_parser_process_expression (assist->priv->parser,
-		                                         stmt,
-		                                         above_text,
-		                                         filename,
-		                                         lineno,
-		                                         NULL);
+		res = engine_parser_process_expression (stmt,
+		                                        above_text,
+		                                        filename,
+		                                        lineno);
 		g_free (filename);
 		g_free (stmt);
 	}
@@ -1454,7 +1451,7 @@ cpp_java_assist_finalize (GObject *object)
 		g_object_unref (priv->sync_query_project);
 	priv->sync_query_project = NULL;
 
-	ianjuta_parser_deinit (priv->parser, NULL);
+	engine_parser_deinit ();
 	
 	g_free (assist->priv);
 	G_OBJECT_CLASS (cpp_java_assist_parent_class)->finalize (object);
@@ -1470,7 +1467,6 @@ cpp_java_assist_class_init (CppJavaAssistClass *klass)
 
 CppJavaAssist *
 cpp_java_assist_new (IAnjutaEditor *ieditor,
-                     IAnjutaParser *iparser,
 					 IAnjutaSymbolManager *isymbol_manager,
 					 GSettings* settings)
 {
@@ -1496,9 +1492,6 @@ cpp_java_assist_new (IAnjutaEditor *ieditor,
 	}
 	assist = g_object_new (TYPE_CPP_JAVA_ASSIST, NULL);
 	assist->priv->settings = settings;
-
-//TODO: check, if this is a parser for cxx and not for a other language
-	assist->priv->parser = iparser;
 	
 	/* Create call tip queries */
 	/* Calltip in file */
@@ -1680,7 +1673,7 @@ cpp_java_assist_new (IAnjutaEditor *ieditor,
 	/* Install support */
 	cpp_java_assist_install (assist, ieditor);
 
-	ianjuta_parser_init (assist->priv->parser, isymbol_manager, NULL);	
+	engine_parser_init (isymbol_manager);	
 	
 	return assist;
 }

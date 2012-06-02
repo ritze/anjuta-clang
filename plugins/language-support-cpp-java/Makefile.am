@@ -46,8 +46,6 @@ plugin_LTLIBRARIES = libanjuta-language-cpp-java.la
 libanjuta_language_cpp_java_la_SOURCES = \
 	plugin.c \
 	plugin.h \
-	cpp-java-assist.h \
-	cpp-java-assist.c \
 	cpp-packages.c \
 	cpp-packages.h
 

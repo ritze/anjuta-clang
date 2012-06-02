@@ -22,6 +22,7 @@
 #define _PLUGIN_H_
 
 #include <libanjuta/anjuta-plugin.h>
+#include "cpp-java-assist.h"
 
 extern GType parser_cxx_plugin_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_PARSER_CXX         (parser_cxx_plugin_get_type (NULL))
@@ -36,9 +37,19 @@ typedef struct _ParserCxxPluginClass ParserCxxPluginClass;
 
 struct _ParserCxxPlugin {
 	AnjutaPlugin parent;
-
+	
+	GSettings* settings;
+	GSettings* editor_settings;
+	gint editor_watch_id;
 	gboolean support_installed;
+	GObject *current_editor;
 	const gchar *current_language;
+
+	/* Assist */
+	CppJavaAssist *assist;
+	
+	/* Preferences */
+	GtkBuilder* bxml;
 };
 
 struct _ParserCxxPluginClass {

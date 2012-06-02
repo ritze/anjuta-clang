@@ -33,7 +33,6 @@
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-language.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
-#include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-glade-signal.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-editor-search.h>
@@ -774,26 +773,6 @@ install_support (CppJavaPlugin *lang_plugin)
     if (g_str_equal (lang_plugin->current_language, "C" ) ||
         g_str_equal (lang_plugin->current_language, "C++"))
     {
-        CppJavaAssist *assist;
-		IAnjutaParser* parser;
-
-		parser =
-			anjuta_shell_get_interface (anjuta_plugin_get_shell (ANJUTA_PLUGIN (lang_plugin)),
-			                            IAnjutaParser, NULL);
-		
-		//TODO: only load assist, if a parser for c/c++ is available
-		if (!parser)
-			return;
-		
-        g_assert (lang_plugin->assist == NULL);
-		
-        assist = cpp_java_assist_new (IANJUTA_EDITOR (lang_plugin->current_editor),
-                    parser,
-                    anjuta_shell_get_interface (anjuta_plugin_get_shell (ANJUTA_PLUGIN (lang_plugin)),
-                                                IAnjutaSymbolManager, NULL),
-                    lang_plugin->settings);
-        lang_plugin->assist = assist;
-
         if (IANJUTA_IS_EDITOR_GLADE_SIGNAL (lang_plugin->current_editor))
         {
             g_signal_connect (lang_plugin->current_editor,
@@ -826,12 +805,6 @@ uninstall_support (CppJavaPlugin *lang_plugin)
 {
     if (!lang_plugin->support_installed)
         return;
-
-    if (lang_plugin->assist)
-    {
-        g_object_unref (lang_plugin->assist);
-        lang_plugin->assist = NULL;
-    }
 
     g_signal_handlers_disconnect_by_func (lang_plugin->current_editor,
                                           on_glade_drop_possible, lang_plugin);
@@ -1220,7 +1193,6 @@ cpp_java_plugin_instance_init (GObject *obj)
     plugin->current_language = NULL;
     plugin->editor_watch_id = 0;
     plugin->uiid = 0;
-    plugin->assist = NULL;
     plugin->settings = g_settings_new (PREF_SCHEMA);
     plugin->editor_settings = g_settings_new (ANJUTA_PREF_SCHEMA_PREFIX IANJUTA_EDITOR_PREF_SCHEMA);
     plugin->packages = NULL;
@@ -1371,6 +1343,7 @@ on_package_deactivated (AnjutaPkgConfigChooser *self, const gchar* package,
 
     cpp_java_plugin_update_user_packages (plugin, self);
 }
+
 static void
 ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
                     GError** e)

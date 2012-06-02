@@ -27,7 +27,6 @@
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-preferences.h>
-#include <libanjuta/interfaces/ianjuta-parser.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 
@@ -64,7 +63,6 @@ struct _CppJavaAssist
 
 GType cpp_java_assist_get_type (void) G_GNUC_CONST;
 CppJavaAssist *cpp_java_assist_new (IAnjutaEditor *editor,
-                                    IAnjutaParser *iparser,
 									IAnjutaSymbolManager *isymbol_manager,
 									GSettings* settings);
 

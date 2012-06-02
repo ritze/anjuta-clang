@@ -1,3 +1,11 @@
+# Plugin glade file
+cpp_java_gladedir = $(anjuta_glade_dir)
+	cpp_java_glade_DATA = anjuta-parser-cxx.ui
+
+# Plugin UI file
+	cpp_java_uidir = $(anjuta_ui_dir)
+	cpp_java_ui_DATA = anjuta-parser-cxx.xml
+
 # Plugin Icon file
 parser_cxx_pixmapsdir = $(anjuta_image_dir)
 parser_cxx_pixmaps_DATA = \
@@ -36,6 +44,8 @@ plugin_LTLIBRARIES = libanjuta-parser-cxx.la
 
 # Plugin sources
 libanjuta_parser_cxx_la_SOURCES = \
+	cpp-java-assist.h \
+	cpp-java-assist.c \
 	plugin.c \
 	plugin.h \
 	expression-lexer.cpp \
@@ -73,9 +83,20 @@ nodist_EXTRA_libanjuta_language_cpp_java_la_SOURCES = dummy.cxx
 libanjuta_parser_cxx_la_LIBADD = $(LIBANJUTA_LIBS) \
 	$(GTHREAD_LIBS)
 
+gsettings_in_file = org.gnome.anjuta.plugins.parser-cxx.gschema.xml.in
+gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
+@INTLTOOL_XML_NOMERGE_RULE@
+@GSETTINGS_RULES@
+
 EXTRA_DIST = \
   $(plugin_in_files) \
   $(cpp_java_plugin_DATA) \
-  $(cpp_java_pixmaps_DATA) 
+	$(cpp_java_ui_DATA) \
+  $(cpp_java_pixmaps_DATA) \
+	$(cpp_java_glade_DATA) \
+	$(gsettings_in_file)
+
+CLEANFILES = \
+  $(gsettings_SCHEMAS)
 
 -include $(top_srcdir)/git.mk
