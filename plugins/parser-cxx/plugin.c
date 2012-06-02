@@ -31,7 +31,7 @@
 
 #include "plugin.h"
 
-#define PREFS_BUILDER PACKAGE_DATA_DIR"/glade/anjuta-language-cpp-java.ui"
+#define PREFS_BUILDER PACKAGE_DATA_DIR"/glade/anjuta-parser-cxx.ui"
 #define ICON_FILE "anjuta-language-cpp-java-plugin.png"
 
 /* Preferences keys */
