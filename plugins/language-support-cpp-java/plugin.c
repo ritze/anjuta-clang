@@ -1387,7 +1387,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
     if (!g_settings_get_boolean (plugin->settings,
                                  PREF_PROJECT_PACKAGES))
         cpp_java_plugin_select_user_packages (plugin, ANJUTA_PKG_CONFIG_CHOOSER (pkg_config));
-
+	
     gtk_widget_show (pkg_config);
 }
 

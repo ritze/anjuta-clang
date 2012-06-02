@@ -35,11 +35,8 @@
 #define ICON_FILE "anjuta-language-cpp-java-plugin.png"
 
 /* Preferences keys */
-//TODO: which one is used?
 #define ANJUTA_PREF_SCHEMA_PREFIX "org.gnome.anjuta."
 #define PREF_SCHEMA "org.gnome.anjuta.plugins.parser-cxx"
-#define PREF_USER_PACKAGES "user-packages"
-#define PREF_PROJECT_PACKAGES "load-project-packages"
 
 static gpointer parent_class;
 
