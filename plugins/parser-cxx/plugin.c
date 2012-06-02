@@ -267,7 +267,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
     }
     anjuta_preferences_add_from_builder (prefs,
                                          plugin->bxml, plugin->settings,
-                                         "preferences", _("C/C++"),
+                                         "preferences", _("Auto-complete"),
                                          ICON_FILE);
     toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_AUTO));
     g_signal_connect (toggle, "toggled", G_CALLBACK (on_autocompletion_toggled),
@@ -280,7 +280,7 @@ ipreferences_unmerge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
                       GError** e)
 {
     ParserCxxPlugin* plugin = ANJUTA_PLUGIN_PARSER_CXX (ipref);
-    anjuta_preferences_remove_page(prefs, _("C/C++"));
+    anjuta_preferences_remove_page(prefs, _("Auto-complete"));
     g_object_unref (plugin->bxml);
 }
 

@@ -1211,27 +1211,8 @@ cpp_java_plugin_class_init (GObjectClass *klass)
     klass->dispose = cpp_java_plugin_dispose;
 }
 
-#define PREF_WIDGET_SPACE "preferences:completion-space-after-func"
-#define PREF_WIDGET_BRACE "preferences:completion-brace-after-func"
-#define PREF_WIDGET_CLOSEBRACE "preferences:completion-closebrace-after-func"
-#define PREF_WIDGET_AUTO "preferences:completion-enable"
 #define PREF_WIDGET_PACKAGES "preferences:load-project-packages"
 #define PREF_WIDGET_PKG_CONFIG "pkg_config_chooser1"
-
-static void
-on_autocompletion_toggled (GtkToggleButton* button,
-                           CppJavaPlugin* plugin)
-{
-    GtkWidget* widget;
-    gboolean sensitive = gtk_toggle_button_get_active (button);
-
-    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_SPACE));
-    gtk_widget_set_sensitive (widget, sensitive);
-    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_BRACE));
-    gtk_widget_set_sensitive (widget, sensitive);
-    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_CLOSEBRACE));
-    gtk_widget_set_sensitive (widget, sensitive);
-}
 
 static void
 cpp_java_plugin_select_user_packages (CppJavaPlugin* plugin,
@@ -1362,13 +1343,8 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
     }
     anjuta_preferences_add_from_builder (prefs,
                                          plugin->bxml, plugin->settings,
-                                         "preferences", _("C/C++/Java/Vala"),
+                                         "preferences", _("API Tags (C/C++)"),
                                          ICON_FILE);
-    toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_AUTO));
-    g_signal_connect (toggle, "toggled", G_CALLBACK (on_autocompletion_toggled),
-                      plugin);
-    on_autocompletion_toggled (GTK_TOGGLE_BUTTON (toggle), plugin);
-
     toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_PACKAGES));
     g_signal_connect (toggle, "toggled", G_CALLBACK (on_project_packages_toggled),
                       plugin);
@@ -1396,7 +1372,7 @@ ipreferences_unmerge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
                       GError** e)
 {
     CppJavaPlugin* plugin = ANJUTA_PLUGIN_CPP_JAVA (ipref);
-    anjuta_preferences_remove_page(prefs, _("C/C++/Java/Vala"));
+    anjuta_preferences_remove_page(prefs, _("API Tags (C/C++)"));
     g_object_unref (plugin->bxml);
 }
 
