@@ -7,5 +7,5 @@ Interfaces=IAnjutaLanguageSupport
 UserActivatable=no
 
 [Language Support]
-Languages=C,C++
-MimeTypes=text/x-c
+Languages=C,C++,Vala
+MimeTypes=text/x-c,text/x-vala
