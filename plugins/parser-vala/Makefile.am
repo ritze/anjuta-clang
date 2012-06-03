@@ -1,16 +1,10 @@
-# Plugin glade file
-parser_vala_gladedir = $(anjuta_glade_dir)
-parser_vala_glade_DATA = anjuta-parser-vala.ui
-
-# Plugin Icon file
-parser_vala_pixmapsdir = $(anjuta_image_dir)
-parser_vala_pixmaps_DATA = \
-  anjuta-parser-vala-plugin.png
+if ENABLE_VALA
 
 # Plugin description file
 plugin_in_files = anjuta-parser-vala.plugin.in
 %.plugin: %.plugin.in $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*po) ; $(INTLTOOL_MERGE) $(top_srcdir)/po $< $@ -d -u -c $(top_builddir)/po/.intltool-merge-cache
 
+# Where to install the plugin
 parser_vala_plugindir = $(anjuta_plugin_dir)
 parser_vala_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
@@ -24,44 +18,51 @@ parser_vala_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # Include paths
 AM_CPPFLAGS = \
+	$(WARN_CFLAGS) \
 	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
-	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
-  $(WARN_CFLAGS) \
-	$(DEPRECATED_FLAGS) \
+	-DANJUTA_DATA_DIR=\"$(anjuta_data_dir)\" \
+	-DANJUTA_PLUGIN_DIR=\"$(anjuta_plugin_dir)\" \
+	-DANJUTA_IMAGE_DIR=\"$(anjuta_image_dir)\" \
+	-DANJUTA_GLADE_DIR=\"$(anjuta_glade_dir)\" \
+	-DANJUTA_UI_DIR=\"$(anjuta_ui_dir)\" \
 	$(LIBANJUTA_CFLAGS) \
-	$(EXTRA_CFLAGS) \
-	-DG_LOG_DOMAIN=\"parser-vala\"
-
-# Where to install the plugin
-plugindir = $(anjuta_plugin_dir)
+	$(VALA_CFLAGS) \
+	-DPACKAGE_SRC_DIR=\"$(srcdir)\" \
+	-DG_LOG_DOMAIN=\"parser-vala\" \
+	--no-warn
 
 # The plugin
+plugindir = $(anjuta_plugin_dir)
 plugin_LTLIBRARIES = libanjuta-parser-vala.la
 
 # Plugin sources
-libanjuta_parser_vala_la_SOURCES = \
-	plugin.c \
-	plugin.h
+libanjuta_parser_vala_la_VALASOURCES = plugin.vala provider.vala
+nodist_parser_language_vala_la_SOURCES = $(libanjuta_parser_vala_la_VALASOURCES:.vala=.c)
+CLEANFILES = $(nodist_libanjuta_language_vala_la_SOURCES) libanjuta_parser_vala_la_vala.stamp
+
+plugin.c provider.c: libanjuta_parser_vala_la_vala.stamp
+	@true
+
+libanjuta_parser_vala_la_vala.stamp: $(libanjuta_parser_vala_la_VALASOURCES)
+	valac $(VALAFLAGS) --vapidir $(srcdir) --pkg $(LIBVALA) --pkg libanjuta-3.0 -C $^
+	touch $@
 
 libanjuta_parser_vala_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
 # Plugin dependencies
-libanjuta_parser_vala_la_LIBADD = $(LIBANJUTA_LIBS) \
-	$(GTHREAD_LIBS)
+libanjuta_parser_vala_la_LIBADD = \
+	$(LIBANJUTA_LIBS) \
+	$(VALA_LIBS)
 
-gsettings_in_file = org.gnome.anjuta.plugins.parser-vala.gschema.xml.in
-gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
-@INTLTOOL_XML_NOMERGE_RULE@
-@GSETTINGS_RULES@
+endif # ENABLE_VALA
 
 EXTRA_DIST = \
-  $(plugin_in_files) \
-  $(parser_vala_plugin_DATA) \
-  $(parser_vala_pixmaps_DATA) \
-	$(parser_vala_glade_DATA) \
-	$(gsettings_in_file)
+	$(plugin_in_files) \
+	$(parser_vala_plugin_DATA) \
+	$(libanjuta_parser_vala_la_VALASOURCES) \
+	libanjuta-3.0.deps \
+	libanjuta-3.0.vapi
 
-CLEANFILES = \
-  $(gsettings_SCHEMAS)
 
 -include $(top_srcdir)/git.mk
+
