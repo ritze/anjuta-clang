@@ -1,6 +1,5 @@
 [Anjuta Plugin]
 Location=anjuta-parser-vala:ParserValaPlugin
-Icon=anjuta-parser-vala-plugin.png
 _Name=Vala parser Plugin
 _Description=Vala parser plugin for code completion
 Interfaces=IAnjutaLanguageSupport

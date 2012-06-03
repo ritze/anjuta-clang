@@ -36,11 +36,11 @@ plugindir = $(anjuta_plugin_dir)
 plugin_LTLIBRARIES = libanjuta-parser-vala.la
 
 # Plugin sources
-libanjuta_parser_vala_la_VALASOURCES = plugin.vala provider.vala
-nodist_parser_language_vala_la_SOURCES = $(libanjuta_parser_vala_la_VALASOURCES:.vala=.c)
-CLEANFILES = $(nodist_libanjuta_language_vala_la_SOURCES) libanjuta_parser_vala_la_vala.stamp
+libanjuta_parser_vala_la_VALASOURCES = plugin.vala provider.vala report.vala
+nodist_libanjuta_parser_vala_la_SOURCES = $(libanjuta_parser_vala_la_VALASOURCES:.vala=.c)
+CLEANFILES = $(nodist_libanjuta_parser_vala_la_SOURCES) libanjuta_parser_vala_la_vala.stamp
 
-plugin.c provider.c: libanjuta_parser_vala_la_vala.stamp
+plugin.c provider.c report.c: libanjuta_parser_vala_la_vala.stamp
 	@true
 
 libanjuta_parser_vala_la_vala.stamp: $(libanjuta_parser_vala_la_VALASOURCES)

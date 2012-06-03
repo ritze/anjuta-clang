@@ -20,7 +20,6 @@ using Anjuta;
 
 public class ValaPlugin : Plugin {
 	internal weak IAnjuta.Editor current_editor;
-	internal GLib.Settings settings = new GLib.Settings ("org.gnome.anjuta.plugins.cpp");
 	uint editor_watch_id;
 	ulong project_loaded_id;
 
@@ -29,10 +28,6 @@ public class ValaPlugin : Plugin {
 	BlockLocator locator = new BlockLocator ();
 
 	AnjutaReport report;
-	ValaProvider provider;
-
-	Vala.Parser parser;
-	Vala.Genie.Parser genie_parser;
 
 	Vala.Set<string> current_sources = new Vala.HashSet<string> (str_hash, str_equal);
 	ValaPlugin () {
@@ -42,12 +37,9 @@ public class ValaPlugin : Plugin {
 		debug("Activating ValaPlugin");
 		report = new AnjutaReport();
 		report.docman = (IAnjuta.DocumentManager) shell.get_object("IAnjutaDocumentManager");
-		parser = new Vala.Parser ();
-		genie_parser = new Vala.Genie.Parser ();
 
 		init_context ();
 
-		provider = new ValaProvider(this);
 		editor_watch_id = add_watch("document_manager_current_document",
 		                            editor_value_added,
 		                            editor_value_removed);
@@ -75,47 +67,8 @@ public class ValaPlugin : Plugin {
 
 		cancel = new Cancellable ();
 
-		/* This doesn't actually parse anything as there are no files yet,
-		   it's just to set the context in the parsers */
-		parser.parse (context);
-		genie_parser.parse (context);
-
 		current_sources = new Vala.HashSet<string> (str_hash, str_equal);
 
-	}
-
-	void parse () {
-		try {
-			Thread.create<void>(() => {
-				lock (context) {
-					Vala.CodeContext.push(context);
-					var report = context.report as AnjutaReport;
-
-					foreach (var src in context.get_source_files ()) {
-						if (src.get_nodes ().size == 0) {
-							debug ("parsing file %s", src.filename);
-							genie_parser.visit_source_file (src);
-							parser.visit_source_file (src);
-						}
-
-						if (cancel.is_cancelled ()) {
-							Vala.CodeContext.pop();
-							return;
-						}
-					}
-
-					if (report.get_errors () > 0 || cancel.is_cancelled ()) {
-						Vala.CodeContext.pop();
-						return;
-					}
-
-					context.check ();
-					Vala.CodeContext.pop();
-				}
-			}, false);
-		} catch (ThreadError err) {
-			warning ("cannot create thread : %s", err.message);
-		}
 	}
 
 	void add_project_files () {
@@ -219,7 +172,6 @@ public class ValaPlugin : Plugin {
 		if (context == null)
 			return;
 		add_project_files ();
-		parse ();
 		pm.disconnect (project_loaded_id);
 		project_loaded_id = 0;
 	}
@@ -255,15 +207,9 @@ public class ValaPlugin : Plugin {
 					init_context ();
 					add_project_files ();
 				}
-
-				parse ();
 			}
 		}
 		if (current_editor != null) {
-			if (current_editor is IAnjuta.EditorAssist)
-				(current_editor as IAnjuta.EditorAssist).add(provider);
-			if (current_editor is IAnjuta.EditorTip)
-				current_editor.char_added.connect (on_char_added);
 			if (current_editor is IAnjuta.FileSavable) {
 				var file_savable = (IAnjuta.FileSavable) current_editor;
 				file_savable.saved.connect (on_file_saved);
@@ -279,10 +225,6 @@ public class ValaPlugin : Plugin {
 	}
 	public void editor_value_removed (Anjuta.Plugin plugin, string name) {
 		debug("editor value removed");
-		if (current_editor is IAnjuta.EditorAssist)
-			(current_editor as IAnjuta.EditorAssist).remove(provider);
-		if (current_editor is IAnjuta.EditorTip)
-			current_editor.char_added.disconnect (on_char_added);
 		if (current_editor is IAnjuta.FileSavable) {
 			var file_savable = (IAnjuta.FileSavable) current_editor;
 			file_savable.saved.disconnect (on_file_saved);
@@ -310,18 +252,6 @@ public class ValaPlugin : Plugin {
 				// ignore
 			}
 			return;
-		}
-	}
-
-	public void on_char_added (IAnjuta.Editor editor, IAnjuta.Iterable position, char ch) {
-		if (!settings.get_boolean (ValaProvider.PREF_CALLTIP_ENABLE))
-			return;
-
-		var editortip = editor as IAnjuta.EditorTip;
-		if (ch == '(') {
-			provider.show_call_tip (editortip);
-		} else if (ch == ')') {
-			editortip.cancel ();
 		}
 	}
 
@@ -619,8 +549,6 @@ public class ValaPlugin : Plugin {
 			context.root.add_using_directive (ns_ref);
 
 			report.clear_error_indicators (file);
-
-			parse ();
 
 			report.update_errors(current_editor);
 		}
