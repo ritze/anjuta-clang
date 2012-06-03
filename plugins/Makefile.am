@@ -29,6 +29,7 @@ SUBDIRS = . \
 	mk-project \
 	patch \
 	parser-cxx \
+	parser-vala \
 	project-import \
 	project-manager \
 	project-wizard \
