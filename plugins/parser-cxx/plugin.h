@@ -22,7 +22,7 @@
 #define _PLUGIN_H_
 
 #include <libanjuta/anjuta-plugin.h>
-#include "cpp-java-assist.h"
+#include "assist.h"
 
 extern GType parser_cxx_plugin_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_PARSER_CXX         (parser_cxx_plugin_get_type (NULL))
@@ -46,7 +46,7 @@ struct _ParserCxxPlugin {
 	const gchar *current_language;
 
 	/* Assist */
-	CppJavaAssist *assist;
+	ParserCxxAssist *assist;
 	
 	/* Preferences */
 	GtkBuilder* bxml;

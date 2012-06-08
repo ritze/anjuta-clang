@@ -35,7 +35,7 @@
 #include <libanjuta/interfaces/ianjuta-provider.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
-#include "cpp-java-assist.h"
+#include "assist.h"
 #include "engine-parser.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
@@ -45,13 +45,13 @@
 #define PREF_CALLTIP_ENABLE "calltip-enable"
 #define BRACE_SEARCH_LIMIT 500
 
-static void cpp_java_assist_iface_init(IAnjutaProviderIface* iface);
+static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface);
 
-G_DEFINE_TYPE_WITH_CODE (CppJavaAssist,
-			 cpp_java_assist,
+G_DEFINE_TYPE_WITH_CODE (ParserCxxAssist,
+			 parser_cxx_assist,
 			 G_TYPE_OBJECT,
 			 G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
-			                        cpp_java_assist_iface_init))
+			                        parser_cxx_assist_iface_init))
 
 typedef struct
 {
@@ -59,9 +59,9 @@ typedef struct
 	gboolean is_func;
 	GdkPixbuf* icon;
 	IAnjutaSymbolType type;
-} CppJavaAssistTag;
+} ParserCxxAssistTag;
 
-struct _CppJavaAssistPriv {
+struct _ParserCxxAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
@@ -112,7 +112,7 @@ typedef struct
 } ProposalData;
 
 /**
- * cpp_java_assist_proposal_new:
+ * parser_cxx_assist_proposal_new:
  * @symbol: IAnjutaSymbol to create the proposal for
  *
  * Creates a new IAnjutaEditorAssistProposal for symbol
@@ -120,7 +120,7 @@ typedef struct
  * Returns: a newly allocated IAnjutaEditorAssistProposal
  */
 static IAnjutaEditorAssistProposal*
-cpp_java_assist_proposal_new (IAnjutaSymbol* symbol)
+parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 {
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
 	IAnjutaSymbolType type = ianjuta_symbol_get_sym_type (symbol, NULL);
@@ -147,13 +147,13 @@ cpp_java_assist_proposal_new (IAnjutaSymbol* symbol)
 }
 
 /**
- * cpp_java_assist_proposal_free:
+ * parser_cxx_assist_proposal_free:
  * @proposal: the proposal to free
  * 
  * Frees the proposal
  */
 static void
-cpp_java_assist_proposal_free (IAnjutaEditorAssistProposal* proposal)
+parser_cxx_assist_proposal_free (IAnjutaEditorAssistProposal* proposal)
 {
 	ProposalData* data = proposal->data;
 	g_free (data->name);
@@ -178,16 +178,16 @@ anjuta_proposal_completion_func (gpointer data)
 }
 
 /**
- * cpp_java_assist_create_completion_from_symbols:
+ * parser_cxx_assist_create_completion_from_symbols:
  * @symbols: Symbol iteration
  * 
  * Create a list of IAnjutaEditorAssistProposals from a list of symbols
  *
  * Returns: a newly allocated GList of newly allocated proposals. Free 
- * with cpp_java_assist_proposal_free()
+ * with parser_cxx_assist_proposal_free()
  */
 static GList*
-cpp_java_assist_create_completion_from_symbols (IAnjutaIterable* symbols)
+parser_cxx_assist_create_completion_from_symbols (IAnjutaIterable* symbols)
 {
 	GList* list = NULL;
 
@@ -196,7 +196,7 @@ cpp_java_assist_create_completion_from_symbols (IAnjutaIterable* symbols)
 	do
 	{
 		IAnjutaSymbol* symbol = IANJUTA_SYMBOL (symbols);
-		IAnjutaEditorAssistProposal* proposal = cpp_java_assist_proposal_new (symbol);	
+		IAnjutaEditorAssistProposal* proposal = parser_cxx_assist_proposal_new (symbol);	
 
 		list = g_list_append (list, proposal);
 	}
@@ -206,14 +206,14 @@ cpp_java_assist_create_completion_from_symbols (IAnjutaIterable* symbols)
 }
 
 /**
- * cpp_java_assist_is_word_character:
+ * parser_cxx_assist_is_word_character:
  * @ch: character to check
  *
  * Returns: TRUE if ch is a valid word character, FALSE otherwise
  */
  
 static gboolean
-cpp_java_assist_is_word_character (gchar ch)
+parser_cxx_assist_is_word_character (gchar ch)
 {
 	if (g_ascii_isspace (ch))
 		return FALSE;
@@ -226,7 +226,7 @@ cpp_java_assist_is_word_character (gchar ch)
 }	
 
 /**
- * cpp_java_assist_get_pre_word:
+ * parser_cxx_assist_get_pre_word:
  * @editor: Editor object
  * @iter: current cursor position
  * @start_iter: return location for the start_iter (if a preword was found)
@@ -236,7 +236,7 @@ cpp_java_assist_is_word_character (gchar ch)
  * Returns: The current word (needs to be freed) or NULL if no word was found
  */
 static gchar*
-cpp_java_assist_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter)
+parser_cxx_assist_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter)
 {
 	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
 	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
@@ -249,7 +249,7 @@ cpp_java_assist_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnj
 	
 	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
 	
-	while (ch && cpp_java_assist_is_word_character (ch))
+	while (ch && parser_cxx_assist_is_word_character (ch))
 	{
 		preword_found = TRUE;
 		if (!ianjuta_iterable_previous (begin, NULL))
@@ -278,14 +278,14 @@ cpp_java_assist_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnj
 }
 
 /**
- * cpp_java_assist_update_pre_word:
+ * parser_cxx_assist_update_pre_word:
  * @assist: self
  * @pre_word: new pre_word
  *
  * Updates the current pre_word
  */
 static void
-cpp_java_assist_update_pre_word (CppJavaAssist* assist, const gchar* pre_word)
+parser_cxx_assist_update_pre_word (ParserCxxAssist* assist, const gchar* pre_word)
 {
 	g_free (assist->priv->pre_word);
 	if (pre_word == NULL) pre_word = "";
@@ -293,7 +293,7 @@ cpp_java_assist_update_pre_word (CppJavaAssist* assist, const gchar* pre_word)
 }
 
 /**
- * cpp_java_assist_is_expression_separator:
+ * parser_cxx_assist_is_expression_separator:
  * @c: character to check
  * @skip_braces: whether to skip closing braces
  * @iter: current cursor position
@@ -304,7 +304,7 @@ cpp_java_assist_update_pre_word (CppJavaAssist* assist, const gchar* pre_word)
  * Returns: TRUE if the characters seperates an expression, FALSE otherwise
  */
 static gboolean
-cpp_java_assist_is_expression_separator (gchar c, gboolean skip_braces, IAnjutaIterable* iter)
+parser_cxx_assist_is_expression_separator (gchar c, gboolean skip_braces, IAnjutaIterable* iter)
 {
 	IAnjutaEditorAttribute attrib = ianjuta_editor_cell_get_attribute (IANJUTA_EDITOR_CELL(iter),
 	                                                                   NULL);
@@ -338,7 +338,7 @@ cpp_java_assist_is_expression_separator (gchar c, gboolean skip_braces, IAnjutaI
 }
 
 /**
- * cpp_java_assist_parse_expression:
+ * parser_cxx_assist_parse_expression:
  * @assist: self,
  * @iter: current cursor position
  * @start_iter: return location for the start of the completion
@@ -346,7 +346,7 @@ cpp_java_assist_is_expression_separator (gchar c, gboolean skip_braces, IAnjutaI
  * Returns: An iter of a list of IAnjutaSymbols or NULL
  */
 static IAnjutaIterable*
-cpp_java_assist_parse_expression (CppJavaAssist* assist, IAnjutaIterable* iter, IAnjutaIterable** start_iter)
+parser_cxx_assist_parse_expression (ParserCxxAssist* assist, IAnjutaIterable* iter, IAnjutaIterable** start_iter)
 {
 	IAnjutaEditor* editor = IANJUTA_EDITOR (assist->priv->iassist);
 	IAnjutaIterable* res = NULL;
@@ -363,7 +363,7 @@ cpp_java_assist_parse_expression (CppJavaAssist* assist, IAnjutaIterable* iter, 
 	{
 		gchar ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL(cur_pos), 0, NULL);
 		
-		if (cpp_java_assist_is_expression_separator(ch, FALSE, iter)) {
+		if (parser_cxx_assist_is_expression_separator(ch, FALSE, iter)) {
 			break;
 		}
 
@@ -393,7 +393,7 @@ cpp_java_assist_parse_expression (CppJavaAssist* assist, IAnjutaIterable* iter, 
 				ianjuta_iterable_next (pre_word_start, NULL);
 			}
 			
-			cpp_java_assist_update_pre_word (assist, 
+			parser_cxx_assist_update_pre_word (assist, 
 			                                 ianjuta_editor_get_text (editor,
 			                                                          pre_word_start, pre_word_end, NULL));
 
@@ -402,7 +402,7 @@ cpp_java_assist_parse_expression (CppJavaAssist* assist, IAnjutaIterable* iter, 
 			{
 				gchar word_ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL(cur_pos), 0, NULL);
 				
-				if (cpp_java_assist_is_expression_separator(word_ch, FALSE, cur_pos)) 
+				if (parser_cxx_assist_is_expression_separator(word_ch, FALSE, cur_pos)) 
 					break;				
 			}
 			ianjuta_iterable_next (cur_pos, NULL);
@@ -467,13 +467,13 @@ cpp_java_assist_parse_expression (CppJavaAssist* assist, IAnjutaIterable* iter, 
 }
 
 /** 
- * cpp_java_assist_create_completion_cache:
+ * parser_cxx_assist_create_completion_cache:
  * @assist: self
  *
  * Create a new completion_cache object
  */
 static void
-cpp_java_assist_create_completion_cache (CppJavaAssist* assist)
+parser_cxx_assist_create_completion_cache (ParserCxxAssist* assist)
 {
 	g_assert (assist->priv->completion_cache == NULL);
 	assist->priv->completion_cache = 
@@ -481,13 +481,13 @@ cpp_java_assist_create_completion_cache (CppJavaAssist* assist)
 }
 
 /**
- * cpp_java_assist_cancel_queries:
+ * parser_cxx_assist_cancel_queries:
  * @assist: self
  *
  * Abort all async operations
  */
 static void
-cpp_java_assist_cancel_queries (CppJavaAssist* assist)
+parser_cxx_assist_cancel_queries (ParserCxxAssist* assist)
 {
 	ianjuta_symbol_query_cancel (assist->priv->ac_query_file, NULL);
 	ianjuta_symbol_query_cancel (assist->priv->ac_query_project, NULL);
@@ -498,18 +498,18 @@ cpp_java_assist_cancel_queries (CppJavaAssist* assist)
 }
 
 /**
- * cpp_java_assist_clear_completion_cache:
+ * parser_cxx_assist_clear_completion_cache:
  * @assist: self
  *
  * Clear the completion cache, aborting all async operations
  */
 static void
-cpp_java_assist_clear_completion_cache (CppJavaAssist* assist)
+parser_cxx_assist_clear_completion_cache (ParserCxxAssist* assist)
 {
-	cpp_java_assist_cancel_queries (assist);
+	parser_cxx_assist_cancel_queries (assist);
 	if (assist->priv->completion_cache)
 	{	
-		g_list_foreach (assist->priv->completion_cache->items, (GFunc) cpp_java_assist_proposal_free, NULL);
+		g_list_foreach (assist->priv->completion_cache->items, (GFunc) parser_cxx_assist_proposal_free, NULL);
 		g_completion_free (assist->priv->completion_cache);
 	}
 	assist->priv->completion_cache = NULL;
@@ -518,7 +518,7 @@ cpp_java_assist_clear_completion_cache (CppJavaAssist* assist)
 }
 
 /**
- * cpp_java_assist_populate_real:
+ * parser_cxx_assist_populate_real:
  * @assist: self
  * @finished: TRUE if no more proposals are expected, FALSE otherwise
  *
@@ -526,7 +526,7 @@ cpp_java_assist_clear_completion_cache (CppJavaAssist* assist)
  * from an async context
  */
 static void
-cpp_java_assist_populate_real (CppJavaAssist* assist, gboolean finished)
+parser_cxx_assist_populate_real (ParserCxxAssist* assist, gboolean finished)
 {
 	g_assert (assist->priv->pre_word != NULL);
 	gchar* prefix;
@@ -552,7 +552,7 @@ cpp_java_assist_populate_real (CppJavaAssist* assist, gboolean finished)
 }
 
 /**
- * cpp_java_assist_create_member_completion_cache
+ * parser_cxx_assist_create_member_completion_cache
  * @assist: self
  * @cursor: Current cursor position
  * 
@@ -561,11 +561,11 @@ cpp_java_assist_populate_real (CppJavaAssist* assist, gboolean finished)
  * Returns: TRUE if a completion cache was build, FALSE otherwise
  */
 static gboolean
-cpp_java_assist_create_member_completion_cache (CppJavaAssist* assist, IAnjutaIterable* cursor)
+parser_cxx_assist_create_member_completion_cache (ParserCxxAssist* assist, IAnjutaIterable* cursor)
 {
 	IAnjutaIterable* symbol = NULL;
 	IAnjutaIterable* start_iter = NULL;
-	symbol = cpp_java_assist_parse_expression (assist, cursor, &start_iter);
+	symbol = parser_cxx_assist_parse_expression (assist, cursor, &start_iter);
 
 	if (symbol)
 	{
@@ -578,13 +578,13 @@ cpp_java_assist_create_member_completion_cache (CppJavaAssist* assist, IAnjutaIt
 		if (children)
 		{
 			GList* proposals = 
-				cpp_java_assist_create_completion_from_symbols (children);
-			cpp_java_assist_create_completion_cache (assist);
+				parser_cxx_assist_create_completion_from_symbols (children);
+			parser_cxx_assist_create_completion_cache (assist);
 			g_completion_add_items (assist->priv->completion_cache, proposals);
 
 			assist->priv->start_iter = start_iter;
 
-			cpp_java_assist_populate_real (assist, TRUE);
+			parser_cxx_assist_populate_real (assist, TRUE);
 			g_list_free (proposals);
 			g_object_unref (children);
 			retval = TRUE;
@@ -607,10 +607,10 @@ cpp_java_assist_create_member_completion_cache (CppJavaAssist* assist, IAnjutaIt
  */
 static void
 on_symbol_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
-						   CppJavaAssist* assist)
+						   ParserCxxAssist* assist)
 {
 	GList* proposals;
-	proposals = cpp_java_assist_create_completion_from_symbols (symbols);
+	proposals = parser_cxx_assist_create_completion_from_symbols (symbols);
 
 	if (query == assist->priv->ac_query_file)
 		assist->priv->async_file_id = 0;
@@ -625,12 +625,12 @@ on_symbol_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 	gboolean running = assist->priv->async_system_id || assist->priv->async_file_id ||
 		assist->priv->async_project_id;
 	if (!running)
-		cpp_java_assist_populate_real (assist, TRUE);
+		parser_cxx_assist_populate_real (assist, TRUE);
 	g_list_free (proposals);
 }
 
 /**
- * cpp_java_assist_create_autocompletion_cache:
+ * parser_cxx_assist_create_autocompletion_cache:
  * @assist: self
  * @cursor: Current cursor position
  * 
@@ -639,11 +639,11 @@ on_symbol_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
  * Returns: TRUE if a preword was detected, FALSE otherwise
  */ 
 static gboolean
-cpp_java_assist_create_autocompletion_cache (CppJavaAssist* assist, IAnjutaIterable* cursor)
+parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaIterable* cursor)
 {
 	IAnjutaIterable* start_iter;
 	gchar* pre_word = 
-		cpp_java_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
+		parser_cxx_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
 	if (!pre_word || strlen (pre_word) <= 3)
 	{
 		if (start_iter)
@@ -654,8 +654,8 @@ cpp_java_assist_create_autocompletion_cache (CppJavaAssist* assist, IAnjutaItera
 	{
 		gchar *pattern = g_strconcat (pre_word, "%", NULL);
 		
-		cpp_java_assist_create_completion_cache (assist);
-		cpp_java_assist_update_pre_word (assist, pre_word);
+		parser_cxx_assist_create_completion_cache (assist);
+		parser_cxx_assist_update_pre_word (assist, pre_word);
 
 		if (IANJUTA_IS_FILE (assist->priv->iassist))
 		{
@@ -684,7 +684,7 @@ cpp_java_assist_create_autocompletion_cache (CppJavaAssist* assist, IAnjutaItera
 
 
 /**
- * cpp_java_assist_create_calltips:
+ * parser_cxx_assist_create_calltips:
  * @iter: List of symbols
  * @merge: list of calltips to merge or NULL
  *
@@ -693,7 +693,7 @@ cpp_java_assist_create_autocompletion_cache (CppJavaAssist* assist, IAnjutaItera
  * A newly allocated GList* with newly allocated strings
  */
 static GList*
-cpp_java_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
+parser_cxx_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
 {
 	GList* tips = merge;
 	if (iter)
@@ -756,9 +756,9 @@ cpp_java_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
  */
 static void
 on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
-							CppJavaAssist* assist)
+							ParserCxxAssist* assist)
 {
-	assist->priv->tips = cpp_java_assist_create_calltips (symbols, assist->priv->tips);
+	assist->priv->tips = parser_cxx_assist_create_calltips (symbols, assist->priv->tips);
 	if (query == assist->priv->calltip_query_file)
 		assist->priv->async_calltip_file = 0;
 	else if (query == assist->priv->calltip_query_project)
@@ -781,16 +781,16 @@ on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 }
 
 /**
- * cpp_java_assist_query_calltip:
+ * parser_cxx_assist_query_calltip:
  * @assist: self
  * @call_context: name of method/function
  *
  * Starts an async query for the calltip
  */
 static void
-cpp_java_assist_query_calltip (CppJavaAssist *assist, const gchar *call_context)
+parser_cxx_assist_query_calltip (ParserCxxAssist *assist, const gchar *call_context)
 {	
-	CppJavaAssistPriv* priv = assist->priv;
+	ParserCxxAssistPriv* priv = assist->priv;
 	
 	/* Search file */
 	if (IANJUTA_IS_FILE (assist->priv->itip))
@@ -819,13 +819,13 @@ cpp_java_assist_query_calltip (CppJavaAssist *assist, const gchar *call_context)
 }
 
 /**
- * cpp_java_assist_is_scope_context_character:
+ * parser_cxx_assist_is_scope_context_character:
  * @ch: character to check
  *
  * Returns: if the current character seperates a scope
  */
 static gboolean
-cpp_java_assist_is_scope_context_character (gchar ch)
+parser_cxx_assist_is_scope_context_character (gchar ch)
 {
 	if (g_ascii_isspace (ch))
 		return FALSE;
@@ -840,7 +840,7 @@ cpp_java_assist_is_scope_context_character (gchar ch)
 #define SCOPE_BRACE_JUMP_LIMIT 50
 
 /**
- * cpp_java_assist_get_scope_context
+ * parser_cxx_assist_get_scope_context
  * @editor: current editor
  * @scope_operator: The scope operator to check for
  * @iter: Current cursor position
@@ -848,7 +848,7 @@ cpp_java_assist_is_scope_context_character (gchar ch)
  * Find the scope context for calltips
  */
 static gchar*
-cpp_java_assist_get_scope_context (IAnjutaEditor* editor,
+parser_cxx_assist_get_scope_context (IAnjutaEditor* editor,
 								   const gchar *scope_operator,
 								   IAnjutaIterable *iter)
 {
@@ -864,7 +864,7 @@ cpp_java_assist_get_scope_context (IAnjutaEditor* editor,
 	
 	while (ch)
 	{
-		if (cpp_java_assist_is_scope_context_character (ch))
+		if (parser_cxx_assist_is_scope_context_character (ch))
 		{
 			scope_chars_found = TRUE;
 		}
@@ -899,7 +899,7 @@ cpp_java_assist_get_scope_context (IAnjutaEditor* editor,
 }
 
 /**
- * cpp_java_assist_create_calltip_context:
+ * parser_cxx_assist_create_calltip_context:
  * @assist: self
  * @iter: current cursor position
  *
@@ -908,7 +908,7 @@ cpp_java_assist_get_scope_context (IAnjutaEditor* editor,
  * Returns: name of the method to show a calltip for or NULL
  */
 static gchar*
-cpp_java_assist_get_calltip_context (CppJavaAssist *assist,
+parser_cxx_assist_get_calltip_context (ParserCxxAssist *assist,
                                      IAnjutaIterable *iter)
 {
 	gchar ch;
@@ -934,7 +934,7 @@ cpp_java_assist_get_calltip_context (CppJavaAssist *assist,
 		&& g_ascii_isspace (ianjuta_editor_cell_get_char
 								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
 
-	context = cpp_java_assist_get_scope_context
+	context = parser_cxx_assist_get_scope_context
 		(IANJUTA_EDITOR (assist->priv->itip), "(", iter);
 
 	/* Point iter to the first character of the scope to align calltip correctly */
@@ -944,7 +944,7 @@ cpp_java_assist_get_calltip_context (CppJavaAssist *assist,
 }
 
 /**
- * cpp_java_assist_create_calltip_context:
+ * parser_cxx_assist_create_calltip_context:
  * @assist: self
  * @call_context: The context (method/function name)
  * @position: iter where to show calltips
@@ -952,7 +952,7 @@ cpp_java_assist_get_calltip_context (CppJavaAssist *assist,
  * Create the calltip context
  */
 static void
-cpp_java_assist_create_calltip_context (CppJavaAssist* assist,
+parser_cxx_assist_create_calltip_context (ParserCxxAssist* assist,
                                         const gchar* call_context,
                                         IAnjutaIterable* position)
 {
@@ -961,13 +961,13 @@ cpp_java_assist_create_calltip_context (CppJavaAssist* assist,
 }
 
 /**
- * cpp_java_assist_clear_calltip_context:
+ * parser_cxx_assist_clear_calltip_context:
  * @assist: self
  *
  * Clears the calltip context and brings it back into a save state
  */
 static void
-cpp_java_assist_clear_calltip_context (CppJavaAssist* assist)
+parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 {
 	ianjuta_symbol_query_cancel (assist->priv->calltip_query_file, NULL);
 	ianjuta_symbol_query_cancel (assist->priv->calltip_query_project, NULL);
@@ -990,7 +990,7 @@ cpp_java_assist_clear_calltip_context (CppJavaAssist* assist)
 }
 
 /**
- * cpp_java_assist_calltip:
+ * parser_cxx_assist_calltip:
  * @assist: self
  * 
  * Creates a calltip if there is something to show a tip for
@@ -1000,7 +1000,7 @@ cpp_java_assist_clear_calltip_context (CppJavaAssist* assist)
  */
 
 static gboolean
-cpp_java_assist_calltip (CppJavaAssist *assist)
+parser_cxx_assist_calltip (ParserCxxAssist *assist)
 {
 	IAnjutaEditor *editor;
 	IAnjutaIterable *iter;
@@ -1010,7 +1010,7 @@ cpp_java_assist_calltip (CppJavaAssist *assist)
 	iter = ianjuta_editor_get_position (editor, NULL);
 	ianjuta_iterable_previous (iter, NULL);
 	gchar *call_context =
-		cpp_java_assist_get_calltip_context (assist, iter);
+		parser_cxx_assist_get_calltip_context (assist, iter);
 	if (call_context)
 	{
 		DEBUG_PRINT ("Searching calltip for: %s", call_context);
@@ -1035,9 +1035,9 @@ cpp_java_assist_calltip (CppJavaAssist *assist)
 			if (ianjuta_editor_tip_visible (IANJUTA_EDITOR_TIP (editor), NULL))
 				ianjuta_editor_tip_cancel (IANJUTA_EDITOR_TIP (editor), NULL);
 			
-			cpp_java_assist_clear_calltip_context (assist);
-			cpp_java_assist_create_calltip_context (assist, call_context, iter);
-			cpp_java_assist_query_calltip (assist, call_context);
+			parser_cxx_assist_clear_calltip_context (assist);
+			parser_cxx_assist_create_calltip_context (assist, call_context, iter);
+			parser_cxx_assist_query_calltip (assist, call_context);
 			g_free (call_context);
 			return TRUE;
 		}
@@ -1046,7 +1046,7 @@ cpp_java_assist_calltip (CppJavaAssist *assist)
 	{
 		if (ianjuta_editor_tip_visible (IANJUTA_EDITOR_TIP (editor), NULL))
 			ianjuta_editor_tip_cancel (IANJUTA_EDITOR_TIP (editor), NULL);
-		cpp_java_assist_clear_calltip_context (assist);
+		parser_cxx_assist_clear_calltip_context (assist);
 	}
 
 	g_object_unref (iter);
@@ -1054,28 +1054,28 @@ cpp_java_assist_calltip (CppJavaAssist *assist)
 }
 
 /**
- * cpp_java_assist_cancelled:
+ * parser_cxx_assist_cancelled:
  * @iassist: IAnjutaEditorAssist that emitted the signal
- * @assist: CppJavaAssist object
+ * @assist: ParserCxxAssist object
  *
  * Stop any autocompletion queries when the cancelled signal was received
  */
 static void
-cpp_java_assist_cancelled (IAnjutaEditorAssist* iassist, CppJavaAssist* assist)
+parser_cxx_assist_cancelled (IAnjutaEditorAssist* iassist, ParserCxxAssist* assist)
 {
-	cpp_java_assist_cancel_queries (assist);
+	parser_cxx_assist_cancel_queries (assist);
 }
 
 /**
- * cpp_java_assist_none:
+ * parser_cxx_assist_none:
  * @self: IAnjutaProvider object
- * @assist: CppJavaAssist object
+ * @assist: ParserCxxAssist object
  *
  * Indicate that there is nothing to autocomplete
  */
 static void
-cpp_java_assist_none (IAnjutaProvider* self,
-                      CppJavaAssist* assist)
+parser_cxx_assist_none (IAnjutaProvider* self,
+                      ParserCxxAssist* assist)
 {
 	ianjuta_editor_assist_proposals (assist->priv->iassist,
 	                                 self,
@@ -1084,21 +1084,21 @@ cpp_java_assist_none (IAnjutaProvider* self,
 
 
 /**
- * cpp_java_assist_populate:
+ * parser_cxx_assist_populate:
  * @self: IAnjutaProvider object
  * @cursor: Iter at current cursor position (after current character)
  * @e: Error population
  */
 static void
-cpp_java_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
+parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 {
-	CppJavaAssist* assist = CPP_JAVA_ASSIST (self);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	
 	/* Check if we actually want autocompletion at all */
 	if (!g_settings_get_boolean (assist->priv->settings,
 	                             PREF_AUTOCOMPLETE_ENABLE))
 	{
-		cpp_java_assist_none (self, assist);
+		parser_cxx_assist_none (self, assist);
 		return;
 	}
 	
@@ -1108,7 +1108,7 @@ cpp_java_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError
 	if (attrib == IANJUTA_EDITOR_STRING ||
 	    attrib == IANJUTA_EDITOR_COMMENT)
 	{
-		cpp_java_assist_none (self, assist);
+		parser_cxx_assist_none (self, assist);
 		return;
 	}
 
@@ -1117,7 +1117,7 @@ cpp_java_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError
 	    g_settings_get_boolean (assist->priv->settings,
 	                            PREF_CALLTIP_ENABLE))
 	{	
-		assist->priv->calltip_active = cpp_java_assist_calltip (assist);
+		assist->priv->calltip_active = parser_cxx_assist_calltip (assist);
 			
 	}
 	
@@ -1126,30 +1126,30 @@ cpp_java_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError
 	{
 		IAnjutaIterable* start_iter = NULL;
 		g_assert (assist->priv->completion_cache != NULL);
-		gchar* pre_word = cpp_java_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
+		gchar* pre_word = parser_cxx_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
 		if (pre_word && g_str_has_prefix (pre_word, assist->priv->pre_word))
 		{
 			/* Great, we just continue the current completion */
 			g_object_unref (assist->priv->start_iter);
 			assist->priv->start_iter = start_iter;
 
-			cpp_java_assist_update_pre_word (assist, pre_word);
-			cpp_java_assist_populate_real (assist, TRUE);
+			parser_cxx_assist_update_pre_word (assist, pre_word);
+			parser_cxx_assist_populate_real (assist, TRUE);
 			g_free (pre_word);
 			return;
 		}			
 		g_free (pre_word);
 	}
 
-	cpp_java_assist_clear_completion_cache (assist);
+	parser_cxx_assist_clear_completion_cache (assist);
 	
 	/* Check for member completion */
-	if (cpp_java_assist_create_member_completion_cache (assist, cursor))
+	if (parser_cxx_assist_create_member_completion_cache (assist, cursor))
 	{
 		assist->priv->member_completion = TRUE;
 		return;
 	}
-	else if (cpp_java_assist_create_autocompletion_cache (assist, cursor))
+	else if (parser_cxx_assist_create_autocompletion_cache (assist, cursor))
 	{
 		assist->priv->autocompletion = TRUE;
 		return;
@@ -1160,19 +1160,19 @@ cpp_java_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError
 		g_object_unref (assist->priv->start_iter);
 		assist->priv->start_iter = NULL;
 	}
-	cpp_java_assist_none (self, assist);
+	parser_cxx_assist_none (self, assist);
 } 
 
 /**
- * cpp_java_assist_find_next_brace:
- * @self: CppJavaAssist object
+ * parser_cxx_assist_find_next_brace:
+ * @self: ParserCxxAssist object
  * @iter: Iter to start searching at
  *
  * Returns: TRUE if the next non-whitespace character is a opening brace,
  * FALSE otherwise
  */
 static gboolean
-cpp_java_assist_find_next_brace (CppJavaAssist* assist,
+parser_cxx_assist_find_next_brace (ParserCxxAssist* assist,
                                  IAnjutaIterable* iter)
 {
 	IAnjutaIterable* my_iter = ianjuta_iterable_clone (iter, NULL);
@@ -1192,7 +1192,7 @@ cpp_java_assist_find_next_brace (CppJavaAssist* assist,
 }
 
 /**
- * cpp_java_assist_activate:
+ * parser_cxx_assist_activate:
  * @self: IAnjutaProvider object
  * @iter: cursor position when proposal was activated
  * @data: Data assigned to the completion object
@@ -1201,9 +1201,9 @@ cpp_java_assist_find_next_brace (CppJavaAssist* assist,
  * Called from the provider when the user activated a proposal
  */
 static void
-cpp_java_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer data, GError** e)
+parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer data, GError** e)
 {
-	CppJavaAssist* assist = CPP_JAVA_ASSIST(self);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST(self);
 	ProposalData *prop_data = data;
 	GString *assistance;
 	IAnjutaEditor *te;
@@ -1227,7 +1227,7 @@ cpp_java_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer
 			g_settings_get_boolean (assist->priv->settings,
 			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
 
-		if (!cpp_java_assist_find_next_brace (assist, iter))
+		if (!parser_cxx_assist_find_next_brace (assist, iter))
 		{
 			if (add_space_after_func)
 				g_string_append (assistance, " ");
@@ -1264,7 +1264,7 @@ cpp_java_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer
 		ianjuta_editor_goto_position (te, pos, NULL);
 
 		ianjuta_iterable_previous (pos, NULL);
-		gchar *context = cpp_java_assist_get_calltip_context (assist, pos);
+		gchar *context = parser_cxx_assist_get_calltip_context (assist, pos);
 		g_object_unref (pos);
 		IAnjutaIterable *symbol = NULL;
 		if (IANJUTA_IS_FILE (assist->priv->iassist))
@@ -1311,48 +1311,48 @@ cpp_java_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer
 		if (assist->priv->itip && 
 		    g_settings_get_boolean (assist->priv->settings,
 		                            PREF_CALLTIP_ENABLE))	
-			assist->priv->calltip_active = cpp_java_assist_calltip (assist);
+			assist->priv->calltip_active = parser_cxx_assist_calltip (assist);
 
 	}
 	g_string_free (assistance, TRUE);
 }
 
 /**
- * cpp_java_assist_get_start_iter:
+ * parser_cxx_assist_get_start_iter:
  * @self: IAnjutaProvider object
  * @e: Error population
  *
  * Returns: the iter where the autocompletion starts
  */
 static IAnjutaIterable*
-cpp_java_assist_get_start_iter (IAnjutaProvider* provider, GError** e)
+parser_cxx_assist_get_start_iter (IAnjutaProvider* provider, GError** e)
 {
-	CppJavaAssist* assist = CPP_JAVA_ASSIST (provider);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (provider);
 	return assist->priv->start_iter;
 }
 
 /**
- * cpp_java_assist_get_name:
+ * parser_cxx_assist_get_name:
  * @self: IAnjutaProvider object
  * @e: Error population
  *
  * Returns: the provider name
  */
 static const gchar*
-cpp_java_assist_get_name (IAnjutaProvider* provider, GError** e)
+parser_cxx_assist_get_name (IAnjutaProvider* provider, GError** e)
 {
 	return _("C/C++");
 }
 
 /**
- * cpp_java_assist_install:
+ * parser_cxx_assist_install:
  * @self: IAnjutaProvider object
  * @ieditor: Editor to install support for
  *
  * Returns: Registers provider for editor
  */
 static void
-cpp_java_assist_install (CppJavaAssist *assist, IAnjutaEditor *ieditor)
+parser_cxx_assist_install (ParserCxxAssist *assist, IAnjutaEditor *ieditor)
 {
 	g_return_if_fail (assist->priv->iassist == NULL);
 
@@ -1360,7 +1360,7 @@ cpp_java_assist_install (CppJavaAssist *assist, IAnjutaEditor *ieditor)
 	{
 		assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
 		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor), IANJUTA_PROVIDER(assist), NULL);
-		g_signal_connect (ieditor, "cancelled", G_CALLBACK (cpp_java_assist_cancelled), assist);
+		g_signal_connect (ieditor, "cancelled", G_CALLBACK (parser_cxx_assist_cancelled), assist);
 	}
 	else
 	{
@@ -1378,37 +1378,37 @@ cpp_java_assist_install (CppJavaAssist *assist, IAnjutaEditor *ieditor)
 }
 
 /**
- * cpp_java_assist_uninstall:
+ * parser_cxx_assist_uninstall:
  * @self: IAnjutaProvider object
  *
  * Returns: Unregisters provider
  */
 static void
-cpp_java_assist_uninstall (CppJavaAssist *assist)
+parser_cxx_assist_uninstall (ParserCxxAssist *assist)
 {
 	g_return_if_fail (assist->priv->iassist != NULL);
 	
 	g_signal_handlers_disconnect_by_func (assist->priv->iassist,
-	                                      cpp_java_assist_cancelled, assist);
+	                                      parser_cxx_assist_cancelled, assist);
 	ianjuta_editor_assist_remove (assist->priv->iassist, IANJUTA_PROVIDER(assist), NULL);
 	assist->priv->iassist = NULL;
 }
 
 static void
-cpp_java_assist_init (CppJavaAssist *assist)
+parser_cxx_assist_init (ParserCxxAssist *assist)
 {
-	assist->priv = g_new0 (CppJavaAssistPriv, 1);
+	assist->priv = g_new0 (ParserCxxAssistPriv, 1);
 }
 
 static void
-cpp_java_assist_finalize (GObject *object)
+parser_cxx_assist_finalize (GObject *object)
 {
-	CppJavaAssist *assist = CPP_JAVA_ASSIST (object);
-	CppJavaAssistPriv* priv = assist->priv;
+	ParserCxxAssist *assist = PARSER_CXX_ASSIST (object);
+	ParserCxxAssistPriv* priv = assist->priv;
 	
-	cpp_java_assist_uninstall (assist);
-	cpp_java_assist_clear_completion_cache (assist);
-	cpp_java_assist_clear_calltip_context (assist);
+	parser_cxx_assist_uninstall (assist);
+	parser_cxx_assist_clear_completion_cache (assist);
+	parser_cxx_assist_clear_calltip_context (assist);
 
 
 	if (priv->calltip_query_file)
@@ -1454,23 +1454,23 @@ cpp_java_assist_finalize (GObject *object)
 	engine_parser_deinit ();
 	
 	g_free (assist->priv);
-	G_OBJECT_CLASS (cpp_java_assist_parent_class)->finalize (object);
+	G_OBJECT_CLASS (parser_cxx_assist_parent_class)->finalize (object);
 }
 
 static void
-cpp_java_assist_class_init (CppJavaAssistClass *klass)
+parser_cxx_assist_class_init (ParserCxxAssistClass *klass)
 {
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
 
-	object_class->finalize = cpp_java_assist_finalize;
+	object_class->finalize = parser_cxx_assist_finalize;
 }
 
-CppJavaAssist *
-cpp_java_assist_new (IAnjutaEditor *ieditor,
+ParserCxxAssist *
+parser_cxx_assist_new (IAnjutaEditor *ieditor,
 					 IAnjutaSymbolManager *isymbol_manager,
 					 GSettings* settings)
 {
-	CppJavaAssist *assist;
+	ParserCxxAssist *assist;
 	static IAnjutaSymbolField calltip_fields[] = {
 		IANJUTA_SYMBOL_FIELD_ID,
 		IANJUTA_SYMBOL_FIELD_NAME,
@@ -1490,7 +1490,7 @@ cpp_java_assist_new (IAnjutaEditor *ieditor,
 		/* No assistance is available with the current editor */
 		return NULL;
 	}
-	assist = g_object_new (TYPE_CPP_JAVA_ASSIST, NULL);
+	assist = g_object_new (TYPE_PARSER_CXX_ASSIST, NULL);
 	assist->priv->settings = settings;
 	
 	/* Create call tip queries */
@@ -1671,17 +1671,17 @@ cpp_java_assist_new (IAnjutaEditor *ieditor,
 	                                     IANJUTA_SYMBOL_QUERY_SEARCH_FS_PUBLIC, NULL);
 
 	/* Install support */
-	cpp_java_assist_install (assist, ieditor);
+	parser_cxx_assist_install (assist, ieditor);
 
 	engine_parser_init (isymbol_manager);	
 	
 	return assist;
 }
 
-static void cpp_java_assist_iface_init(IAnjutaProviderIface* iface)
+static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface)
 {
-	iface->populate = cpp_java_assist_populate;
-	iface->get_start_iter = cpp_java_assist_get_start_iter;
-	iface->activate = cpp_java_assist_activate;
-	iface->get_name = cpp_java_assist_get_name;
+	iface->populate = parser_cxx_assist_populate;
+	iface->get_start_iter = parser_cxx_assist_get_start_iter;
+	iface->activate = parser_cxx_assist_activate;
+	iface->get_name = parser_cxx_assist_get_name;
 }

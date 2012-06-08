@@ -22,8 +22,8 @@
  * 	Boston, MA  02110-1301, USA.
  */
 
-#ifndef _CPP_JAVA_ASSIST_H_
-#define _CPP_JAVA_ASSIST_H_
+#ifndef _PARSER_CXX_ASSIST_H_
+#define _PARSER_CXX_ASSIST_H_
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-preferences.h>
@@ -32,40 +32,40 @@
 
 G_BEGIN_DECLS
 
-#define TYPE_CPP_JAVA_ASSIST             (cpp_java_assist_get_type ())
-#define CPP_JAVA_ASSIST(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_CPP_JAVA_ASSIST, CppJavaAssist))
-#define CPP_JAVA_ASSIST_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_CPP_JAVA_ASSIST, CppJavaAssistClass))
-#define IS_CPP_JAVA_ASSIST(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_CPP_JAVA_ASSIST))
-#define IS_CPP_JAVA_ASSIST_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), TYPE_CPP_JAVA_ASSIST))
-#define CPP_JAVA_ASSIST_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_CPP_JAVA_ASSIST, CppJavaAssistClass))
+#define TYPE_PARSER_CXX_ASSIST             (parser_cxx_assist_get_type ())
+#define PARSER_CXX_ASSIST(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_PARSER_CXX_ASSIST, ParserCxxAssist))
+#define PARSER_CXX_ASSIST_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_PARSER_CXX_ASSIST, ParserCxxAssistClass))
+#define IS_PARSER_CXX_ASSIST(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_PARSER_CXX_ASSIST))
+#define IS_PARSER_CXX_ASSIST_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), TYPE_PARSER_CXX_ASSIST))
+#define PARSER_CXX_ASSIST_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_PARSER_CXX_ASSIST, ParserCxxAssistClass))
 
-typedef struct _CppJavaAssistClass CppJavaAssistClass;
-typedef struct _CppJavaAssist CppJavaAssist;
-typedef struct _CppJavaAssistContext CppJavaAssistContext;
-typedef struct _CppJavaAssistPriv CppJavaAssistPriv;
+typedef struct _ParserCxxAssistClass ParserCxxAssistClass;
+typedef struct _ParserCxxAssist ParserCxxAssist;
+typedef struct _ParserCxxAssistContext ParserCxxAssistContext;
+typedef struct _ParserCxxAssistPriv ParserCxxAssistPriv;
 
-struct _CppJavaAssistContext {
+struct _ParserCxxAssistContext {
 	GCompletion* completion;
 	GList* tips;
 	gint position;
 };
 
-struct _CppJavaAssistClass
+struct _ParserCxxAssistClass
 {
 	GObjectClass parent_class;
 };
 
-struct _CppJavaAssist
+struct _ParserCxxAssist
 {
 	GObject parent_instance;
-	CppJavaAssistPriv *priv;
+	ParserCxxAssistPriv *priv;
 };
 
-GType cpp_java_assist_get_type (void) G_GNUC_CONST;
-CppJavaAssist *cpp_java_assist_new (IAnjutaEditor *editor,
+GType parser_cxx_assist_get_type (void) G_GNUC_CONST;
+ParserCxxAssist *parser_cxx_assist_new (IAnjutaEditor *editor,
 									IAnjutaSymbolManager *isymbol_manager,
 									GSettings* settings);
 
 G_END_DECLS
 
-#endif /* _CPP_JAVA_ASSIST_H_ */
+#endif /* _PARSER_CXX_ASSIST_H_ */

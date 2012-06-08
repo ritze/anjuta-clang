@@ -40,8 +40,8 @@ plugin_LTLIBRARIES = libanjuta-parser-cxx.la
 
 # Plugin sources
 libanjuta_parser_cxx_la_SOURCES = \
-	cpp-java-assist.h \
-	cpp-java-assist.c \
+	assist.h \
+	assist.c \
 	plugin.c \
 	plugin.h \
 	expression-lexer.cpp \

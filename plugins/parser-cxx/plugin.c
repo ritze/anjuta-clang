@@ -32,7 +32,7 @@
 #include "plugin.h"
 
 #define PREFS_BUILDER PACKAGE_DATA_DIR"/glade/anjuta-parser-cxx.ui"
-#define ICON_FILE "anjuta-language-cpp-java-plugin.png"
+#define ICON_FILE "anjuta-parser-cxx-plugin.png"
 
 /* Preferences keys */
 #define ANJUTA_PREF_SCHEMA_PREFIX "org.gnome.anjuta."
@@ -65,11 +65,11 @@ install_support (ParserCxxPlugin *parser_plugin)
 	    (g_str_equal (parser_plugin->current_language, "C" )
 	     || g_str_equal (parser_plugin->current_language, "C++")))
 	{
-		CppJavaAssist *assist;
+		ParserCxxAssist *assist;
 	
 		g_assert (parser_plugin->assist == NULL);
 	
-		assist = cpp_java_assist_new (IANJUTA_EDITOR (parser_plugin->current_editor),
+		assist = parser_cxx_assist_new (IANJUTA_EDITOR (parser_plugin->current_editor),
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
 				    		IAnjutaSymbolManager, NULL),

@@ -44,7 +44,7 @@ plugin.c provider.c report.c: libanjuta_parser_vala_la_vala.stamp
 	@true
 
 libanjuta_parser_vala_la_vala.stamp: $(libanjuta_parser_vala_la_VALASOURCES)
-	valac $(VALAFLAGS) --vapidir $(srcdir) --pkg $(LIBVALA) --pkg libanjuta-3.0 -C $^
+	valac $(VALAFLAGS) --vapidir $(srcdir) --vapidir $(srcdir)/../language-support-vala --pkg $(LIBVALA) --pkg libanjuta-3.0 -C $^
 	touch $@
 
 libanjuta_parser_vala_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
