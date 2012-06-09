@@ -43,6 +43,7 @@ struct _ParserClangPlugin {
 	gint editor_watch_id;
 	gboolean support_installed;
 	GObject *current_editor;
+	gchar *current_editor_filename;
 	const gchar *current_language;
 
 	/* Assist */

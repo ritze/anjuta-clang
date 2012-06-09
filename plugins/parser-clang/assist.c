@@ -25,7 +25,6 @@
 
 #include <ctype.h>
 #include <string.h>
-#include <clang-c/Index.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-utils.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
@@ -37,6 +36,7 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "assist.h"
+#include "parser.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
 #define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
@@ -62,6 +62,7 @@ typedef struct
 } ParserClangAssistTag;
 
 struct _ParserClangAssistPriv {
+	const gchar* editor_filename;
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
@@ -455,10 +456,10 @@ parser_clang_assist_parse_expression (ParserClangAssist* assist, IAnjutaIterable
 		/* the parser works even for the "Gtk::" like expressions, so it shouldn't be 
 		 * created a specific case to handle this.
 		 */
-		res = engine_parser_process_expression (stmt,
-		                                        above_text,
-		                                        filename,
-		                                        lineno);
+		res = parser_process_expression (stmt,
+		                                 above_text,
+		                                 filename,
+		                                 lineno);
 		g_free (filename);
 		g_free (stmt);
 	}
@@ -1144,12 +1145,12 @@ parser_clang_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GE
 	parser_clang_assist_clear_completion_cache (assist);
 	
 	/* Check for member completion */
-	if (parser_clang_assist_create_member_completion_cache (assist, cursor))
+/*	if (parser_clang_assist_create_member_completion_cache (assist, cursor))
 	{
 		assist->priv->member_completion = TRUE;
 		return;
 	}
-	else if (parser_clang_assist_create_autocompletion_cache (assist, cursor))
+	else*/ if (parser_clang_assist_create_autocompletion_cache (assist, cursor))
 	{
 		assist->priv->autocompletion = TRUE;
 		return;
@@ -1451,7 +1452,7 @@ parser_clang_assist_finalize (GObject *object)
 		g_object_unref (priv->sync_query_project);
 	priv->sync_query_project = NULL;
 
-	engine_parser_deinit ();
+//	parser_deinit ();
 	
 	g_free (assist->priv);
 	G_OBJECT_CLASS (parser_clang_assist_parent_class)->finalize (object);
@@ -1467,9 +1468,11 @@ parser_clang_assist_class_init (ParserClangAssistClass *klass)
 
 ParserClangAssist *
 parser_clang_assist_new (IAnjutaEditor *ieditor,
-					 IAnjutaSymbolManager *isymbol_manager,
-					 GSettings* settings)
+                         IAnjutaSymbolManager *isymbol_manager,
+                         GSettings* settings,
+                         const gchar *editor_filename)
 {
+
 	ParserClangAssist *assist;
 	static IAnjutaSymbolField calltip_fields[] = {
 		IANJUTA_SYMBOL_FIELD_ID,
@@ -1492,10 +1495,11 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	}
 	assist = g_object_new (TYPE_PARSER_CLANG_ASSIST, NULL);
 	assist->priv->settings = settings;
+	assist->priv->editor_filename = editor_filename;
 	
 	/* Create call tip queries */
 	/* Calltip in file */
-	assist->priv->calltip_query_file =
+/*	assist->priv->calltip_query_file =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH_FILE,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1515,8 +1519,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
 	g_signal_connect (assist->priv->calltip_query_file, "async-result",
 	                  G_CALLBACK (on_calltip_search_complete), assist);
-	/* Calltip in project */
-	assist->priv->calltip_query_project =
+*/	/* Calltip in project */
+/*	assist->priv->calltip_query_project =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1535,8 +1539,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
 	g_signal_connect (assist->priv->calltip_query_project, "async-result",
 	                  G_CALLBACK (on_calltip_search_complete), assist);
-	/* Calltip in system */
-	assist->priv->calltip_query_system =
+*/	/* Calltip in system */
+/*	assist->priv->calltip_query_system =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH,
 		                                     IANJUTA_SYMBOL_QUERY_DB_SYSTEM,
@@ -1556,9 +1560,9 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	g_signal_connect (assist->priv->calltip_query_system, "async-result",
 	                  G_CALLBACK (on_calltip_search_complete), assist);
 
-	/* Create autocomplete queries */
+*/	/* Create autocomplete queries */
 	/* AC in file */
-	assist->priv->ac_query_file =
+/*	assist->priv->ac_query_file =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH_FILE,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1574,8 +1578,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
 	g_signal_connect (assist->priv->ac_query_file, "async-result",
 	                  G_CALLBACK (on_symbol_search_complete), assist);
-	/* AC in project */
-	assist->priv->ac_query_project =
+*/	/* AC in project */
+/*	assist->priv->ac_query_project =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1591,8 +1595,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
 	g_signal_connect (assist->priv->ac_query_project, "async-result",
 	                  G_CALLBACK (on_symbol_search_complete), assist);
-	/* AC in system */
-	assist->priv->ac_query_system =
+*/	/* AC in system */
+/*	assist->priv->ac_query_system =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH,
 		                                     IANJUTA_SYMBOL_QUERY_DB_SYSTEM,
@@ -1609,8 +1613,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	g_signal_connect (assist->priv->ac_query_system, "async-result",
 	                  G_CALLBACK (on_symbol_search_complete), assist);
 
-	/* Members autocompletion */
-	assist->priv->query_members =
+*/	/* Members autocompletion */
+/*	assist->priv->query_members =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH_MEMBERS,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1619,9 +1623,9 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                 G_N_ELEMENTS (ac_fields),
 	                                 ac_fields, NULL);
 
-	/* Create sync queries */
+*/	/* Create sync queries */
 	/* Sync query in file */
-	assist->priv->sync_query_file =
+/*	assist->priv->sync_query_file =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH_FILE,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1637,8 +1641,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                  TRUE, NULL);
 	ianjuta_symbol_query_set_file_scope (assist->priv->sync_query_file,
 	                                     IANJUTA_SYMBOL_QUERY_SEARCH_FS_PRIVATE, NULL);
-	/* Sync query in project */
-	assist->priv->sync_query_project =
+*/	/* Sync query in project */
+/*	assist->priv->sync_query_project =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH,
 		                                     IANJUTA_SYMBOL_QUERY_DB_PROJECT,
@@ -1653,8 +1657,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                  TRUE, NULL);
 	ianjuta_symbol_query_set_file_scope (assist->priv->sync_query_project,
 	                                     IANJUTA_SYMBOL_QUERY_SEARCH_FS_PUBLIC, NULL);
-	/* Sync query in system */
-	assist->priv->sync_query_system =
+*/	/* Sync query in system */
+/*	assist->priv->sync_query_system =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
 		                                     IANJUTA_SYMBOL_QUERY_SEARCH,
 		                                     IANJUTA_SYMBOL_QUERY_DB_SYSTEM,
@@ -1670,10 +1674,10 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	ianjuta_symbol_query_set_file_scope (assist->priv->sync_query_system,
 	                                     IANJUTA_SYMBOL_QUERY_SEARCH_FS_PUBLIC, NULL);
 
-	/* Install support */
+*/	/* Install support */
 	parser_clang_assist_install (assist, ieditor);
 
-	engine_parser_init (isymbol_manager);	
+	parser_init (assist->priv->editor_filename);
 	
 	return assist;
 }

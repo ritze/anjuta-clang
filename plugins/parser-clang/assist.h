@@ -64,7 +64,8 @@ struct _ParserClangAssist
 GType parser_clang_assist_get_type (void) G_GNUC_CONST;
 ParserClangAssist *parser_clang_assist_new (IAnjutaEditor *editor,
 									IAnjutaSymbolManager *isymbol_manager,
-									GSettings* settings);
+									GSettings* settings,
+                                    const gchar *editor_filename);
 
 G_END_DECLS
 
