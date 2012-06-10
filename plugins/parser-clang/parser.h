@@ -17,11 +17,42 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+//#ifndef _PARSER_CLANG_PARSER_H_
+//#define _PARSER_CLANG_PARSER_H_
+
 #include <glib-object.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
+/*
+G_BEGIN_DECLS
 
+#define TYPE_PARSER_CLANG_PARSER             (parser_clang_parser_get_type ())
+#define PARSER_CLANG_PARSER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), TYPE_PARSER_CLANG_PARSER, ParserClangParser))
+#define PARSER_CLANG_PARSER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), TYPE_PARSER_CLANG_PARSER, ParserClangParserClass))
+#define IS_PARSER_CLANG_PARSER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), TYPE_PARSER_CLANG_PARSER))
+#define IS_PARSER_CLANG_PARSER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), TYPE_PARSER_CLANG_PARSER))
+#define PARSER_CLANG_PARSER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), TYPE_PARSER_CLANG_PARSER, ParserClangParserClass))
+
+typedef struct _ParserClangParserClass ParserClangParserClass;
+typedef struct _ParserClangParser ParserClangParser;
+typedef struct _ParserClangParserContext ParserClangParserContext;
+typedef struct _ParserClangParserPriv ParserClangParserPriv;
+
+struct _ParserClangParserContext {
+};
+
+struct _ParserClangParserClass
+{
+	GObjectClass parent_class;
+};
+
+struct _ParserClangParser
+{
+	GObject parent_instance;
+	ParserClangParserPriv *priv;
+};
+*/
 void
-parser_clang_parser_init (const gchar *filename);
+parser_clang_parser_init (const gchar *full_file_path);
 
 void
 parser_clang_parser_deinit (void);
@@ -42,3 +73,7 @@ parser_clang_parser_process_expression (const gchar *stmt,
                                         const gchar *above_text,
                                         const gchar *full_file_path,
                                         gulong linenum);
+
+//G_END_DECLS
+
+//#endif /* _PARSER_CLANG_PARSER_H_ */
