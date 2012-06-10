@@ -22,54 +22,46 @@
 #include <clang-c/Index.h>
 #include "parser.h"
 
-static CXTranslationUnit translation_unit;
-
 void
 parser_clang_parser_init (const gchar* filename)
 {
+	g_warning ("initiate translation_unit...");
+	
+	//some test code:
+
+	//TODO: set num_unsaved_files and unsaved_files...
+	unsigned num_unsaved_files = 0;
+	struct CXUnsavedFile * unsaved_files = NULL;
+
+	CXIndex index = clang_createIndex (0, 0);
+	CXTranslationUnit translation_unit = clang_createTranslationUnitFromSourceFile (index, filename, 0, NULL, num_unsaved_files, unsaved_files);
+
 	if (!translation_unit) {
-		g_warning ("initiate translation_unit...");
-		
-		//TODO: set num_unsaved_files and unsaved_files...
-		unsigned num_unsaved_files = 0;
-		struct CXUnsavedFile * unsaved_files = NULL;
-	
-		CXIndex index = clang_createIndex (0, 0);
-		translation_unit = clang_createTranslationUnitFromSourceFile (index, filename, 0, NULL, num_unsaved_files, unsaved_files);
-	
-		if (!translation_unit) {
-			g_warning ("Could not initiate translation_unit!");
-			return;
-		}
+		g_warning ("Could not initiate translation_unit!");
+		return;
 	}
-/*
-	CXIndex index = clang_createIndex(0, 0);
-	CXTranslationUnit tu = clang_parseTranslationUnit (index, 0, filename,
-	                                                   1, 0, 0, CXTranslationUnit_None);
-	//CXTranslationUnit tu = clang_createTranslationUnitFromSourceFile (index,
-	//path, 0, NULL, num_unsaved, unsaved);
 	
 	unsigned n;
 	unsigned i;
-	for (i = 0, n = clang_getNumDiagnostics (tu); i != n; ++i) {
-		CXDiagnostic diag = clang_getDiagnostic (tu, i);
+	for (i = 0, n = clang_getNumDiagnostics (translation_unit); i != n; ++i) {
+		CXDiagnostic diag = clang_getDiagnostic (translation_unit, i);
 		CXString string = clang_formatDiagnostic (diag,
 								clang_defaultDiagnosticDisplayOptions());
-		fprintf(stderr, "%s\n", clang_getCString (string));
+		g_warning ("%s", clang_getCString (string));
 		clang_disposeString (string);
 	}
-	
-	clang_disposeTranslationUnit (tu);
+
+	clang_disposeTranslationUnit (translation_unit);
 	clang_disposeIndex (index);
-*/
-	
 }
 
 void
 parser_clang_parser_deinit ()
 {
+	g_warning ("deinitiate translation_unit...");
+/*
 	if (translation_unit) {
-		g_warning ("deinitiate translation_unit...");
+		
 		clang_disposeTranslationUnit (translation_unit);
 
 		if (translation_unit) {
@@ -77,6 +69,7 @@ parser_clang_parser_deinit ()
 			return;
 		}
 	}
+*/
 }
 
 IAnjutaIterable *
@@ -85,5 +78,6 @@ parser_clang_parser_process_expression (const gchar *stmt,
                                         const gchar *full_file_path,
                                         gulong linenum)
 {
+	g_warning ("process expression...");
 	return NULL;
 }
