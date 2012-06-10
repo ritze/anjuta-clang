@@ -21,10 +21,10 @@
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 
 void
-parser_init (gchar *filename);
+parser_clang_parser_init (const gchar *filename);
 
 void
-parser_deinit ();
+parser_clang_parser_deinit (void);
 	
 /**
  * The function parse the C++ statement, try to get the type of objects to be
@@ -38,7 +38,7 @@ parser_deinit ();
  * @return IAnjutaIterable * with the actual completions symbols.
  */
 IAnjutaIterable *
-parser_process_expression (const gchar *stmt,
-                           const gchar *above_text,
-                           const gchar *full_file_path,
-                           gulong linenum);
+parser_clang_parser_process_expression (const gchar *stmt,
+                                        const gchar *above_text,
+                                        const gchar *full_file_path,
+                                        gulong linenum);

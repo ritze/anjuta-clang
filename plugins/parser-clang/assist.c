@@ -456,10 +456,10 @@ parser_clang_assist_parse_expression (ParserClangAssist* assist, IAnjutaIterable
 		/* the parser works even for the "Gtk::" like expressions, so it shouldn't be 
 		 * created a specific case to handle this.
 		 */
-		res = parser_process_expression (stmt,
-		                                 above_text,
-		                                 filename,
-		                                 lineno);
+		res = parser_clang_parser_process_expression (stmt,
+		                                              above_text,
+		                                              filename,
+		                                              lineno);
 		g_free (filename);
 		g_free (stmt);
 	}
@@ -1452,7 +1452,7 @@ parser_clang_assist_finalize (GObject *object)
 		g_object_unref (priv->sync_query_project);
 	priv->sync_query_project = NULL;
 
-//	parser_deinit ();
+	parser_clang_parser_deinit ();
 	
 	g_free (assist->priv);
 	G_OBJECT_CLASS (parser_clang_assist_parent_class)->finalize (object);
@@ -1677,7 +1677,7 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 */	/* Install support */
 	parser_clang_assist_install (assist, ieditor);
 
-	parser_init (assist->priv->editor_filename);
+	parser_clang_parser_init (assist->priv->editor_filename);
 	
 	return assist;
 }

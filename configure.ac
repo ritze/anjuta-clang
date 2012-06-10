@@ -320,6 +320,58 @@ PKG_CHECK_MODULES([PLUGIN_SYMBOL_DB],
      [PKG_CHECK_MODULES([PLUGIN_SYMBOL_DB],
          [libgda-4.0 >= $GDA4_REQUIRED])])
 
+dnl Check for llvm
+dnl (stolen from gedit-code-assistance plugin)
+dnl -------------------------------------------------------------
+
+AC_PATH_PROG([LLVM_CONFIG], [llvm-config], [])
+
+if test "x$LLVM_CONFIG" = "x"; then
+	echo "$LLVM_CONFIG not found - disabling llvm"
+else
+	LLVM_CFLAGS=`$LLVM_CONFIG --cflags`
+	LLVM_LIBS=`$LLVM_CONFIG --ldflags`
+
+  dnl Find clang headers and lib
+  dnl -------------------------------------------------------------
+  OLDCFLAGS="$CFLAGS"
+  OLDLDFLAGS="$LDFLAGS"
+
+  CFLAGS="$OLDCFLAGS $LLVM_CFLAGS"
+  LDFLAGS="$OLDLDFLAGS $LLVM_LIBS"
+
+  AC_CHECK_LIB([clang],
+               [clang_createIndex],
+               [LLVM_LIBS="$LLVM_LIBS -lclang"
+                clang_enabled="yes"],
+               [AC_MSG_WARN([could not find clang library])
+                clang_enabled="no"])
+
+  if test "x$clang_enabled" = "xyes"; then
+    AC_CHECK_HEADER([clang-c/Index.h],
+                    [],
+                    [AC_MSG_WARN([could not find clang header Index.h])
+                     clang_enabled="no"])
+  fi
+
+  if test "x$clang_enabled" = "xyes"; then
+    LLVM_LIBS="$LLVM_LIBS -lclang"
+  fi
+
+  AC_SUBST(LLVM_CFLAGS)
+  AC_SUBST(LLVM_LIBS)
+
+  CFLAGS="$OLDCFLAGS"
+  LDFLAGS="$OLDLDFLAGS"
+
+  LLVM_VERSION=$($LLVM_CONFIG --version)
+  AC_DEFINE_UNQUOTED([LLVM_VERSION], "$LLVM_VERSION", [LLVM version])
+
+  AC_SUBST(LLVM_VERSION)
+fi
+
+AM_CONDITIONAL(ENABLE_LLVM, [test x$clang_enabled = xyes])
+
 dnl Disable packagekit support
 dnl -----------------------------------
 AC_ARG_ENABLE(packagekit,
@@ -885,11 +937,9 @@ plugins/starter/Makefile
 plugins/indentation-c-style/Makefile
 plugins/indentation-python-style/Makefile
 plugins/language-support-js/Makefile
-plugins/language-support-vala/Makefile
 plugins/language-support-python/Makefile
 plugins/parser-clang/Makefile
 plugins/parser-cxx/Makefile
-plugins/parser-vala/Makefile
 plugins/python-loader/Makefile
 anjuta.desktop.in
 manuals/Makefile
@@ -946,6 +996,12 @@ if [ test x$have_python = xyes]; then
 else
         echo "Building python plugin loaeder: ........................NO"
         echo "        Requires python"
+fi
+if [ test x$clang_enabled = xyes]; then
+        echo "Building clang parser plugin: ..........................YES"
+else
+        echo "Building clang parser plugin: ..........................NO"
+        echo "        Requires llvm and clang"
 fi
 echo "-------------------------------------------------------------------"
 echo "AM_CFLAGS = $AM_CFLAGS"

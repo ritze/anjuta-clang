@@ -1,3 +1,5 @@
+if ENABLE_LLVM
+
 # Plugin glade file
 parser_clang_gladedir = $(anjuta_glade_dir)
 parser_clang_glade_DATA = anjuta-parser-clang.ui
@@ -30,6 +32,7 @@ AM_CPPFLAGS = \
 	$(DEPRECATED_FLAGS) \
 	$(LIBANJUTA_CFLAGS) \
 	$(EXTRA_CFLAGS) \
+	$(LLVM_CFLAGS) \
 	-DG_LOG_DOMAIN=\"parser-clang\"
 
 # Where to install the plugin
@@ -50,13 +53,20 @@ libanjuta_parser_clang_la_SOURCES = \
 libanjuta_parser_clang_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
 # Plugin dependencies
-libanjuta_parser_clang_la_LIBADD = $(LIBANJUTA_LIBS) \
-	$(GTHREAD_LIBS)
+libanjuta_parser_clang_la_LIBADD = \
+	$(LIBANJUTA_LIBS) \
+	$(GTHREAD_LIBS) \
+	$(LLVM_LIBS)
 
 gsettings_in_file = org.gnome.anjuta.plugins.parser-cxx.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
+
+CLEANFILES = \
+  $(gsettings_SCHEMAS)
+
+endif # ENABLE_LLVM
 
 EXTRA_DIST = \
   $(plugin_in_files) \
@@ -64,8 +74,5 @@ EXTRA_DIST = \
   $(parser_clang_pixmaps_DATA) \
 	$(parser_clang_glade_DATA) \
 	$(gsettings_in_file)
-
-CLEANFILES = \
-  $(gsettings_SCHEMAS)
 
 -include $(top_srcdir)/git.mk
