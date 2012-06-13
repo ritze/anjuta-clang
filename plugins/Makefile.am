@@ -30,7 +30,6 @@ SUBDIRS = . \
 	patch \
 	parser-clang \
 	parser-cxx \
-	parser-vala \
 	project-import \
 	project-manager \
 	project-wizard \
