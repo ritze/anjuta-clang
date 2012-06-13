@@ -65,6 +65,7 @@ struct _ParserCxxAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
+	IAnjutaParser* parser;
 
 	GCompletion *completion_cache;
 
@@ -94,7 +95,7 @@ struct _ParserCxxAssistPriv {
 
 	IAnjutaSymbolQuery *ac_query_file;
 	IAnjutaSymbolQuery *ac_query_system;
-	IAnjutaSymbolQuery *ac_query_project;
+	IAnjutaSymbolQuery *ac_query_project;	
 
 	/* Member autocompletion */
 	IAnjutaSymbolQuery *query_members;
@@ -332,7 +333,7 @@ parser_cxx_assist_is_expression_separator (gchar c, gboolean skip_braces, IAnjut
 	{
 		if (separators[i] == c)
 			return TRUE;
-	}	
+	}
 
 	return FALSE;
 }
@@ -682,70 +683,6 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaI
 	}
 }
 
-
-/**
- * parser_cxx_assist_create_calltips:
- * @iter: List of symbols
- * @merge: list of calltips to merge or NULL
- *
- * Create a list of Calltips (string) from a list of symbols
- *
- * A newly allocated GList* with newly allocated strings
- */
-static GList*
-parser_cxx_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
-{
-	GList* tips = merge;
-	if (iter)
-	{
-		do
-		{
-			IAnjutaSymbol* symbol = IANJUTA_SYMBOL(iter);
-			const gchar* name = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL);
-			if (name != NULL)
-			{
-				const gchar* args = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_SIGNATURE, NULL);
-				const gchar* rettype = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_RETURNTYPE, NULL);
-				gchar* print_args;
-				gchar* separator;
-				gchar* white_name;
-				gint white_count = 0;
-
-				if (!rettype)
-					rettype = "";
-				else
-					white_count += strlen(rettype) + 1;
-				
-				white_count += strlen(name) + 1;
-				
-				white_name = g_strnfill (white_count, ' ');
-				separator = g_strjoin (NULL, ", \n", white_name, NULL);
-				
-				gchar** argv;
-				if (!args)
-					args = "()";
-				
-				argv = g_strsplit (args, ",", -1);
-				print_args = g_strjoinv (separator, argv);
-				
-				gchar* tip = g_strdup_printf ("%s %s %s", rettype, name, print_args);
-				
-				if (!g_list_find_custom (tips, tip, (GCompareFunc) strcmp))
-					tips = g_list_append (tips, tip);
-				
-				g_strfreev (argv);
-				g_free (print_args);
-				g_free (separator);
-				g_free (white_name);
-			}
-			else
-				break;
-		}
-		while (ianjuta_iterable_next (iter, NULL));
-	}
-	return tips;
-}
-
 /**
  * on_calltip_search_complete:
  * @search_id: id of this search
@@ -758,7 +695,7 @@ static void
 on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 							ParserCxxAssist* assist)
 {
-	assist->priv->tips = parser_cxx_assist_create_calltips (symbols, assist->priv->tips);
+	assist->priv->tips = ianjuta_parser_create_calltips (assist->priv->parser, symbols, assist->priv->tips, NULL);
 	if (query == assist->priv->calltip_query_file)
 		assist->priv->async_calltip_file = 0;
 	else if (query == assist->priv->calltip_query_project)
@@ -1348,11 +1285,12 @@ parser_cxx_assist_get_name (IAnjutaProvider* provider, GError** e)
  * parser_cxx_assist_install:
  * @self: IAnjutaProvider object
  * @ieditor: Editor to install support for
+ * @iparser: Parser to install support for
  *
  * Returns: Registers provider for editor
  */
 static void
-parser_cxx_assist_install (ParserCxxAssist *assist, IAnjutaEditor *ieditor)
+parser_cxx_assist_install (ParserCxxAssist *assist, IAnjutaEditor *ieditor, IAnjutaParser *iparser)
 {
 	g_return_if_fail (assist->priv->iassist == NULL);
 
@@ -1374,6 +1312,15 @@ parser_cxx_assist_install (ParserCxxAssist *assist, IAnjutaEditor *ieditor)
 	else
 	{
 		assist->priv->itip = NULL;
+	}
+
+	if (IANJUTA_IS_PARSER (iparser))
+	{
+		assist->priv->parser = IANJUTA_PARSER (iparser);
+	}
+	else
+	{
+		assist->priv->parser = NULL;
 	}
 }
 
@@ -1467,8 +1414,9 @@ parser_cxx_assist_class_init (ParserCxxAssistClass *klass)
 
 ParserCxxAssist *
 parser_cxx_assist_new (IAnjutaEditor *ieditor,
-					 IAnjutaSymbolManager *isymbol_manager,
-					 GSettings* settings)
+                       IAnjutaParser *iparser,
+                       IAnjutaSymbolManager *isymbol_manager,
+                       GSettings* settings)
 {
 	ParserCxxAssist *assist;
 	static IAnjutaSymbolField calltip_fields[] = {
@@ -1671,7 +1619,7 @@ parser_cxx_assist_new (IAnjutaEditor *ieditor,
 	                                     IANJUTA_SYMBOL_QUERY_SEARCH_FS_PUBLIC, NULL);
 
 	/* Install support */
-	parser_cxx_assist_install (assist, ieditor);
+	parser_cxx_assist_install (assist, ieditor, iparser);
 
 	engine_parser_init (isymbol_manager);	
 	

@@ -28,8 +28,8 @@ SUBDIRS = . \
 	message-view \
 	mk-project \
 	patch \
-	parser-clang \
 	parser-cxx \
+	parser-engine \
 	project-import \
 	project-manager \
 	project-wizard \

@@ -28,6 +28,7 @@
 #include <glib-object.h>
 #include <libanjuta/anjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
+#include <libanjuta/interfaces/ianjuta-parser.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 
 G_BEGIN_DECLS
@@ -62,9 +63,10 @@ struct _ParserCxxAssist
 };
 
 GType parser_cxx_assist_get_type (void) G_GNUC_CONST;
-ParserCxxAssist *parser_cxx_assist_new (IAnjutaEditor *editor,
-									IAnjutaSymbolManager *isymbol_manager,
-									GSettings* settings);
+ParserCxxAssist *parser_cxx_assist_new (IAnjutaEditor *ieditor,
+                                        IAnjutaParser *iparser,
+                                        IAnjutaSymbolManager *isymbol_manager,
+                                        GSettings* settings);
 
 G_END_DECLS
 

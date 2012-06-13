@@ -1,0 +1,11 @@
+[Anjuta Plugin]
+Location=anjuta-parser-engine:ParserEnginePlugin
+Icon=anjuta-parser-engine-plugin.png
+_Name=Parser engine Plugin
+_Description=Parser engine plugin for code completion
+Interfaces=IAnjutaLanguageSupport,IAnjutaParser
+UserActivatable=no
+
+[Language Support]
+Languages=C,C++,Vala,Python,JavaScript
+MimeTypes=text/x-c,text/x-vala,text/x-python,application/x-extension-wsgi,application/javascript
