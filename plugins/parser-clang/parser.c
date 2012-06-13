@@ -85,38 +85,70 @@ parser_clang_parser_parse (const gchar *unsavedContent)
 	g_list_foreach (diags, (GFunc) parser_clang_parser_diag, NULL);
 }
 
-static void
-parser_clang_parser_get_calltip (guint line, guint column)
+gchar*
+parser_clang_parser_get_definition (gint line, gint column)
 {
-	CXSourceLocation location = clang_getLocation (translation_unit, file, line, column);
+	gchar* locationString;
+	gchar* definitionString;
+	
+	if (line < 0 || column < 0)
+	{
+		g_warning ("Negative line or column!");
+		return NULL;
+	}
+	
+	CXSourceLocation location = clang_getLocation (translation_unit, file, line,
+	                                               column);
 	CXCursor cursor = clang_getCursor (translation_unit, location);
 
-	//more test code:
 	CXString cursorSpelling = clang_getCursorDisplayName (cursor);
-	g_warning ("Cursor: %s", clang_getCString (cursorSpelling));
+	locationString = g_strjoin ("Cursor: ", clang_getCString (cursorSpelling), NULL);
 	clang_disposeString (cursorSpelling);
-
-	//TODO: Why is definition always null?
+	
+	g_warning ("%s", locationString);
+	
+	//TODO: Why is definition mostly null?		
 	CXCursor definition = clang_getCursorDefinition (cursor);
 
 	if (clang_Cursor_isNull (definition))
 	{
 		g_warning ("Cursor to the definition is null!");
-		return;
+		return NULL;
 	}
 
+
+
+	
+	CXSourceLocation definitionLocation = clang_getCursorLocation (definition);
+
+	//get definition
+	CXCursor definitionCursor = clang_getCursor (translation_unit, definitionLocation);
+	CXString definitionCursorSpelling = clang_getCursorDisplayName (definitionCursor);
+	g_warning ("Definition Cursor: %s", clang_getCString (definitionCursorSpelling));
+	clang_disposeString (definitionCursorSpelling);
+
+
+
+
+	
 	CXFile definitionFile;
 	guint definitionLine;
 	guint definitionColumn;
 	guint definitionOffset;
 	
-	CXSourceLocation definitionLocation = clang_getCursorLocation (definition);
-	clang_getInstantiationLocation (definitionLocation, &definitionFile, &definitionLine, &definitionColumn, &definitionOffset);
+	clang_getInstantiationLocation (definitionLocation,
+	                                &definitionFile,
+	                                &definitionLine,
+	                                &definitionColumn,
+	                                &definitionOffset);
 	
-	CXString definitionFileName = clang_getFileName(definitionFile);
-	g_warning ("Definition: Cursor location: %s, %d, %d, %d",
-		clang_getCString(definitionFileName), definitionLine, definitionColumn, definitionOffset);
+	definitionString = g_strjoin ("Definition: Cursor location: ",
+	                              clang_getFileName(definitionFile),
+								  definitionLine, definitionColumn, NULL);
+
+	g_warning ("%s", definitionString);
 	
+	return g_strjoin (locationString, "\n", definitionString, NULL);
 	//return definitionOffset;
 }
 
@@ -128,8 +160,10 @@ parser_clang_parser_init (const gchar* full_file_path)
 	path = full_file_path;
 	CXIndex index = clang_createIndex (0, 0);
 	
-	translation_unit = clang_createTranslationUnitFromSourceFile (index, path, 0, NULL, 0, NULL);
-	file = clang_getFile(translation_unit, path);
+	translation_unit = clang_createTranslationUnitFromSourceFile (index, path,
+	                                                              0, NULL,
+	                                                              0, NULL);
+	file = clang_getFile (translation_unit, path);
 	
 	clang_disposeIndex (index);
 
@@ -140,9 +174,12 @@ parser_clang_parser_init (const gchar* full_file_path)
 	}
 	
 	//even more test code
-	parser_clang_parser_parse (NULL);
-	parser_clang_parser_get_calltip (129, 66);
-	parser_clang_parser_get_calltip (40, 3);
+//	parser_clang_parser_parse (NULL);
+	
+//	g_warning ("83, 20: GList *diags = parser_clang_parser_get_diagnostics ();");
+//	parser_clang_parser_get_definition (83, 20);
+//	g_warning ("89,  0: parser_clang_parser_get_calltip (guint line, guint column);");
+//	parser_clang_parser_get_definition (89, 0);
 }
 
 void

@@ -74,6 +74,14 @@ parser_clang_parser_process_expression (const gchar *stmt,
                                         const gchar *full_file_path,
                                         gulong linenum);
 
+/**
+ * @return NULL, if nothing found...
+ * 
+ */
+gchar*
+parser_clang_parser_get_definition (gint line, gint column);
+
+
 //G_END_DECLS
 
 //#endif /* _PARSER_CLANG_PARSER_H_ */

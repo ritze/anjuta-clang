@@ -1003,6 +1003,8 @@ parser_clang_assist_clear_calltip_context (ParserClangAssist* assist)
 static gboolean
 parser_clang_assist_calltip (ParserClangAssist *assist)
 {
+	gint lineno;
+	gint column;
 	IAnjutaEditor *editor;
 	IAnjutaIterable *iter;
 	
@@ -1010,8 +1012,12 @@ parser_clang_assist_calltip (ParserClangAssist *assist)
 	
 	iter = ianjuta_editor_get_position (editor, NULL);
 	ianjuta_iterable_previous (iter, NULL);
-	gchar *call_context =
-		parser_clang_assist_get_calltip_context (assist, iter);
+//	gchar *call_context =
+//		parser_clang_assist_get_calltip_context (assist, iter);
+	lineno = ianjuta_editor_get_lineno (editor, NULL);
+	column = ianjuta_editor_get_column (editor, NULL);
+	gchar *call_context = parser_clang_parser_get_definition (lineno, column);
+	
 	if (call_context)
 	{
 		DEBUG_PRINT ("Searching calltip for: %s", call_context);
