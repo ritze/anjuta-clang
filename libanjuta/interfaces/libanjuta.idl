@@ -2079,7 +2079,7 @@ interface IAnjutaEditor
 		gboolean visible();
 	}
 
-  /**
+	/**
 	 * SECTION:ianjuta-editor-assist
 	 * @title: IAnjutaEditorAssist
 	 * @short_description: Text editor assist interface
@@ -2102,7 +2102,7 @@ interface IAnjutaEditor
         gpointer data;
      }
 
-     /**
+    /**
 	 * IAnjutaEditorAssist::cancelled
 	 * @obj: Self
 	 *
@@ -6674,8 +6674,21 @@ interface IAnjutaIndenter
 
 interface IAnjutaParser
 {
+  #include <libanjuta/interfaces/ianjuta-editor-assist.h>
+  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
   #include <libanjuta/interfaces/ianjuta-symbol.h>
   #include <libanjuta/interfaces/ianjuta-iterable.h>
+
+	/**
+	 * IAnjutaParserProposalData:
+	 * @is_func: If this is a function
+	 * @name: Name of the function
+	 */
+	 struct ProposalData
+	 {
+	    gboolean is_func;
+	    gchar* name;
+	 }
 
 	/**
 	 * ianjuta_parser_create_calltips:
@@ -6689,4 +6702,58 @@ interface IAnjutaParser
 	 * A newly allocated GList* with newly allocated strings
 	 */
 	 GList* create_calltips (IAnjutaIterable* iter, GList* merge);
+
+	/**
+	 * ianjuta_parser_create_completion_from_symbols:
+	 * @obj: Self
+	 * @symbols: Symbol iteration
+	 * @err: Error propagation
+	 * 
+	 * Create a list of IAnjutaEditorAssistProposals from a list of symbols
+	 *
+	 * Returns: a newly allocated GList of newly allocated proposals. Free 
+	 * with iassist_proposal_free ()
+	 */
+	 GList* create_completion_from_symbols (IAnjutaIterable* symbols);
+
+	/**
+	 * ianjuta_parser_create_calltip_context:
+	 * @obj: Self
+	 * @assist: self
+	 * @iter: current cursor position
+	 * @context_characters: language-specific context characters
+	 *                      the end is marked with a '0' character
+	 * @err: Error propagation
+	 *
+	 * Searches for a calltip context
+	 *
+	 * Returns: name of the method to show a calltip for or NULL
+	 */
+	 gchar* get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* context_characters);
+
+	/**
+	 * ianjuta_parser_get_scope_context
+	 * @obj: Self
+	 * @editor: current editor
+	 * @scope_operator: The scope operator to check for
+	 * @iter: Current cursor position
+	 * @context_characters: language-specific context characters
+	 *                      the end is marked with a '0' character
+	 * @err: Error propagation
+	 *
+	 * Find the scope context for calltips
+	 */
+	 gchar* get_scope_context (IAnjutaEditor* editor, const gchar *scope_operator, IAnjutaIterable *iter, const gchar* context_characters);
+
+	/**
+	 * ianjuta_parser_assist_proposal_new:
+	 * @obj: Self
+	 * @symbol: IAnjutaSymbol to create the proposal for
+	 * @err: Error propagation
+	 *
+	 * Creates a new IAnjutaEditorAssistProposal for symbol
+	 *
+	 * Returns: a newly allocated IAnjutaEditorAssistProposal
+	 */
+	 IAnjutaEditorAssistProposal* proposal_new (IAnjutaSymbol* symbol);
 }

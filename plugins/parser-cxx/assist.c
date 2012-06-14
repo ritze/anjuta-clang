@@ -43,7 +43,9 @@
 #define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-brace-after-func"
 #define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC "completion-closebrace-after-func"
 #define PREF_CALLTIP_ENABLE "calltip-enable"
+//TODO:
 #define BRACE_SEARCH_LIMIT 500
+#define CONTEXT_CHARACTERS "_.:>-0"
 
 static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface);
 
@@ -106,47 +108,6 @@ struct _ParserCxxAssistPriv {
 	IAnjutaSymbolQuery *sync_query_project;
 };
 
-typedef struct
-{
-	gboolean is_func;
-	gchar* name;
-} ProposalData;
-
-/**
- * parser_cxx_assist_proposal_new:
- * @symbol: IAnjutaSymbol to create the proposal for
- *
- * Creates a new IAnjutaEditorAssistProposal for symbol
- *
- * Returns: a newly allocated IAnjutaEditorAssistProposal
- */
-static IAnjutaEditorAssistProposal*
-parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
-{
-	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
-	IAnjutaSymbolType type = ianjuta_symbol_get_sym_type (symbol, NULL);
-	ProposalData* data = g_new0 (ProposalData, 1);
-
-	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
-	switch (type)
-	{
-		case IANJUTA_SYMBOL_TYPE_PROTOTYPE:
-		case IANJUTA_SYMBOL_TYPE_FUNCTION:
-		case IANJUTA_SYMBOL_TYPE_METHOD:
-		case IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG:
-			proposal->label = g_strdup_printf ("%s()", data->name);
-			data->is_func = TRUE;
-			break;
-		default:
-			proposal->label = g_strdup (data->name);
-			data->is_func = FALSE;
-	}
-	proposal->data = data;
-	/* Icons are lifetime object of the symbol-db so we can cast here */
-	proposal->icon = (GdkPixbuf*) ianjuta_symbol_get_icon (symbol, NULL);
-	return proposal;
-}
-
 /**
  * parser_cxx_assist_proposal_free:
  * @proposal: the proposal to free
@@ -156,7 +117,7 @@ parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 static void
 parser_cxx_assist_proposal_free (IAnjutaEditorAssistProposal* proposal)
 {
-	ProposalData* data = proposal->data;
+	IAnjutaParserProposalData* data = proposal->data;
 	g_free (data->name);
 	g_free (data);
 	g_free (proposal->label);
@@ -173,37 +134,9 @@ static gchar*
 anjuta_proposal_completion_func (gpointer data)
 {
 	IAnjutaEditorAssistProposal* proposal = data;
-	ProposalData* prop_data = proposal->data;
+	IAnjutaParserProposalData* prop_data = proposal->data;
 	
 	return prop_data->name;
-}
-
-/**
- * parser_cxx_assist_create_completion_from_symbols:
- * @symbols: Symbol iteration
- * 
- * Create a list of IAnjutaEditorAssistProposals from a list of symbols
- *
- * Returns: a newly allocated GList of newly allocated proposals. Free 
- * with parser_cxx_assist_proposal_free()
- */
-static GList*
-parser_cxx_assist_create_completion_from_symbols (IAnjutaIterable* symbols)
-{
-	GList* list = NULL;
-
-	if (!symbols)
-		return NULL;
-	do
-	{
-		IAnjutaSymbol* symbol = IANJUTA_SYMBOL (symbols);
-		IAnjutaEditorAssistProposal* proposal = parser_cxx_assist_proposal_new (symbol);	
-
-		list = g_list_append (list, proposal);
-	}
-	while (ianjuta_iterable_next (symbols, NULL));
-
-	return list;
 }
 
 /**
@@ -537,7 +470,7 @@ parser_cxx_assist_populate_real (ParserCxxAssist* assist, gboolean finished)
 	if (g_list_length (proposals) == 1)
 	{
 		IAnjutaEditorAssistProposal* proposal = proposals->data;
-		ProposalData* data = proposal->data;
+		IAnjutaParserProposalData* data = proposal->data;
 		if (g_str_equal (assist->priv->pre_word, data->name))
 		{
 			ianjuta_editor_assist_proposals (assist->priv->iassist,
@@ -578,8 +511,8 @@ parser_cxx_assist_create_member_completion_cache (ParserCxxAssist* assist, IAnju
 			                                    NULL);
 		if (children)
 		{
-			GList* proposals = 
-				parser_cxx_assist_create_completion_from_symbols (children);
+			GList* proposals = ianjuta_parser_create_completion_from_symbols (
+			                           assist->priv->parser, children, NULL);
 			parser_cxx_assist_create_completion_cache (assist);
 			g_completion_add_items (assist->priv->completion_cache, proposals);
 
@@ -611,7 +544,8 @@ on_symbol_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 						   ParserCxxAssist* assist)
 {
 	GList* proposals;
-	proposals = parser_cxx_assist_create_completion_from_symbols (symbols);
+	proposals = ianjuta_parser_create_completion_from_symbols (
+										assist->priv->parser, symbols, NULL);
 
 	if (query == assist->priv->ac_query_file)
 		assist->priv->async_file_id = 0;
@@ -756,131 +690,6 @@ parser_cxx_assist_query_calltip (ParserCxxAssist *assist, const gchar *call_cont
 }
 
 /**
- * parser_cxx_assist_is_scope_context_character:
- * @ch: character to check
- *
- * Returns: if the current character seperates a scope
- */
-static gboolean
-parser_cxx_assist_is_scope_context_character (gchar ch)
-{
-	if (g_ascii_isspace (ch))
-		return FALSE;
-	if (g_ascii_isalnum (ch))
-		return TRUE;
-	if (ch == '_' || ch == '.' || ch == ':' || ch == '>' || ch == '-')
-		return TRUE;
-	
-	return FALSE;
-}
-
-#define SCOPE_BRACE_JUMP_LIMIT 50
-
-/**
- * parser_cxx_assist_get_scope_context
- * @editor: current editor
- * @scope_operator: The scope operator to check for
- * @iter: Current cursor position
- *
- * Find the scope context for calltips
- */
-static gchar*
-parser_cxx_assist_get_scope_context (IAnjutaEditor* editor,
-								   const gchar *scope_operator,
-								   IAnjutaIterable *iter)
-{
-	IAnjutaIterable* end;	
-	gchar ch, *scope_chars = NULL;
-	gboolean out_of_range = FALSE;
-	gboolean scope_chars_found = FALSE;
-	
-	end = ianjuta_iterable_clone (iter, NULL);
-	ianjuta_iterable_next (end, NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	
-	while (ch)
-	{
-		if (parser_cxx_assist_is_scope_context_character (ch))
-		{
-			scope_chars_found = TRUE;
-		}
-		else if (ch == ')')
-		{
-			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
-			{
-				out_of_range = TRUE;
-				break;
-			}
-		}
-		else
-			break;
-		if (!ianjuta_iterable_previous (iter, NULL))
-		{
-			out_of_range = TRUE;
-			break;
-		}		
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	}
-	if (scope_chars_found)
-	{
-		IAnjutaIterable* begin;
-		begin = ianjuta_iterable_clone (iter, NULL);
-		if (!out_of_range)
-			ianjuta_iterable_next (begin, NULL);
-		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
-		g_object_unref (begin);
-	}
-	g_object_unref (end);
-	return scope_chars;
-}
-
-/**
- * parser_cxx_assist_create_calltip_context:
- * @assist: self
- * @iter: current cursor position
- *
- * Searches for a calltip context
- *
- * Returns: name of the method to show a calltip for or NULL
- */
-static gchar*
-parser_cxx_assist_get_calltip_context (ParserCxxAssist *assist,
-                                     IAnjutaIterable *iter)
-{
-	gchar ch;
-	gchar *context = NULL;	
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	if (ch == ')')
-	{
-		if (!anjuta_util_jump_to_matching_brace (iter, ')', -1))
-			return NULL;
-		if (!ianjuta_iterable_previous (iter, NULL))
-			return NULL;
-	}
-	if (ch != '(')
-	{
-		if (!anjuta_util_jump_to_matching_brace (iter, ')',
-												   BRACE_SEARCH_LIMIT))
-			return NULL;
-	}
-	
-	/* Skip white spaces */
-	while (ianjuta_iterable_previous (iter, NULL)
-		&& g_ascii_isspace (ianjuta_editor_cell_get_char
-								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
-
-	context = parser_cxx_assist_get_scope_context
-		(IANJUTA_EDITOR (assist->priv->itip), "(", iter);
-
-	/* Point iter to the first character of the scope to align calltip correctly */
-	ianjuta_iterable_next (iter, NULL);
-	
-	return context;
-}
-
-/**
  * parser_cxx_assist_create_calltip_context:
  * @assist: self
  * @call_context: The context (method/function name)
@@ -946,8 +755,11 @@ parser_cxx_assist_calltip (ParserCxxAssist *assist)
 	
 	iter = ianjuta_editor_get_position (editor, NULL);
 	ianjuta_iterable_previous (iter, NULL);
-	gchar *call_context =
-		parser_cxx_assist_get_calltip_context (assist, iter);
+	gchar *call_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
+	                                                          assist->priv->itip,
+	                                                          iter,
+	                                                          CONTEXT_CHARACTERS,
+	                                                          NULL);
 	if (call_context)
 	{
 		DEBUG_PRINT ("Searching calltip for: %s", call_context);
@@ -1141,7 +953,7 @@ static void
 parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer data, GError** e)
 {
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST(self);
-	ProposalData *prop_data = data;
+	IAnjutaParserProposalData *prop_data = data;
 	GString *assistance;
 	IAnjutaEditor *te;
 	gboolean add_space_after_func = FALSE;
@@ -1188,7 +1000,7 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 	{
 		ianjuta_editor_insert (te, iter, assistance->str, -1, NULL);
 	}
-
+	
 	if (add_brace_after_func && add_closebrace_after_func)
 	{
 		IAnjutaIterable *pos = ianjuta_iterable_clone (iter, NULL);
@@ -1201,8 +1013,13 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 		ianjuta_editor_goto_position (te, pos, NULL);
 
 		ianjuta_iterable_previous (pos, NULL);
-		gchar *context = parser_cxx_assist_get_calltip_context (assist, pos);
-		g_object_unref (pos);
+		
+		gchar *context = ianjuta_parser_get_calltip_context (assist->priv->parser,
+		                                                     assist->priv->itip,
+		                                                     pos,
+		                                                     CONTEXT_CHARACTERS,
+		                                                     NULL);
+		
 		IAnjutaIterable *symbol = NULL;
 		if (IANJUTA_IS_FILE (assist->priv->iassist))
 		{

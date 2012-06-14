@@ -55,6 +55,7 @@
 
 #define AUTOCOMPLETE_REGEX_IN_GET_OBJECT "get_object\\s*\\(\\s*['\"]\\w*$"
 #define FILE_LIST_DELIMITER "|"
+#define CONTEXT_CHARACTERS ".0"
 
 
 static void python_assist_iface_init(IAnjutaProviderIface* iface);
@@ -81,6 +82,7 @@ struct _PythonAssistPriv {
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
 	IAnjutaEditor* editor;
+	IAnjutaParser* parser;
 	AnjutaLauncher* launcher;
 	AnjutaLauncher* calltip_launcher;	
 	AnjutaPlugin* plugin;
@@ -130,70 +132,6 @@ python_assist_tag_destroy (PythonAssistTag *tag)
 {
 	g_free (tag->name);
 	g_free (tag);
-}
-
-static gboolean 
-is_scope_context_character (gchar ch)
-{
-	if (g_ascii_isspace (ch))
-		return FALSE;
-	if (g_ascii_isalnum (ch))
-		return TRUE;
-	if (ch == '.')
-		return TRUE;
-	
-	return FALSE;
-}
-
-static gchar* 
-python_assist_get_scope_context (IAnjutaEditor* editor,
-                                 const gchar *scope_operator,
-                                 IAnjutaIterable *iter)
-{
-	IAnjutaIterable* end;
-	gchar ch, *scope_chars = NULL;
-	gboolean out_of_range = FALSE;
-	gboolean scope_chars_found = FALSE;
-	
-	end = ianjuta_iterable_clone (iter, NULL);
-	ianjuta_iterable_next (end, NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	
-	while (ch)
-	{
-		if (is_scope_context_character (ch))
-		{
-			scope_chars_found = TRUE;
-		}
-		else if (ch == ')')
-		{
-			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
-			{
-				out_of_range = TRUE;
-				break;
-			}
-		}
-		else
-			break;
-		if (!ianjuta_iterable_previous (iter, NULL))
-		{
-			out_of_range = TRUE;
-			break;
-		}		
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	}
-	if (scope_chars_found)
-	{
-		IAnjutaIterable* begin;
-		begin = ianjuta_iterable_clone (iter, NULL);
-		if (!out_of_range)
-			ianjuta_iterable_next (begin, NULL);
-		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
-		g_object_unref (begin);
-	}
-	g_object_unref (end);
-	return scope_chars;
 }
  
 static gboolean
@@ -673,45 +611,6 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 	assist->priv->calltip_iter = NULL;
 }
 
-
-static gchar*
-python_assist_get_calltip_context (PythonAssist *assist,
-                                     IAnjutaIterable *iter)
-{
-	gchar ch;
-	gchar *context = NULL;	
-	gint original_offset = ianjuta_editor_get_offset (IANJUTA_EDITOR (assist->priv->iassist), NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	if (ch == ')')
-	{
-		if (!anjuta_util_jump_to_matching_brace (iter, ')', -1))
-			return NULL;
-		if (!ianjuta_iterable_previous (iter, NULL))
-			return NULL;
-	}
-	if (ch != '(')
-	{
-		if (!anjuta_util_jump_to_matching_brace (iter, ')',
-												   BRACE_SEARCH_LIMIT))
-			return NULL;
-	}
-	
-	/* Skip white spaces */
-	while (ianjuta_iterable_previous (iter, NULL)
-		&& g_ascii_isspace (ianjuta_editor_cell_get_char
-								(IANJUTA_EDITOR_CELL (iter), 0, NULL)))
-		original_offset--;
-
-	context = python_assist_get_scope_context
-		(IANJUTA_EDITOR (assist->priv->iassist), "(", iter);
-
-	/* Point iter to the first character of the scope to align calltip correctly */
-	ianjuta_iterable_next (iter, NULL);
-	
-	return context;
-}
-
 static gint
 python_assist_get_calltip_context_position (PythonAssist *assist,
                                      IAnjutaIterable *iter)
@@ -745,7 +644,9 @@ python_assist_calltip (PythonAssist *assist)
 	iter = ianjuta_editor_get_position (editor, NULL);
 	ianjuta_iterable_previous (iter, NULL);
 
-	call_context = python_assist_get_calltip_context (assist, iter);
+	call_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
+	                                   IANJUTA_EDITOR_TIP (assist->priv->itip),
+	                                   iter, CONTEXT_CHARACTERS, NULL);
 	call_context_position = python_assist_get_calltip_context_position (assist, iter);
 
 	if (call_context)
@@ -1049,6 +950,7 @@ python_assist_class_init (PythonAssistClass *klass)
 
 PythonAssist * 
 python_assist_new (IAnjutaEditorAssist *iassist,
+                   IAnjutaParser *iparser,
                    IAnjutaSymbolManager *isymbol_manager,
                    IAnjutaDocumentManager *idocument_manager,
                    AnjutaPlugin *plugin,
@@ -1057,6 +959,7 @@ python_assist_new (IAnjutaEditorAssist *iassist,
                    const gchar *project_root)
 {
 	PythonAssist *assist = g_object_new (TYPE_PYTHON_ASSIST, NULL);
+	assist->priv->parser = iparser;
 	assist->priv->isymbol_manager = isymbol_manager;
 	assist->priv->idocument_manager = idocument_manager;
 	assist->priv->editor_filename = editor_filename;

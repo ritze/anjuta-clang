@@ -24,6 +24,7 @@
 #include <libanjuta/anjuta-shell.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
+#include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
@@ -219,9 +220,45 @@ parser_engine_plugin_class_init (GObjectClass *klass)
     klass->dispose = parser_engine_plugin_dispose;
 }
 
+/* support methods */
+
+/**
+ * parser_engine_is_scope_context_character:
+ * @ch: character to check
+ * @context_characters: language-specific context characters
+ *                      the end is marked with a '0' character
+ *
+ * Returns: if the current character seperates a scope
+ */
+static gboolean
+parser_engine_is_scope_context_character (gchar ch,
+                                          const gchar* context_characters)
+{
+	int i;
+	
+	if (g_ascii_isspace (ch))
+		return FALSE;
+	if (g_ascii_isalnum (ch))
+		return TRUE;
+	for (i = 0; context_characters[i] != '0'; i++)
+	{
+		if (ch == context_characters[i])
+		{
+g_warning ("works");
+			return TRUE;
+		}
+	}
+	
+	return FALSE;
+}
+
+
 //TODO: language-specific settings
 static GList*
-iparser_create_calltips (IAnjutaParser* self, IAnjutaIterable* iter, GList* merge, GError** e)
+iparser_create_calltips (IAnjutaParser* self,
+                         IAnjutaIterable* iter,
+                         GList* merge,
+                         GError** e)
 {
 	GList* tips = merge;
 	if (iter)
@@ -274,10 +311,164 @@ iparser_create_calltips (IAnjutaParser* self, IAnjutaIterable* iter, GList* merg
 	return tips;
 }
 
+//TODO: release to the outside?
+static IAnjutaEditorAssistProposal*
+iparser_proposal_new (IAnjutaParser* self,
+                      IAnjutaSymbol* symbol,
+                      GError** e)
+{
+	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
+	IAnjutaSymbolType type = ianjuta_symbol_get_sym_type (symbol, NULL);
+	IAnjutaParserProposalData* data = g_new0 (IAnjutaParserProposalData, 1);
+
+	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
+	switch (type)
+	{
+		case IANJUTA_SYMBOL_TYPE_PROTOTYPE:
+		case IANJUTA_SYMBOL_TYPE_FUNCTION:
+		case IANJUTA_SYMBOL_TYPE_METHOD:
+		case IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG:
+			proposal->label = g_strdup_printf ("%s()", data->name);
+			data->is_func = TRUE;
+			break;
+		default:
+			proposal->label = g_strdup (data->name);
+			data->is_func = FALSE;
+	}
+	proposal->data = data;
+	/* Icons are lifetime object of the symbol-db so we can cast here */
+	proposal->icon = (GdkPixbuf*) ianjuta_symbol_get_icon (symbol, NULL);
+	return proposal;
+}
+
+static GList*
+iparser_create_completion_from_symbols (IAnjutaParser* self,
+                                        IAnjutaIterable* symbols,
+                                        GError** e)
+{
+	GList* list = NULL;
+
+	if (!symbols)
+		return NULL;
+	do
+	{
+		IAnjutaSymbol* symbol = IANJUTA_SYMBOL (symbols);
+		IAnjutaEditorAssistProposal* proposal = iparser_proposal_new (NULL, symbol, NULL);	
+
+		list = g_list_append (list, proposal);
+	}
+	while (ianjuta_iterable_next (symbols, NULL));
+
+	return list;
+}
+
+#define SCOPE_BRACE_JUMP_LIMIT 50
+
+//TODO: release to the outside?
+//TODO: scope_operator is never used
+static gchar*
+iparser_get_scope_context (IAnjutaParser* self,
+                           IAnjutaEditor* editor,
+                           const gchar *scope_operator,
+                           IAnjutaIterable *iter,
+                           const gchar* context_characters,
+                           GError** e)
+{
+	IAnjutaIterable* end;	
+	gchar ch, *scope_chars = NULL;
+	gboolean out_of_range = FALSE;
+	gboolean scope_chars_found = FALSE;
+	
+	end = ianjuta_iterable_clone (iter, NULL);
+	ianjuta_iterable_next (end, NULL);
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	
+	while (ch)
+	{
+		if (parser_engine_is_scope_context_character (ch, context_characters))
+		{
+			scope_chars_found = TRUE;
+		}
+		else if (ch == ')')
+		{
+			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
+			{
+				out_of_range = TRUE;
+				break;
+			}
+		}
+		else
+			break;
+		if (!ianjuta_iterable_previous (iter, NULL))
+		{
+			out_of_range = TRUE;
+			break;
+		}		
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	}
+	if (scope_chars_found)
+	{
+		IAnjutaIterable* begin;
+		begin = ianjuta_iterable_clone (iter, NULL);
+		if (!out_of_range)
+			ianjuta_iterable_next (begin, NULL);
+		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
+		g_object_unref (begin);
+	}
+	g_object_unref (end);
+	return scope_chars;
+}
+
+#define BRACE_SEARCH_LIMIT 500
+
+static gchar*
+iparser_get_calltip_context (IAnjutaParser* self,
+                             IAnjutaEditorTip* itip,
+                             IAnjutaIterable* iter,
+                             const gchar* context_characters,
+                             GError** e)
+{
+	gchar ch;
+	gchar *context = NULL;	
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	if (ch == ')')
+	{
+		if (!anjuta_util_jump_to_matching_brace (iter, ')', -1))
+			return NULL;
+		if (!ianjuta_iterable_previous (iter, NULL))
+			return NULL;
+	}
+	if (ch != '(')
+	{
+		if (!anjuta_util_jump_to_matching_brace (iter, ')',
+												   BRACE_SEARCH_LIMIT))
+			return NULL;
+	}
+	
+	/* Skip white spaces */
+	while (ianjuta_iterable_previous (iter, NULL)
+		&& g_ascii_isspace (ianjuta_editor_cell_get_char
+								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
+	
+	context = iparser_get_scope_context (self, IANJUTA_EDITOR (itip),
+	                                     "(", iter, context_characters, NULL);
+
+	/* Point iter to the first character of the scope to align calltip correctly */
+	ianjuta_iterable_next (iter, NULL);
+	
+	return context;
+}
+
 static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->create_calltips = iparser_create_calltips;
+	iface->create_completion_from_symbols = iparser_create_completion_from_symbols;
+	iface->get_calltip_context = iparser_get_calltip_context;
+	iface->get_scope_context = iparser_get_scope_context;
+	iface->proposal_new = iparser_proposal_new;
 }
 
 ANJUTA_PLUGIN_BEGIN (ParserEnginePlugin, parser_engine_plugin);
