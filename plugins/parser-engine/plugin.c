@@ -347,7 +347,7 @@ parser_engine_proposal_new (IAnjutaSymbol* symbol)
 	return proposal;
 }
 
-//TODO: language-specific settings
+//TODO: language-specific settings: only used in parser-cxx/assist.c
 static GList*
 iparser_create_calltips (IAnjutaParser* self,
                          IAnjutaIterable* iter,
@@ -359,7 +359,7 @@ iparser_create_calltips (IAnjutaParser* self,
 	{
 		do
 		{
-			IAnjutaSymbol* symbol = IANJUTA_SYMBOL(iter);
+			IAnjutaSymbol* symbol = IANJUTA_SYMBOL (iter);
 			const gchar* name = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL);
 			if (name != NULL)
 			{
@@ -379,14 +379,13 @@ iparser_create_calltips (IAnjutaParser* self,
 				
 				white_name = g_strnfill (white_count, ' ');
 				separator = g_strjoin (NULL, ", \n", white_name, NULL);
-				
+//equal part 1 START
 				gchar** argv;
 				if (!args)
 					args = "()";
 				
 				argv = g_strsplit (args, ",", -1);
 				print_args = g_strjoinv (separator, argv);
-				
 				gchar* tip = g_strdup_printf ("%s %s %s", rettype, name, print_args);
 				
 				if (!g_list_find_custom (tips, tip, (GCompareFunc) strcmp))
@@ -396,6 +395,7 @@ iparser_create_calltips (IAnjutaParser* self,
 				g_free (print_args);
 				g_free (separator);
 				g_free (white_name);
+//equal part 1 END
 			}
 			else
 				break;

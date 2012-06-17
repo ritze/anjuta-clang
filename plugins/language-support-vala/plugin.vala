@@ -20,7 +20,8 @@ using Anjuta;
 
 public class ValaPlugin : Plugin {
 	internal weak IAnjuta.Editor current_editor;
-	internal GLib.Settings settings = new GLib.Settings ("org.gnome.anjuta.plugins.cpp");
+	//TODO: every language-support plugin should have its own settings...
+	internal GLib.Settings settings = new GLib.Settings ("org.gnome.anjuta.plugins.parser-cxx");
 	uint editor_watch_id;
 	ulong project_loaded_id;
 
