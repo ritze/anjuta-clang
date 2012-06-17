@@ -133,6 +133,9 @@ public class ValaProvider : Object, IAnjuta.Provider {
 
 		var creation_method = (match_info.fetch(1) != "");
 		var names = member_access_split.split (match_info.fetch(2));
+		//TODO: Did ianjuta_parser_create_calltips append "..." too? Couldn't find it out...
+		// syms ==> IAnjutaIterable* iter
+		// tips = ianjuta_parser_create_calltips (IAnjutaParser* self, iter, GList* merge, null)
 		var syms = plugin.lookup_symbol (construct_member_access (names), match_info.fetch(3),
 		                                 false, plugin.get_current_context (editor) as Vala.Block);
 

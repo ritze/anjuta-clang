@@ -6721,39 +6721,29 @@ interface IAnjutaParser
 	 * @obj: Self
 	 * @assist: self
 	 * @iter: current cursor position
-	 * @context_characters: language-specific context characters
-	 *                      the end is marked with a '0' character
+	 * @scope_context_characters: language-specific context characters
+	 *                            the end is marked with a '0' character
 	 * @err: Error propagation
 	 *
 	 * Searches for a calltip context
 	 *
 	 * Returns: name of the method to show a calltip for or NULL
 	 */
-	 gchar* get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* context_characters);
+	 gchar* get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
 
 	/**
-	 * ianjuta_parser_get_scope_context
+	 * ianjuta_parser_get_pre_word:
 	 * @obj: Self
-	 * @editor: current editor
-	 * @scope_operator: The scope operator to check for
-	 * @iter: Current cursor position
-	 * @context_characters: language-specific context characters
-	 *                      the end is marked with a '0' character
+	 * @editor: Editor object
+	 * @iter: current cursor position
+	 * @start_iter: return location for the start_iter (if a preword was found)
+	 * @word_characters: language-specific word characters
+	 *                   the end is marked with a '0' character
 	 * @err: Error propagation
 	 *
-	 * Find the scope context for calltips
-	 */
-	 gchar* get_scope_context (IAnjutaEditor* editor, const gchar *scope_operator, IAnjutaIterable *iter, const gchar* context_characters);
-
-	/**
-	 * ianjuta_parser_assist_proposal_new:
-	 * @obj: Self
-	 * @symbol: IAnjutaSymbol to create the proposal for
-	 * @err: Error propagation
+	 * Search for the current typed word
 	 *
-	 * Creates a new IAnjutaEditorAssistProposal for symbol
-	 *
-	 * Returns: a newly allocated IAnjutaEditorAssistProposal
+	 * Returns: The current word (needs to be freed) or NULL if no word was found
 	 */
-	 IAnjutaEditorAssistProposal* proposal_new (IAnjutaSymbol* symbol);
+	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter, const gchar* word_characters);
 }

@@ -55,8 +55,8 @@
 
 #define AUTOCOMPLETE_REGEX_IN_GET_OBJECT "get_object\\s*\\(\\s*['\"]\\w*$"
 #define FILE_LIST_DELIMITER "|"
-#define CONTEXT_CHARACTERS ".0"
-
+#define SCOPE_CONTEXT_CHARACTERS ".0"
+#define WORD_CHARACTER "_0"
 
 static void python_assist_iface_init(IAnjutaProviderIface* iface);
 
@@ -132,61 +132,6 @@ python_assist_tag_destroy (PythonAssistTag *tag)
 {
 	g_free (tag->name);
 	g_free (tag);
-}
- 
-static gboolean
-python_assist_is_word_character (gchar ch)
-{
-	if (g_ascii_isspace (ch))
-		return FALSE;
-	if (g_ascii_isalnum (ch))
-		return TRUE;
-	if (ch == '_')
-		return TRUE;
-	
-	return FALSE;
-}	
-
-static gchar*
-python_assist_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter)
-{
-	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
-	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
-	gchar ch, *preword_chars = NULL;
-	gboolean out_of_range = FALSE;
-	gboolean preword_found = FALSE;
-	
-	/* Cursor points after the current characters, move back */
-	ianjuta_iterable_previous (begin, NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
-	
-	while (ch && python_assist_is_word_character (ch))
-	{
-		preword_found = TRUE;
-		if (!ianjuta_iterable_previous (begin, NULL))
-		{
-			out_of_range = TRUE;
-			break;
-		}
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
-	}
-	
-	if (preword_found)
-	{
-		if (!out_of_range)
-			ianjuta_iterable_next (begin, NULL);
-		preword_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
-		*start_iter = begin;
-	}
-	else
-	{
-		g_object_unref (begin);
-		*start_iter = NULL;
-	}
-	
-	g_object_unref (end);
-	return preword_chars;
 }
 
 static void
@@ -646,7 +591,7 @@ python_assist_calltip (PythonAssist *assist)
 
 	call_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
 	                                   IANJUTA_EDITOR_TIP (assist->priv->itip),
-	                                   iter, CONTEXT_CHARACTERS, NULL);
+	                                   iter, SCOPE_CONTEXT_CHARACTERS, NULL);
 	call_context_position = python_assist_get_calltip_context_position (assist, iter);
 
 	if (call_context)
@@ -760,7 +705,7 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 		return;
 	}
 
-	pre_word = python_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
+	pre_word = ianjuta_parser_get_pre_word (assist->priv->parser, IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter, WORD_CHARACTER, NULL);
 
 	DEBUG_PRINT ("Preword: %s", pre_word);
 	

@@ -45,7 +45,8 @@
 #define PREF_CALLTIP_ENABLE "calltip-enable"
 //TODO:
 #define BRACE_SEARCH_LIMIT 500
-#define CONTEXT_CHARACTERS "_.:>-0"
+#define SCOPE_CONTEXT_CHARACTERS "_.:>-0"
+#define WORD_CHARACTER "_0"
 
 static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface);
 
@@ -137,78 +138,6 @@ anjuta_proposal_completion_func (gpointer data)
 	IAnjutaParserProposalData* prop_data = proposal->data;
 	
 	return prop_data->name;
-}
-
-/**
- * parser_cxx_assist_is_word_character:
- * @ch: character to check
- *
- * Returns: TRUE if ch is a valid word character, FALSE otherwise
- */
- 
-static gboolean
-parser_cxx_assist_is_word_character (gchar ch)
-{
-	if (g_ascii_isspace (ch))
-		return FALSE;
-	if (g_ascii_isalnum (ch))
-		return TRUE;
-	if (ch == '_')
-		return TRUE;
-	
-	return FALSE;
-}	
-
-/**
- * parser_cxx_assist_get_pre_word:
- * @editor: Editor object
- * @iter: current cursor position
- * @start_iter: return location for the start_iter (if a preword was found)
- *
- * Search for the current typed word
- *
- * Returns: The current word (needs to be freed) or NULL if no word was found
- */
-static gchar*
-parser_cxx_assist_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter)
-{
-	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
-	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
-	gchar ch, *preword_chars = NULL;
-	gboolean out_of_range = FALSE;
-	gboolean preword_found = FALSE;
-	
-	/* Cursor points after the current characters, move back */
-	ianjuta_iterable_previous (begin, NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
-	
-	while (ch && parser_cxx_assist_is_word_character (ch))
-	{
-		preword_found = TRUE;
-		if (!ianjuta_iterable_previous (begin, NULL))
-		{
-			out_of_range = TRUE;
-			break;
-		}
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
-	}
-	
-	if (preword_found)
-	{
-		if (!out_of_range)
-			ianjuta_iterable_next (begin, NULL);
-		preword_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
-		*start_iter = begin;
-	}
-	else
-	{
-		g_object_unref (begin);
-		*start_iter = NULL;
-	}
-	
-	g_object_unref (end);
-	return preword_chars;
 }
 
 /**
@@ -577,8 +506,9 @@ static gboolean
 parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaIterable* cursor)
 {
 	IAnjutaIterable* start_iter;
-	gchar* pre_word = 
-		parser_cxx_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
+	gchar* pre_word = ianjuta_parser_get_pre_word (
+                          assist->priv->parser, IANJUTA_EDITOR (assist->priv->iassist),
+	                      cursor, &start_iter, WORD_CHARACTER, NULL);
 	if (!pre_word || strlen (pre_word) <= 3)
 	{
 		if (start_iter)
@@ -758,7 +688,7 @@ parser_cxx_assist_calltip (ParserCxxAssist *assist)
 	gchar *call_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
 	                                                          assist->priv->itip,
 	                                                          iter,
-	                                                          CONTEXT_CHARACTERS,
+	                                                          SCOPE_CONTEXT_CHARACTERS,
 	                                                          NULL);
 	if (call_context)
 	{
@@ -875,7 +805,9 @@ parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GErr
 	{
 		IAnjutaIterable* start_iter = NULL;
 		g_assert (assist->priv->completion_cache != NULL);
-		gchar* pre_word = parser_cxx_assist_get_pre_word (IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter);
+		gchar* pre_word = ianjuta_parser_get_pre_word (
+		              	      assist->priv->parser, IANJUTA_EDITOR (assist->priv->iassist),
+		                      cursor, &start_iter, WORD_CHARACTER, NULL);
 		if (pre_word && g_str_has_prefix (pre_word, assist->priv->pre_word))
 		{
 			/* Great, we just continue the current completion */
@@ -1017,7 +949,7 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 		gchar *context = ianjuta_parser_get_calltip_context (assist->priv->parser,
 		                                                     assist->priv->itip,
 		                                                     pos,
-		                                                     CONTEXT_CHARACTERS,
+		                                                     SCOPE_CONTEXT_CHARACTERS,
 		                                                     NULL);
 		
 		IAnjutaIterable *symbol = NULL;

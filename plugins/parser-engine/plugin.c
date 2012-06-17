@@ -192,8 +192,6 @@ parser_engine_plugin_finalize (GObject *obj)
 static void
 parser_engine_plugin_dispose (GObject *obj)
 {
-    ParserEnginePlugin* plugin = ANJUTA_PLUGIN_PARSER_ENGINE (obj);
-
 	/* Disposition codes */
     G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
@@ -223,7 +221,7 @@ parser_engine_plugin_class_init (GObjectClass *klass)
 /* support methods */
 
 /**
- * parser_engine_is_scope_context_character:
+ * parser_engine_is_character:
  * @ch: character to check
  * @context_characters: language-specific context characters
  *                      the end is marked with a '0' character
@@ -231,20 +229,20 @@ parser_engine_plugin_class_init (GObjectClass *klass)
  * Returns: if the current character seperates a scope
  */
 static gboolean
-parser_engine_is_scope_context_character (gchar ch,
-                                          const gchar* context_characters)
+parser_engine_is_character (gchar ch,
+                                          const gchar* characters)
 {
+g_warning ("parser_engine_is_scope_context_character works");
 	int i;
 	
 	if (g_ascii_isspace (ch))
 		return FALSE;
 	if (g_ascii_isalnum (ch))
 		return TRUE;
-	for (i = 0; context_characters[i] != '0'; i++)
+	for (i = 0; characters[i] != '0'; i++)
 	{
-		if (ch == context_characters[i])
+		if (ch == characters[i])
 		{
-g_warning ("works");
 			return TRUE;
 		}
 	}
@@ -252,6 +250,102 @@ g_warning ("works");
 	return FALSE;
 }
 
+#define SCOPE_BRACE_JUMP_LIMIT 50
+
+/**
+ * parser_engine_get_scope_context
+ * @editor: current editor
+ * @iter: Current cursor position
+ * @scope_context_characters: language-specific context characters
+ *                            the end is marked with a '0' character
+ *
+ * Find the scope context for calltips
+ */
+static gchar*
+parser_engine_get_scope_context (IAnjutaEditor* editor,
+                                 IAnjutaIterable *iter,
+                                 const gchar* scope_context_characters)
+{
+	IAnjutaIterable* end;	
+	gchar ch, *scope_chars = NULL;
+	gboolean out_of_range = FALSE;
+	gboolean scope_chars_found = FALSE;
+	
+	end = ianjuta_iterable_clone (iter, NULL);
+	ianjuta_iterable_next (end, NULL);
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	
+	while (ch)
+	{
+		if (parser_engine_is_character (ch, scope_context_characters))
+		{
+			scope_chars_found = TRUE;
+		}
+		else if (ch == ')')
+		{
+			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
+			{
+				out_of_range = TRUE;
+				break;
+			}
+		}
+		else
+			break;
+		if (!ianjuta_iterable_previous (iter, NULL))
+		{
+			out_of_range = TRUE;
+			break;
+		}		
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	}
+	if (scope_chars_found)
+	{
+		IAnjutaIterable* begin;
+		begin = ianjuta_iterable_clone (iter, NULL);
+		if (!out_of_range)
+			ianjuta_iterable_next (begin, NULL);
+		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
+		g_object_unref (begin);
+	}
+	g_object_unref (end);
+	return scope_chars;
+}
+
+/**
+ * ianjuta_parser_assist_proposal_new:
+ * @symbol: IAnjutaSymbol to create the proposal for
+ *
+ * Creates a new IAnjutaEditorAssistProposal for symbol
+ *
+ * Returns: a newly allocated IAnjutaEditorAssistProposal
+ */
+static IAnjutaEditorAssistProposal*
+parser_engine_proposal_new (IAnjutaSymbol* symbol)
+{
+	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
+	IAnjutaSymbolType type = ianjuta_symbol_get_sym_type (symbol, NULL);
+	IAnjutaParserProposalData* data = g_new0 (IAnjutaParserProposalData, 1);
+
+	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
+	switch (type)
+	{
+		case IANJUTA_SYMBOL_TYPE_PROTOTYPE:
+		case IANJUTA_SYMBOL_TYPE_FUNCTION:
+		case IANJUTA_SYMBOL_TYPE_METHOD:
+		case IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG:
+			proposal->label = g_strdup_printf ("%s()", data->name);
+			data->is_func = TRUE;
+			break;
+		default:
+			proposal->label = g_strdup (data->name);
+			data->is_func = FALSE;
+	}
+	proposal->data = data;
+	/* Icons are lifetime object of the symbol-db so we can cast here */
+	proposal->icon = (GdkPixbuf*) ianjuta_symbol_get_icon (symbol, NULL);
+	return proposal;
+}
 
 //TODO: language-specific settings
 static GList*
@@ -311,36 +405,6 @@ iparser_create_calltips (IAnjutaParser* self,
 	return tips;
 }
 
-//TODO: release to the outside?
-static IAnjutaEditorAssistProposal*
-iparser_proposal_new (IAnjutaParser* self,
-                      IAnjutaSymbol* symbol,
-                      GError** e)
-{
-	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
-	IAnjutaSymbolType type = ianjuta_symbol_get_sym_type (symbol, NULL);
-	IAnjutaParserProposalData* data = g_new0 (IAnjutaParserProposalData, 1);
-
-	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
-	switch (type)
-	{
-		case IANJUTA_SYMBOL_TYPE_PROTOTYPE:
-		case IANJUTA_SYMBOL_TYPE_FUNCTION:
-		case IANJUTA_SYMBOL_TYPE_METHOD:
-		case IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG:
-			proposal->label = g_strdup_printf ("%s()", data->name);
-			data->is_func = TRUE;
-			break;
-		default:
-			proposal->label = g_strdup (data->name);
-			data->is_func = FALSE;
-	}
-	proposal->data = data;
-	/* Icons are lifetime object of the symbol-db so we can cast here */
-	proposal->icon = (GdkPixbuf*) ianjuta_symbol_get_icon (symbol, NULL);
-	return proposal;
-}
-
 static GList*
 iparser_create_completion_from_symbols (IAnjutaParser* self,
                                         IAnjutaIterable* symbols,
@@ -353,7 +417,7 @@ iparser_create_completion_from_symbols (IAnjutaParser* self,
 	do
 	{
 		IAnjutaSymbol* symbol = IANJUTA_SYMBOL (symbols);
-		IAnjutaEditorAssistProposal* proposal = iparser_proposal_new (NULL, symbol, NULL);	
+		IAnjutaEditorAssistProposal* proposal = parser_engine_proposal_new (symbol);	
 
 		list = g_list_append (list, proposal);
 	}
@@ -362,75 +426,17 @@ iparser_create_completion_from_symbols (IAnjutaParser* self,
 	return list;
 }
 
-#define SCOPE_BRACE_JUMP_LIMIT 50
-
-//TODO: release to the outside?
-//TODO: scope_operator is never used
-static gchar*
-iparser_get_scope_context (IAnjutaParser* self,
-                           IAnjutaEditor* editor,
-                           const gchar *scope_operator,
-                           IAnjutaIterable *iter,
-                           const gchar* context_characters,
-                           GError** e)
-{
-	IAnjutaIterable* end;	
-	gchar ch, *scope_chars = NULL;
-	gboolean out_of_range = FALSE;
-	gboolean scope_chars_found = FALSE;
-	
-	end = ianjuta_iterable_clone (iter, NULL);
-	ianjuta_iterable_next (end, NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	
-	while (ch)
-	{
-		if (parser_engine_is_scope_context_character (ch, context_characters))
-		{
-			scope_chars_found = TRUE;
-		}
-		else if (ch == ')')
-		{
-			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
-			{
-				out_of_range = TRUE;
-				break;
-			}
-		}
-		else
-			break;
-		if (!ianjuta_iterable_previous (iter, NULL))
-		{
-			out_of_range = TRUE;
-			break;
-		}		
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	}
-	if (scope_chars_found)
-	{
-		IAnjutaIterable* begin;
-		begin = ianjuta_iterable_clone (iter, NULL);
-		if (!out_of_range)
-			ianjuta_iterable_next (begin, NULL);
-		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
-		g_object_unref (begin);
-	}
-	g_object_unref (end);
-	return scope_chars;
-}
-
 #define BRACE_SEARCH_LIMIT 500
 
 static gchar*
 iparser_get_calltip_context (IAnjutaParser* self,
                              IAnjutaEditorTip* itip,
                              IAnjutaIterable* iter,
-                             const gchar* context_characters,
+                             const gchar* scope_context_characters,
                              GError** e)
 {
 	gchar ch;
-	gchar *context = NULL;	
+	gchar *context = NULL;
 	
 	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
 	if (ch == ')')
@@ -452,13 +458,65 @@ iparser_get_calltip_context (IAnjutaParser* self,
 		&& g_ascii_isspace (ianjuta_editor_cell_get_char
 								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
 	
-	context = iparser_get_scope_context (self, IANJUTA_EDITOR (itip),
-	                                     "(", iter, context_characters, NULL);
+	context = parser_engine_get_scope_context (IANJUTA_EDITOR (itip),
+	                                           iter, scope_context_characters);
 
 	/* Point iter to the first character of the scope to align calltip correctly */
 	ianjuta_iterable_next (iter, NULL);
 	
 	return context;
+}
+
+static gchar*
+iparser_get_pre_word (IAnjutaParser* self,
+                      IAnjutaEditor* editor,
+                      IAnjutaIterable *iter,
+                      IAnjutaIterable** start_iter,
+                      const gchar* word_characters,
+                      GError** e)
+{
+g_warning ("iparser_get_pre_word works");
+	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
+	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
+	gchar ch, *preword_chars = NULL;
+	gboolean out_of_range = FALSE;
+	gboolean preword_found = FALSE;
+	
+	/* Cursor points after the current characters, move back */
+	ianjuta_iterable_previous (begin, NULL);
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
+	
+	while (ch && parser_engine_is_character (ch, word_characters))
+	{
+		preword_found = TRUE;
+		if (!ianjuta_iterable_previous (begin, NULL))
+		{
+			out_of_range = TRUE;
+			break;
+		}
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
+	}
+	
+	if (preword_found)
+	{
+		if (!out_of_range)
+			ianjuta_iterable_next (begin, NULL);
+		preword_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
+		*start_iter = begin;
+	}
+	else
+	{
+g_warning ("iparser_get_pre_word 1");
+		g_object_unref (begin);
+g_warning ("iparser_get_pre_word 2");
+		*start_iter = NULL;
+	}
+	
+g_warning ("iparser_get_pre_word 3");
+	g_object_unref (end);
+g_warning ("iparser_get_pre_word 4");
+	return preword_chars;
 }
 
 static void
@@ -467,8 +525,7 @@ iparser_iface_init (IAnjutaParserIface* iface)
 	iface->create_calltips = iparser_create_calltips;
 	iface->create_completion_from_symbols = iparser_create_completion_from_symbols;
 	iface->get_calltip_context = iparser_get_calltip_context;
-	iface->get_scope_context = iparser_get_scope_context;
-	iface->proposal_new = iparser_proposal_new;
+	iface->get_pre_word = iparser_get_pre_word;
 }
 
 ANJUTA_PLUGIN_BEGIN (ParserEnginePlugin, parser_engine_plugin);
