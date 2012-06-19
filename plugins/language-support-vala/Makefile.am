@@ -1,5 +1,9 @@
 if ENABLE_VALA
 
+#Plugin glade file
+vala_gladedir = $(anjuta_glade_dir)
+vala_glade_DATA = anjuta-vala.ui
+
 # Plugin description file
 plugin_in_files = anjuta-vala.plugin.in
 %.plugin: %.plugin.in $(INTLTOOL_MERGE) $(wildcard $(top_srcdir)/po/*po) ; $(INTLTOOL_MERGE) $(top_srcdir)/po $< $@ -d -u -c $(top_builddir)/po/.intltool-merge-cache
@@ -44,7 +48,7 @@ locator.c plugin.c provider.c report.c: libanjuta_language_vala_la_vala.stamp
 	@true
 
 libanjuta_language_vala_la_vala.stamp: $(libanjuta_language_vala_la_VALASOURCES)
-	valac $(VALAFLAGS) --vapidir $(srcdir) --pkg $(LIBVALA) --pkg libanjuta-3.0 -C $^
+	valac $(VALAFLAGS) --vapidir $(srcdir) --pkg $(LIBVALA) --pkg libanjuta-3.0 --pkg gtk+-3.0 -C $^
 	touch $@
 
 libanjuta_language_vala_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
@@ -56,13 +60,22 @@ libanjuta_language_vala_la_LIBADD = \
 
 endif # ENABLE_VALA
 
+gsettings_in_file = org.gnome.anjuta.plugins.vala.gschema.xml.in
+gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
+@INTLTOOL_XML_NOMERGE_RULE@
+@GSETTINGS_RULES@
+
 EXTRA_DIST = \
 	$(plugin_in_files) \
 	$(vala_plugin_DATA) \
+	$(vala_glade_DATA) \
+	$(gsettings_in_file) \
 	$(libanjuta_language_vala_la_VALASOURCES) \
 	libanjuta-3.0.deps \
 	libanjuta-3.0.vapi
 
+CLEANFILES = \
+  $(gsettings_SCHEMAS)
 
 -include $(top_srcdir)/git.mk
 
