@@ -19,8 +19,15 @@ using GLib;
 using Gtk;
 using Anjuta;
 
-public class ValaPlugin : Plugin {
-	internal weak IAnjuta.Editor current_editor;
+public class ValaPlugin : Plugin, IAnjuta.Preferences {
+	internal const string PREF_WIDGET_SPACE = "preferences:completion-space-after-func";
+	internal const string PREF_WIDGET_BRACE = "preferences:completion-brace-after-func";
+	internal const string PREF_WIDGET_CLOSEBRACE = "preferences:completion-closebrace-after-func";
+	internal const string PREF_WIDGET_AUTO = "preferences:completion-enable";
+	internal const string PREFS_BUILDER = /*PACKAGE_DATA_DIR +*/ "/glade/anjuta-vala.ui";
+	internal const string ICON_FILE = "anjuta-vala.png";
+
+	internal weak IAnjuta.Editor current_editor;	
 	internal GLib.Settings settings = new GLib.Settings ("org.gnome.anjuta.plugins.vala");
 	uint editor_watch_id;
 	ulong project_loaded_id;
@@ -69,7 +76,7 @@ public class ValaPlugin : Plugin {
 
 		return true;
 	}
-
+	
 	void init_context () {
 		context = new Vala.CodeContext();
 		context.profile = Vala.Profile.GOBJECT;
@@ -628,14 +635,9 @@ public class ValaPlugin : Plugin {
 			report.update_errors(current_editor);
 		}
 	}
-
-	internal const string PREF_WIDGET_SPACE = "preferences:completion-space-after-func";
-	internal const string PREF_WIDGET_BRACE = "preferences:completion-brace-after-func";
-	internal const string PREF_WIDGET_CLOSEBRACE = "preferences:completion-closebrace-after-func";
-	internal const string PREF_WIDGET_AUTO = "preferences:completion-enable";
-
-	void on_autocompletion_toggled (ToggleButton button) {
-		var widget = new ValaWidget();
+	
+	private static void on_autocompletion_toggled (ToggleButton button, ValaPlugin plugin) {
+		var widget = new Widget();
 		var sensitive = button.get_active();
 
 		widget = (Widget) plugin.bxml.get_object (PREF_WIDGET_SPACE);
@@ -646,10 +648,9 @@ public class ValaPlugin : Plugin {
 		widget.set_sensitive (sensitive);
 	}
 
-	void ipreferences_merge (IAnjuta.Preferences ipref, Anjuta.Preferences prefs, Error err) {
+	public static void ipreferences_merge (IAnjuta.Preferences ipref, Anjuta.Preferences prefs, Error err) {
 		var plugin = (ValaPlugin) ipref;
 		plugin.bxml = new Builder();
-		var toggle;
 
 		/* Add preferences */
 		try {
@@ -657,29 +658,29 @@ public class ValaPlugin : Plugin {
 		} catch (Error err) {
 			warning ("Couldn't load builder file: %s", err.message);
 		}
-		anjuta_preferences_add_from_builder (prefs,
-		                                     plugin.bxml, plugin.settings,
+		prefs.add_from_builder (plugin.bxml, plugin.settings,
 		                                     "preferences", _("Auto-complete"),
 		                                     ICON_FILE);
-		toggle = (Widget) plugin.bxml.get_object (PREF_WIDGET_AUTO);
-		connect (toggle, "toggled", (GLib.Callback) on_autocompletion_toggled, plugin);
-		on_autocompletion_toggled ((ToggleButton) toggle);
+		var toggle = (Widget) plugin.bxml.get_object (PREF_WIDGET_AUTO);
+		GLib.Signal.connect (toggle, "toggled", (GLib.Callback) on_autocompletion_toggled, plugin);
+		on_autocompletion_toggled ((ToggleButton) toggle, plugin);
 	}
 
-	void ipreferences_unmerge (IAnjuta.Preferences ipref, Anjuta.Preferences prefs, Error err) {
-		anjuta_preferences_remove_page (prefs, _("Auto-complete"));
+	public static void ipreferences_unmerge (IAnjuta.Preferences ipref, Anjuta.Preferences prefs, Error err) {
+		prefs.remove_page (_("Auto-complete"));
 	}
-
-	void ipreferences_iface_init (IAnjuta.PreferencesIface iface) {
+/*
+	public static void ipreferences_iface_init (IAnjuta.Preferences.Iface iface) {
 		iface.merge = ipreferences_merge;
 		iface.unmerge = ipreferences_unmerge;
 	}
 
-//	ANJUTA_PLUGIN_BEGIN (ValaPlugin, anjuta-language-vala);
-//	ANJUTA_PLUGIN_ADD_INTERFACE (ipreferences, IANJUTA_TYPE_PREFERENCES);
-//	ANJUTA_PLUGIN_END;
+	ANJUTA_PLUGIN_BEGIN (ValaPlugin, anjuta-language-vala);
+	ANJUTA_PLUGIN_ADD_INTERFACE (ipreferences, IANJUTA_TYPE_PREFERENCES);
+	ANJUTA_PLUGIN_END;
 
-//	ANJUTA_SIMPLE_PLUGIN (ValaPlugin, anjuta-language-vala);
+	ANJUTA_SIMPLE_PLUGIN (ValaPlugin, anjuta-language-vala);
+*/
 }
 
 [ModuleInit]

@@ -204,6 +204,4 @@ public class ValaProvider : Object, IAnjuta.Provider {
 
 		return expr;
 	}
-
 }
-
