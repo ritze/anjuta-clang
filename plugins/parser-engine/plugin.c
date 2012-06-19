@@ -507,15 +507,11 @@ g_warning ("iparser_get_pre_word works");
 	}
 	else
 	{
-g_warning ("iparser_get_pre_word 1");
 		g_object_unref (begin);
-g_warning ("iparser_get_pre_word 2");
 		*start_iter = NULL;
 	}
 	
-g_warning ("iparser_get_pre_word 3");
 	g_object_unref (end);
-g_warning ("iparser_get_pre_word 4");
 	return preword_chars;
 }
 
