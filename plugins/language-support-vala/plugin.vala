@@ -20,6 +20,13 @@ using Gtk;
 using Anjuta;
 
 public class ValaPlugin : Plugin, IAnjuta.Preferences {
+	internal const string PREF_WIDGET_SPACE = "preferences:completion-space-after-func";
+	internal const string PREF_WIDGET_BRACE = "preferences:completion-brace-after-func";
+	internal const string PREF_WIDGET_AUTO = "preferences:completion-enable";
+	internal const string ICON_FILE = "anjuta-vala.png";
+	internal static string GETTEXT_PACKAGE = Config.GETTEXT_PACKAGE;
+	internal static string PREFS_BUILDER = Config.PACKAGE_DATA_DIR + "/glade/anjuta-vala.ui";
+	
 	internal weak IAnjuta.Editor current_editor;	
 	internal GLib.Settings settings = new GLib.Settings ("org.gnome.anjuta.plugins.vala");
 	uint editor_watch_id;
@@ -35,7 +42,7 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 	Vala.Parser parser;
 	Vala.Genie.Parser genie_parser;
 
-	Gtk.Builder bxml;
+	public static Gtk.Builder bxml;
 	
 	Vala.Set<string> current_sources = new Vala.HashSet<string> (str_hash, str_equal);
 	ValaPlugin () {
@@ -628,26 +635,12 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 			report.update_errors(current_editor);
 		}
 	}
-
-	internal const string PREF_WIDGET_SPACE = "preferences:completion-space-after-func";
-	internal const string PREF_WIDGET_BRACE = "preferences:completion-brace-after-func";
-	internal const string PREF_WIDGET_CLOSEBRACE = "preferences:completion-closebrace-after-func";
-	internal const string PREF_WIDGET_AUTO = "preferences:completion-enable";
-	internal const string ICON_FILE = "anjuta-vala.png";
-	static string PREFS_BUILDER;
-
-	static construct {
-		PREFS_BUILDER = Config.PACKAGE_DATA_DIR + "/glade/anjuta-vala.ui";
-	}
 	
-	private void on_autocompletion_toggled (ToggleButton button) {	
+	private void on_autocompletion_toggled (ToggleButton button) {
 		var sensitive = button.get_active();
-
-		var widget = (Widget) bxml.get_object (PREF_WIDGET_SPACE);
+		Gtk.Widget widget = (Widget) bxml.get_object (PREF_WIDGET_SPACE);
 		widget.set_sensitive (sensitive);
 		widget = (Widget) bxml.get_object (PREF_WIDGET_BRACE);
-		widget.set_sensitive (sensitive);
-		widget = (Widget) bxml.get_object (PREF_WIDGET_CLOSEBRACE);
 		widget.set_sensitive (sensitive);
 	}
 
@@ -660,16 +653,16 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 		} catch (Error err) {
 			warning ("Couldn't load builder file: %s", err.message);
 		}
-		prefs.add_from_builder (bxml, settings, "preferences", /*_(*/"Auto-complete"/*)*/,
+		prefs.add_from_builder (bxml, settings, "preferences", _("Auto-complete"),
 		                        ICON_FILE);
 		var toggle = (Widget) bxml.get_object (PREF_WIDGET_AUTO);
 		GLib.Signal.connect (toggle, "toggled",
-		                     (GLib.Callback) on_autocompletion_toggled, this);
+		                     (GLib.Callback) on_autocompletion_toggled, toggle);
 		on_autocompletion_toggled ((ToggleButton) toggle);
 	}
 
 	public void unmerge (Anjuta.Preferences prefs) throws GLib.Error {
-		prefs.remove_page (/*_(*/"Auto-complete"/*)*/);
+		prefs.remove_page (_("Auto-complete"));
 	}
 }
 
