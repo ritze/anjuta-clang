@@ -379,7 +379,6 @@ iparser_create_calltips (IAnjutaParser* self,
 				
 				white_name = g_strnfill (white_count, ' ');
 				separator = g_strjoin (NULL, ", \n", white_name, NULL);
-//equal part 1 START
 				gchar** argv;
 				if (!args)
 					args = "()";
@@ -395,7 +394,6 @@ iparser_create_calltips (IAnjutaParser* self,
 				g_free (print_args);
 				g_free (separator);
 				g_free (white_name);
-//equal part 1 END
 			}
 			else
 				break;

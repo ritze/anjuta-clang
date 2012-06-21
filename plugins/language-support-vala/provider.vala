@@ -133,10 +133,6 @@ public class ValaProvider : Object, IAnjuta.Provider {
 
 		var creation_method = (match_info.fetch(1) != "");
 		var names = member_access_split.split (match_info.fetch(2));
-//TODO:
-// syms ==> IAnjutaIterable* iter
-// tips = ianjuta_parser_create_calltips (IAnjutaParser* self, iter, GList* merge, null)
-//ianjuta_parser_create_calltips: START?
 		var syms = plugin.lookup_symbol (construct_member_access (names), match_info.fetch(3),
 		                                 false, plugin.get_current_context (editor) as Vala.Block);
 		foreach (var sym in syms) {
@@ -164,7 +160,6 @@ public class ValaProvider : Object, IAnjuta.Provider {
 			} else {
 				return;
 			}
-//equal part 1 START
 			calltip.append(" (");
 			var prestring = "".nfill (calltip.len, ' ');
 			var first = true;
@@ -184,9 +179,7 @@ public class ValaProvider : Object, IAnjuta.Provider {
 			}
 			calltip.append (")");
 			tips.append (calltip.str);
-//equal part 1 END
 		}
-//ianjuta_parser_create_calltips: END
 		editor.show (tips, editor.get_position ());
 	}
 	Vala.Expression construct_member_access (string[] names) {

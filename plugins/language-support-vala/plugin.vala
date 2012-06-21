@@ -638,9 +638,9 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 	
 	private void on_autocompletion_toggled (ToggleButton button) {
 		var sensitive = button.get_active();
-		Gtk.Widget widget = (Widget) bxml.get_object (PREF_WIDGET_SPACE);
+		Gtk.Widget widget = bxml.get_object (PREF_WIDGET_SPACE) as Widget;
 		widget.set_sensitive (sensitive);
-		widget = (Widget) bxml.get_object (PREF_WIDGET_BRACE);
+		widget = bxml.get_object (PREF_WIDGET_BRACE) as  Widget;
 		widget.set_sensitive (sensitive);
 	}
 
@@ -655,10 +655,9 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 		}
 		prefs.add_from_builder (bxml, settings, "preferences", _("Auto-complete"),
 		                        ICON_FILE);
-		var toggle = (Widget) bxml.get_object (PREF_WIDGET_AUTO);
-		GLib.Signal.connect (toggle, "toggled",
-		                     (GLib.Callback) on_autocompletion_toggled, toggle);
-		on_autocompletion_toggled ((ToggleButton) toggle);
+		var toggle = bxml.get_object (PREF_WIDGET_AUTO) as ToggleButton;
+		toggle.toggled.connect (on_autocompletion_toggled);
+		on_autocompletion_toggled (toggle);
 	}
 
 	public void unmerge (Anjuta.Preferences prefs) throws GLib.Error {

@@ -151,7 +151,8 @@ static void
 parser_cxx_assist_update_pre_word (ParserCxxAssist* assist, const gchar* pre_word)
 {
 	g_free (assist->priv->pre_word);
-	if (pre_word == NULL) pre_word = "";
+	if (pre_word == NULL)
+		pre_word = "";
 	assist->priv->pre_word = g_strdup (pre_word);
 }
 
@@ -854,17 +855,17 @@ parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GErr
 static IAnjutaIterable*
 parser_cxx_assist_find_next_brace (IAnjutaIterable* iter)
 {
-	IAnjutaIterable* my_iter = ianjuta_iterable_clone (iter, NULL);
-	char ch;
+	IAnjutaIterable* current_iter = ianjuta_iterable_clone (iter, NULL);
+	gchar ch;
 	do
 	{
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (my_iter), 0, NULL);
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (current_iter), 0, NULL);
 		if (ch == '(')
-			return my_iter;
+			return current_iter;
 	}
-	while (g_ascii_isspace (ch) && ianjuta_iterable_next (my_iter, NULL));
+	while (g_ascii_isspace (ch) && ianjuta_iterable_next (current_iter, NULL));
 	
-	g_object_unref (my_iter);
+	g_object_unref (current_iter);
 	return NULL;
 }
 
@@ -878,7 +879,7 @@ parser_cxx_assist_find_next_brace (IAnjutaIterable* iter)
 static gboolean
 parser_cxx_assist_find_whitespace (IAnjutaIterable* iter)
 {
-	char ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	gchar ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
 	if (g_ascii_isspace (ch) && ch != '\n' && parser_cxx_assist_find_next_brace(iter))
 		return TRUE;
 	else

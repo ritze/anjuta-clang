@@ -102,7 +102,6 @@ struct _PythonAssistPriv {
 	/* Calltips */
 	GString* calltip_cache;
 	gchar *calltip_context;
-	gint calltip_context_position;
 	GList *tips;
 	IAnjutaIterable* calltip_iter;
 };
@@ -237,13 +236,11 @@ create_tmp_file (const gchar* source)
 			fprintf (rope_file, "%s", source);
 			fclose (rope_file);
 			close (tmp_fd);
+			return tmp_file;
 		}
-		else
-			goto error;
-		return tmp_file;
 	}
 
-error:
+	/* Error */
 	g_warning ("Creating tmp_file failed: %s", err->message);
 	g_error_free (err);
 	return NULL;
@@ -440,12 +437,10 @@ python_assist_create_word_completion_cache (PythonAssist *assist, IAnjutaIterabl
 
 static void
 python_assist_create_calltip_context (PythonAssist* assist,
-                                      const gchar* call_context,
-                                      gint call_context_position,                                      
+                                      const gchar* call_context,                                      
                                       IAnjutaIterable* position)
 {
 	assist->priv->calltip_context = g_strdup (call_context);
-	assist->priv->calltip_context_position = call_context_position;
 	assist->priv->calltip_iter = position;
 }
 
@@ -493,10 +488,9 @@ on_calltip_finished (AnjutaLauncher* launcher,
 }
 
 static void
-python_assist_query_calltip (PythonAssist *assist, const gchar *call_context)
+python_assist_query_calltip (PythonAssist *assist, const gchar *call_context, gint offset)
 {	
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
-	gint offset = assist->priv->calltip_context_position;
 	gchar *interpreter_path;
 	const gchar *cur_filename;
 	gchar *source = ianjuta_editor_get_text_all (editor, NULL);
@@ -557,13 +551,11 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 }
 
 static gint
-python_assist_get_calltip_context_position (PythonAssist *assist,
-                                     IAnjutaIterable *iter)
+python_assist_get_calltip_context_position (IAnjutaIterable *iter)
 {
 	gchar ch;
 	gint final_offset;
-	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
-	IAnjutaIterable *current_iter = ianjuta_editor_get_position (editor, NULL);
+	IAnjutaIterable* current_iter = ianjuta_iterable_clone (iter, NULL);
 	
 	while (ianjuta_iterable_previous (current_iter, NULL))
 	{
@@ -573,7 +565,8 @@ python_assist_get_calltip_context_position (PythonAssist *assist,
 	}
 	final_offset = ianjuta_iterable_get_position (current_iter, NULL);
 	
-	return final_offset-1;
+	g_object_unref (current_iter);
+	return final_offset - 1;
 }
 
 static gboolean
@@ -592,7 +585,8 @@ python_assist_calltip (PythonAssist *assist)
 	call_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
 	                                   IANJUTA_EDITOR_TIP (assist->priv->itip),
 	                                   iter, SCOPE_CONTEXT_CHARACTERS, NULL);
-	call_context_position = python_assist_get_calltip_context_position (assist, iter);
+	iter = ianjuta_editor_get_position (editor, NULL);
+	call_context_position = python_assist_get_calltip_context_position (iter);
 
 	if (call_context)
 	{
@@ -619,8 +613,8 @@ python_assist_calltip (PythonAssist *assist)
 				ianjuta_editor_tip_cancel (IANJUTA_EDITOR_TIP (editor), NULL);
 			
 			python_assist_clear_calltip_context (assist);
-			python_assist_create_calltip_context (assist, call_context, call_context_position, iter);
-			python_assist_query_calltip (assist, call_context);
+			python_assist_create_calltip_context (assist, call_context, iter);
+			python_assist_query_calltip (assist, call_context, call_context_position);
 			g_free (call_context);
 			return TRUE;
 		}
