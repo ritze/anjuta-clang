@@ -69,7 +69,7 @@ struct _ParserCxxAssistPriv {
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
 	IAnjutaParser* parser;
-
+	
 	GCompletion *completion_cache;
 
 	/* Calltips */
@@ -846,15 +846,13 @@ parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GErr
 
 /**
  * parser_cxx_assist_find_next_brace:
- * @self: ParserCxxAssist object
  * @iter: Iter to start searching at
  *
- * Returns: TRUE if the next non-whitespace character is a opening brace,
- * FALSE otherwise
+ * Returns: The position of the brace, if the next non-whitespace character is a opening brace,
+ * NULL otherwise
  */
-static gboolean
-parser_cxx_assist_find_next_brace (ParserCxxAssist* assist,
-                                 IAnjutaIterable* iter)
+static IAnjutaIterable*
+parser_cxx_assist_find_next_brace (IAnjutaIterable* iter)
 {
 	IAnjutaIterable* my_iter = ianjuta_iterable_clone (iter, NULL);
 	char ch;
@@ -862,14 +860,29 @@ parser_cxx_assist_find_next_brace (ParserCxxAssist* assist,
 	{
 		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (my_iter), 0, NULL);
 		if (ch == '(')
-		{
-			g_object_unref (my_iter);
-		    return TRUE;
-		}
+			return my_iter;
 	}
 	while (g_ascii_isspace (ch) && ianjuta_iterable_next (my_iter, NULL));
 	
-	return FALSE;
+	g_object_unref (my_iter);
+	return NULL;
+}
+
+/**
+ * parser_cxx_assist_find_whitespace:
+ * @iter: Iter to start searching at
+ *
+ * Returns: TRUE if the next character is a whitespace character,
+ * FALSE otherwise
+ */
+static gboolean
+parser_cxx_assist_find_whitespace (IAnjutaIterable* iter)
+{
+	char ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	if (g_ascii_isspace (ch) && ch != '\n' && parser_cxx_assist_find_next_brace(iter))
+		return TRUE;
+	else
+		return FALSE;
 }
 
 /**
@@ -898,6 +911,7 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 	
 	if (prop_data->is_func)
 	{
+		IAnjutaIterable* next_brace = parser_cxx_assist_find_next_brace (iter);
 		add_space_after_func =
 			g_settings_get_boolean (assist->priv->settings,
 			                        PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC);
@@ -908,20 +922,19 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 			g_settings_get_boolean (assist->priv->settings,
 			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
 
-		if (!parser_cxx_assist_find_next_brace (assist, iter))
-		{
-			if (add_space_after_func)
-				g_string_append (assistance, " ");
-			if (add_brace_after_func)
-				g_string_append (assistance, "(");
-		}
+		if (add_space_after_func && !parser_cxx_assist_find_whitespace (iter))
+			g_string_append (assistance, " ");
+		if (add_brace_after_func && !next_brace)
+			g_string_append (assistance, "(");
+		else
+			g_object_unref (next_brace);
 	}
 	
 	te = IANJUTA_EDITOR (assist->priv->iassist);
 		
 	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (te), NULL);
 	
-	if (ianjuta_iterable_compare(iter, assist->priv->start_iter, NULL) != 0)
+	if (ianjuta_iterable_compare (iter, assist->priv->start_iter, NULL) != 0)
 	{
 		ianjuta_editor_selection_set (IANJUTA_EDITOR_SELECTION (te),
 									  assist->priv->start_iter, iter, FALSE, NULL);
@@ -941,7 +954,14 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 									   ianjuta_iterable_get_position (assist->priv->start_iter, NULL)
 									   + strlen (assistance->str),
 									   NULL);
-		ianjuta_editor_insert (te, pos, ")", -1, NULL);
+		if (!parser_cxx_assist_find_next_brace (pos))
+			ianjuta_editor_insert (te, pos, ")", -1, NULL);
+		else
+		{
+			pos = parser_cxx_assist_find_next_brace (pos);
+			ianjuta_iterable_next (pos, NULL);
+		}
+		
 		ianjuta_editor_goto_position (te, pos, NULL);
 
 		ianjuta_iterable_previous (pos, NULL);
