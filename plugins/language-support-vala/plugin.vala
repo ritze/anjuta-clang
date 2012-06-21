@@ -27,7 +27,7 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 	internal static string GETTEXT_PACKAGE = Config.GETTEXT_PACKAGE;
 	internal static string PREFS_BUILDER = Config.PACKAGE_DATA_DIR + "/glade/anjuta-vala.ui";
 	
-	internal weak IAnjuta.Editor current_editor;	
+	internal weak IAnjuta.Editor current_editor;
 	internal GLib.Settings settings = new GLib.Settings ("org.gnome.anjuta.plugins.vala");
 	uint editor_watch_id;
 	ulong project_loaded_id;
