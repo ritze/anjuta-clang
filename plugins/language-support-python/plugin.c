@@ -548,20 +548,50 @@ python_plugin_class_init (GObjectClass *klass)
 	klass->dispose = python_plugin_dispose;
 }
 
+#define PREF_WIDGET_SPACE "preferences:completion-space-after-func"
+#define PREF_WIDGET_BRACE "preferences:completion-brace-after-func"
+#define PREF_WIDGET_CLOSEBRACE "preferences:completion-closebrace-after-func"
+#define PREF_WIDGET_AUTO "preferences:completion-enable"
+
+static void
+on_autocompletion_toggled (GtkToggleButton* button,
+                           PythonPlugin* plugin)
+{
+    GtkWidget* widget;
+    gboolean sensitive = gtk_toggle_button_get_active (button);
+
+    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_SPACE));
+    gtk_widget_set_sensitive (widget, sensitive);
+    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_BRACE));
+    gtk_widget_set_sensitive (widget, sensitive);
+    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_CLOSEBRACE));
+    gtk_widget_set_sensitive (widget, sensitive);
+}
 
 static void
 ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
 					GError** e)
 {
 	/* Add preferences */
+	GError* error = NULL;
 	PythonPlugin* plugin = ANJUTA_PLUGIN_PYTHON (ipref);
 	plugin->bxml = gtk_builder_new ();
-	gtk_builder_add_from_file (plugin->bxml, PROPERTIES_FILE_UI, NULL);
+    GtkWidget* toggle;
+    
+	if (!gtk_builder_add_from_file (plugin->bxml, PROPERTIES_FILE_UI, &error))
+	{
+        g_warning ("Couldn't load builder file: %s", error->message);
+        g_error_free (error);
+	}
 	anjuta_preferences_add_from_builder (prefs,
 	                                     plugin->bxml,
 	                                     plugin->settings,
 	                                     "preferences", _("Python"),
 	                                     ICON_FILE);
+    toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_AUTO));
+    g_signal_connect (toggle, "toggled", G_CALLBACK (on_autocompletion_toggled),
+                      plugin);
+    on_autocompletion_toggled (GTK_TOGGLE_BUTTON (toggle), plugin);                               
 }
 
 static void

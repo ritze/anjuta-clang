@@ -424,6 +424,37 @@ iparser_create_completion_from_symbols (IAnjutaParser* self,
 	return list;
 }
 
+static IAnjutaIterable*
+iparser_find_next_brace (IAnjutaParser* self,
+                         IAnjutaIterable* iter,
+                         GError** e)
+{
+	IAnjutaIterable* current_iter = ianjuta_iterable_clone (iter, NULL);
+	gchar ch;
+	do
+	{
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (current_iter), 0, NULL);
+		if (ch == '(')
+			return current_iter;
+	}
+	while (g_ascii_isspace (ch) && ianjuta_iterable_next (current_iter, NULL));
+	
+	g_object_unref (current_iter);
+	return NULL;
+}
+
+static gboolean
+iparser_find_whitespace (IAnjutaParser* self,
+                         IAnjutaIterable* iter,
+                         GError** e)
+{
+	gchar ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	if (g_ascii_isspace (ch) && ch != '\n' && iparser_find_next_brace(self, iter, NULL))
+		return TRUE;
+	else
+		return FALSE;
+}
+
 #define BRACE_SEARCH_LIMIT 500
 
 static gchar*
@@ -518,6 +549,8 @@ iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->create_calltips = iparser_create_calltips;
 	iface->create_completion_from_symbols = iparser_create_completion_from_symbols;
+	iface->find_next_brace = iparser_find_next_brace;
+	iface->find_whitespace = iparser_find_whitespace;
 	iface->get_calltip_context = iparser_get_calltip_context;
 	iface->get_pre_word = iparser_get_pre_word;
 }

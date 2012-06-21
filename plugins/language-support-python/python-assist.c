@@ -43,8 +43,9 @@
 #include "python-assist.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
-#define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-func-space"
-#define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-func-brace"
+#define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
+#define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-brace-after-func"
+#define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC "completion-closebrace-after-func"
 #define PREF_CALLTIP_ENABLE "calltip-enable"
 #define PREF_INTERPRETER_PATH "interpreter-path"
 #define MAX_COMPLETIONS 30
@@ -410,7 +411,7 @@ python_assist_create_word_completion_cache (PythonAssist *assist, IAnjutaIterabl
 	ropecommand = g_strdup_printf("%s %s -o autocomplete -p \"%s\" -r \"%s\" -s \"%s\" -f %d -b \"%s\"", 
 	                              interpreter_path, AUTOCOMPLETE_SCRIPT, project, 
 	                              cur_filename, tmp_file, offset, builder_file_paths->str);
-
+g_warning ("%s", ropecommand);
 	g_string_free (builder_file_paths, TRUE);
 	g_free (tmp_file);
 
@@ -766,23 +767,31 @@ python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer d
 	IAnjutaEditor *te;
 	gboolean add_space_after_func = FALSE;
 	gboolean add_brace_after_func = FALSE;
+	gboolean add_closebrace_after_func = FALSE;
 	
 	tag = data;	
 	assistance = g_string_new (tag->name);
 	
 	if (tag->is_func)
 	{
+		IAnjutaIterable* next_brace = ianjuta_parser_find_next_brace (
+		                                  assist->priv->parser, iter, NULL);
 		add_space_after_func =
 			g_settings_get_boolean (assist->priv->settings,
 			                        PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC);
 		add_brace_after_func =
 			g_settings_get_boolean (assist->priv->settings,
 			                        PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC);
-		if (add_space_after_func)
+		add_closebrace_after_func =
+			g_settings_get_boolean (assist->priv->settings,
+			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
+		if (add_space_after_func
+			&& !ianjuta_parser_find_whitespace (assist->priv->parser, iter, NULL))
 			g_string_append (assistance, " ");
-		
-		if (add_brace_after_func)
+		if (add_brace_after_func && !next_brace)
 			g_string_append (assistance, "(");
+		else
+			g_object_unref (next_brace);
 	}
 	
 	te = IANJUTA_EDITOR (assist->priv->iassist);
@@ -800,6 +809,74 @@ python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer d
 	{
 		ianjuta_editor_insert (te, iter, assistance->str, -1, NULL);
 	}
+	
+//TODO: test this
+	if (add_brace_after_func && add_closebrace_after_func)
+	{
+		IAnjutaIterable *next_brace;
+		IAnjutaIterable *pos = ianjuta_iterable_clone (iter, NULL);
+
+		ianjuta_iterable_set_position (pos,
+									   ianjuta_iterable_get_position (assist->priv->start_iter, NULL)
+									   + strlen (assistance->str),
+									   NULL);
+		next_brace = ianjuta_parser_find_next_brace (assist->priv->parser, pos, NULL);
+		if (!next_brace)
+			ianjuta_editor_insert (te, pos, ")", -1, NULL);
+		else
+		{
+			pos = next_brace;
+			ianjuta_iterable_next (pos, NULL);
+		}
+		
+		ianjuta_editor_goto_position (te, pos, NULL);
+
+		ianjuta_iterable_previous (pos, NULL);
+//TODO:
+/*		
+		gchar *context = ianjuta_parser_get_calltip_context (assist->priv->parser,
+		                                                     assist->priv->itip,
+		                                                     pos,
+		                                                     SCOPE_CONTEXT_CHARACTERS,
+		                                                     NULL);
+		
+		IAnjutaIterable *symbol = NULL;
+		if (IANJUTA_IS_FILE (assist->priv->iassist))
+		{
+			GFile *file = ianjuta_file_get_file (IANJUTA_FILE (assist->priv->iassist), NULL);
+			if (file != NULL)
+			{
+				symbol = 
+					ianjuta_symbol_query_search_file (assist->priv->sync_query_file,
+													  context, file, NULL);
+				g_object_unref (file);
+			}
+		}
+		if (!symbol)
+		{
+			symbol =
+				ianjuta_symbol_query_search (assist->priv->sync_query_project, context, NULL);
+		}
+		if (!symbol)
+		{
+			symbol =
+				ianjuta_symbol_query_search (assist->priv->sync_query_system, context, NULL);
+		}
+		const gchar* signature =
+			ianjuta_symbol_get_string (IANJUTA_SYMBOL(symbol),
+									   IANJUTA_SYMBOL_FIELD_SIGNATURE, NULL);
+		if (!g_strcmp0 (signature, "(void)") || !g_strcmp0 (signature, "()"))
+		{
+			pos = ianjuta_editor_get_position (te, NULL);
+			ianjuta_iterable_next (pos, NULL);
+			ianjuta_editor_goto_position (te, pos, NULL);
+		}
+		g_object_unref (symbol);
+		g_free (context);
+*/
+		g_object_unref (pos);
+	}
+	
 	ianjuta_document_end_undo_action (IANJUTA_DOCUMENT (te), NULL);
 	
 	/* Show calltip if we completed function */
