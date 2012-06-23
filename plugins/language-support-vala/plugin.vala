@@ -24,7 +24,6 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 	internal const string PREF_WIDGET_BRACE = "preferences:completion-brace-after-func";
 	internal const string PREF_WIDGET_AUTO = "preferences:completion-enable";
 	internal const string ICON_FILE = "anjuta-vala.png";
-	internal static string GETTEXT_PACKAGE = Config.GETTEXT_PACKAGE;
 	internal static string PREFS_BUILDER = Config.PACKAGE_DATA_DIR + "/glade/anjuta-vala.ui";
 	
 	internal weak IAnjuta.Editor current_editor;

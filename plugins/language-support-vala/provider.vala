@@ -141,6 +141,13 @@ public class ValaProvider : Object, IAnjuta.Provider {
 			if (sym is Vala.Method) {
 				parameters = ((Vala.Method) sym).get_parameters ();
 				calltip.append (((Vala.Method) sym).return_type.to_qualified_string() + " ");
+				var method_parents = new StringBuilder ();
+				var parent = ((Vala.Method) sym).parent_symbol;
+				while (parent is Vala.Class) {
+					method_parents.prepend (parent.name + ".");
+					parent = parent.parent_symbol;
+				}
+				calltip.append (method_parents.str);
 				calltip.append (((Vala.Method) sym).name);
 			} else if (sym is Vala.Signal) {
 				parameters = ((Vala.Signal) sym).get_parameters ();
@@ -152,7 +159,7 @@ public class ValaProvider : Object, IAnjuta.Provider {
 				var var_type = ((Vala.Variable) sym).variable_type;
 				if (var_type is Vala.DelegateType) {
 					parameters = ((Vala.DelegateType) var_type).delegate_symbol.get_parameters ();
-					calltip.append (((Vala.Variable) sym).variable_type.to_qualified_string() + " ");
+					calltip.append (var_type.to_qualified_string() + " ");
 					calltip.append (((Vala.Variable) sym).name);
 				} else {
 					return;
