@@ -37,7 +37,6 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
-#include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h> 
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
@@ -78,11 +77,8 @@ typedef struct
 
 struct _PythonAssistPriv {
 	GSettings* settings;
-	IAnjutaSymbolManager* isymbol_manager;
-	IAnjutaDocumentManager* idocument_manager;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
-	IAnjutaEditor* editor;
 	IAnjutaParser* parser;
 	AnjutaLauncher* launcher;
 	AnjutaLauncher* calltip_launcher;	
@@ -411,7 +407,6 @@ python_assist_create_word_completion_cache (PythonAssist *assist, IAnjutaIterabl
 	ropecommand = g_strdup_printf("%s %s -o autocomplete -p \"%s\" -r \"%s\" -s \"%s\" -f %d -b \"%s\"", 
 	                              interpreter_path, AUTOCOMPLETE_SCRIPT, project, 
 	                              cur_filename, tmp_file, offset, builder_file_paths->str);
-g_warning ("%s", ropecommand);
 	g_string_free (builder_file_paths, TRUE);
 	g_free (tmp_file);
 
@@ -438,7 +433,7 @@ g_warning ("%s", ropecommand);
 
 static void
 python_assist_create_calltip_context (PythonAssist* assist,
-                                      const gchar* call_context,                                      
+                                      const gchar* call_context,
                                       IAnjutaIterable* position)
 {
 	assist->priv->calltip_context = g_strdup (call_context);
@@ -810,7 +805,6 @@ python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer d
 		ianjuta_editor_insert (te, iter, assistance->str, -1, NULL);
 	}
 	
-//TODO: test this
 	if (add_brace_after_func && add_closebrace_after_func)
 	{
 		IAnjutaIterable *next_brace;
@@ -832,48 +826,6 @@ python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer d
 		ianjuta_editor_goto_position (te, pos, NULL);
 
 		ianjuta_iterable_previous (pos, NULL);
-//TODO:
-/*		
-		gchar *context = ianjuta_parser_get_calltip_context (assist->priv->parser,
-		                                                     assist->priv->itip,
-		                                                     pos,
-		                                                     SCOPE_CONTEXT_CHARACTERS,
-		                                                     NULL);
-		
-		IAnjutaIterable *symbol = NULL;
-		if (IANJUTA_IS_FILE (assist->priv->iassist))
-		{
-			GFile *file = ianjuta_file_get_file (IANJUTA_FILE (assist->priv->iassist), NULL);
-			if (file != NULL)
-			{
-				symbol = 
-					ianjuta_symbol_query_search_file (assist->priv->sync_query_file,
-													  context, file, NULL);
-				g_object_unref (file);
-			}
-		}
-		if (!symbol)
-		{
-			symbol =
-				ianjuta_symbol_query_search (assist->priv->sync_query_project, context, NULL);
-		}
-		if (!symbol)
-		{
-			symbol =
-				ianjuta_symbol_query_search (assist->priv->sync_query_system, context, NULL);
-		}
-		const gchar* signature =
-			ianjuta_symbol_get_string (IANJUTA_SYMBOL(symbol),
-									   IANJUTA_SYMBOL_FIELD_SIGNATURE, NULL);
-		if (!g_strcmp0 (signature, "(void)") || !g_strcmp0 (signature, "()"))
-		{
-			pos = ianjuta_editor_get_position (te, NULL);
-			ianjuta_iterable_next (pos, NULL);
-			ianjuta_editor_goto_position (te, pos, NULL);
-		}
-		g_object_unref (symbol);
-		g_free (context);
-*/
 		g_object_unref (pos);
 	}
 	
@@ -900,7 +852,7 @@ python_assist_get_name (IAnjutaProvider* provider, GError** e)
 }
 
 static void 
-python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor)
+python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor, IAnjutaParser *iparser)
 {
 	g_return_if_fail (assist->priv->iassist == NULL);
 
@@ -911,18 +863,17 @@ python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor)
 		g_signal_connect (ieditor, "cancelled", G_CALLBACK (python_assist_cancelled), assist);
 	}
 	else
-	{
 		assist->priv->iassist = NULL;
-	}
 
 	if (IANJUTA_IS_EDITOR_TIP (ieditor))
-	{
 		assist->priv->itip = IANJUTA_EDITOR_TIP (ieditor);
-	}
 	else
-	{
 		assist->priv->itip = NULL;
-	}
+
+	if (IANJUTA_IS_PARSER (iparser))
+		assist->priv->parser = IANJUTA_PARSER (iparser);
+	else
+		assist->priv->parser = NULL;
 }
 
 static void
@@ -965,25 +916,22 @@ python_assist_class_init (PythonAssistClass *klass)
 }
 
 PythonAssist * 
-python_assist_new (IAnjutaEditorAssist *iassist,
+python_assist_new (IAnjutaEditor *ieditor,
                    IAnjutaParser *iparser,
                    IAnjutaSymbolManager *isymbol_manager,
-                   IAnjutaDocumentManager *idocument_manager,
                    AnjutaPlugin *plugin,
                    GSettings* settings,
                    const gchar *editor_filename,
                    const gchar *project_root)
 {
 	PythonAssist *assist = g_object_new (TYPE_PYTHON_ASSIST, NULL);
-	assist->priv->parser = iparser;
-	assist->priv->isymbol_manager = isymbol_manager;
-	assist->priv->idocument_manager = idocument_manager;
 	assist->priv->editor_filename = editor_filename;
 	assist->priv->settings = settings;
 	assist->priv->project_root = project_root;
-	assist->priv->editor = (IAnjutaEditor*)iassist;
 	assist->priv->plugin = plugin;
-	python_assist_install (assist, IANJUTA_EDITOR (iassist));
+	
+	/* Install support */
+	python_assist_install (assist, ieditor, iparser);
 	return assist;
 }
 

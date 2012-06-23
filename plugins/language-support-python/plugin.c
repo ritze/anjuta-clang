@@ -242,12 +242,8 @@ install_support (PythonPlugin *lang_plugin)
 		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
 		                            IAnjutaSymbolManager,
 		                            NULL);
-	IAnjutaDocumentManager* docman =
-		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
-		                            IAnjutaDocumentManager,
-		                            NULL);
 
-	if (!lang_manager || !sym_manager || !docman)
+	if (!lang_manager || !sym_manager)
 		return;
 
 	if (lang_plugin->support_installed)
@@ -268,7 +264,7 @@ install_support (PythonPlugin *lang_plugin)
 	if (IANJUTA_IS_EDITOR_ASSIST (lang_plugin->current_editor) )
 	{
 		AnjutaPlugin *plugin;
-		IAnjutaEditorAssist* iassist;
+		IAnjutaEditor* ieditor;
 		IAnjutaParser *iparser;
 
 		const gchar *project_root;
@@ -277,7 +273,7 @@ install_support (PythonPlugin *lang_plugin)
 		check_support (lang_plugin);
 
 		plugin = ANJUTA_PLUGIN (lang_plugin);
-		iassist = IANJUTA_EDITOR_ASSIST (lang_plugin->current_editor);
+		ieditor = IANJUTA_EDITOR (lang_plugin->current_editor);
 		iparser = anjuta_shell_get_interface (
 						anjuta_plugin_get_shell (ANJUTA_PLUGIN (lang_plugin)),
 				    	IAnjutaParser, NULL);
@@ -287,10 +283,9 @@ install_support (PythonPlugin *lang_plugin)
 		project_root = ANJUTA_PLUGIN_PYTHON(plugin)->project_root_directory;
 		editor_filename = ANJUTA_PLUGIN_PYTHON(plugin)->current_editor_filename;
 
-		lang_plugin->assist = python_assist_new (iassist,
+		lang_plugin->assist = python_assist_new (ieditor,
 		                                         iparser,
 		                                         sym_manager,
-		                                         docman,
 		                                         plugin,
 		                                         lang_plugin->settings,
 		                                         editor_filename,

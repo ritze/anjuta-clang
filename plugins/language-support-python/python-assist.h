@@ -64,10 +64,9 @@ struct _PythonAssist
 
 GType python_assist_get_type (void) G_GNUC_CONST;
 
-PythonAssist *python_assist_new (IAnjutaEditorAssist *assist,
+PythonAssist *python_assist_new (IAnjutaEditor *ieditor,
                                  IAnjutaParser *iparser,
                                  IAnjutaSymbolManager *isymbol_manager,
-                                 IAnjutaDocumentManager *idocument_manager,
                                  AnjutaPlugin *plugin,
                                  GSettings* settings,
                                  const gchar *editor_filename,
