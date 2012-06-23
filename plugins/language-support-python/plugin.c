@@ -283,8 +283,8 @@ install_support (PythonPlugin *lang_plugin)
 		lang_plugin->assist = python_assist_new (ieditor,
 		                                         iparser,
 		                                         sym_manager,
-		                                         plugin,
 		                                         lang_plugin->settings,
+		                                         plugin,
 		                                         project_root);
 	}
 

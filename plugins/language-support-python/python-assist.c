@@ -929,14 +929,14 @@ PythonAssist *
 python_assist_new (IAnjutaEditor *ieditor,
                    IAnjutaParser *iparser,
                    IAnjutaSymbolManager *isymbol_manager,
-                   AnjutaPlugin *plugin,
                    GSettings* settings,
+                   AnjutaPlugin *plugin,
                    const gchar *project_root)
 {
 	PythonAssist *assist = g_object_new (TYPE_PYTHON_ASSIST, NULL);
 	assist->priv->settings = settings;
-	assist->priv->project_root = project_root;
 	assist->priv->plugin = plugin;
+	assist->priv->project_root = project_root;
 		
 	/* Install support */
 	python_assist_install (assist, ieditor, iparser);
