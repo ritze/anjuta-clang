@@ -34,7 +34,6 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
-#include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-language.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
@@ -268,7 +267,6 @@ install_support (PythonPlugin *lang_plugin)
 		IAnjutaParser *iparser;
 
 		const gchar *project_root;
-		gchar *editor_filename;
 
 		check_support (lang_plugin);
 
@@ -281,14 +279,12 @@ install_support (PythonPlugin *lang_plugin)
 		g_assert (lang_plugin->assist == NULL);
 
 		project_root = ANJUTA_PLUGIN_PYTHON(plugin)->project_root_directory;
-		editor_filename = ANJUTA_PLUGIN_PYTHON(plugin)->current_editor_filename;
 
 		lang_plugin->assist = python_assist_new (ieditor,
 		                                         iparser,
 		                                         sym_manager,
 		                                         plugin,
 		                                         lang_plugin->settings,
-		                                         editor_filename,
 		                                         project_root);
 	}
 
@@ -356,16 +352,6 @@ on_editor_added (AnjutaPlugin *plugin, const gchar *name,
 	}
 	if (lang_plugin->current_editor)
 	{
-		IAnjutaEditor* editor = IANJUTA_EDITOR (lang_plugin->current_editor);
-		GFile* current_editor_file = ianjuta_file_get_file (IANJUTA_FILE (editor),
-		                                                    NULL);
-
-		if (current_editor_file)
-		{
-			lang_plugin->current_editor_filename = g_file_get_path (current_editor_file);
-			g_object_unref (current_editor_file);
-		}
-
 		install_support (lang_plugin);
 		g_signal_connect (lang_plugin->current_editor, "language-changed",
 		                  G_CALLBACK (on_editor_language_changed),
@@ -387,9 +373,6 @@ on_editor_removed (AnjutaPlugin *plugin, const gchar *name,
 
 	uninstall_support (lang_plugin);
 
-
-	g_free (lang_plugin->current_editor_filename);
-	lang_plugin->current_editor_filename = NULL;
 	lang_plugin->current_editor = NULL;
 	lang_plugin->current_language = NULL;
 }

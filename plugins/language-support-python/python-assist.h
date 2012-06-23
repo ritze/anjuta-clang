@@ -69,7 +69,6 @@ PythonAssist *python_assist_new (IAnjutaEditor *ieditor,
                                  IAnjutaSymbolManager *isymbol_manager,
                                  AnjutaPlugin *plugin,
                                  GSettings* settings,
-                                 const gchar *editor_filename,
                                  const gchar *project_root);
 
 G_END_DECLS

@@ -874,6 +874,16 @@ python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor, IAnjutaPars
 		assist->priv->parser = IANJUTA_PARSER (iparser);
 	else
 		assist->priv->parser = NULL;
+		
+	if (IANJUTA_IS_FILE (assist->priv->iassist))
+	{
+		GFile *file = ianjuta_file_get_file (IANJUTA_FILE (assist->priv->iassist), NULL);
+		if (file != NULL)
+		{
+			assist->priv->editor_filename = g_file_get_path (file);
+			g_object_unref (file);
+		}
+	}
 }
 
 static void
@@ -921,15 +931,13 @@ python_assist_new (IAnjutaEditor *ieditor,
                    IAnjutaSymbolManager *isymbol_manager,
                    AnjutaPlugin *plugin,
                    GSettings* settings,
-                   const gchar *editor_filename,
                    const gchar *project_root)
 {
 	PythonAssist *assist = g_object_new (TYPE_PYTHON_ASSIST, NULL);
-	assist->priv->editor_filename = editor_filename;
 	assist->priv->settings = settings;
 	assist->priv->project_root = project_root;
 	assist->priv->plugin = plugin;
-	
+		
 	/* Install support */
 	python_assist_install (assist, ieditor, iparser);
 	return assist;
