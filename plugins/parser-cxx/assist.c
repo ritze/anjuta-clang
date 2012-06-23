@@ -71,6 +71,7 @@ struct _ParserCxxAssistPriv {
 	IAnjutaParser* parser;
 	
 	GCompletion *completion_cache;
+	const gchar* editor_filename;
 
 	/* Calltips */
 	gboolean calltip_active;
@@ -292,24 +293,15 @@ parser_cxx_assist_parse_expression (ParserCxxAssist* assist, IAnjutaIterable* it
 	if (stmt)
 	{
 		gint lineno;
-		gchar *filename = NULL;
 		gchar *above_text;
 		IAnjutaIterable* start;
-
-		if (IANJUTA_IS_FILE (assist->priv->iassist))
+		
+		if (!assist->priv->editor_filename)
 		{
-			GFile *file = ianjuta_file_get_file (IANJUTA_FILE (assist->priv->iassist), NULL);
-			if (file != NULL)
-			{
-				filename = g_file_get_path (file);
-				g_object_unref (file);
-			}
-			else
-			{
-				g_free (stmt);
-				return NULL;
-			}
+			g_free (stmt);
+			return NULL;
 		}
+		
 		start = ianjuta_editor_get_start_position (editor, NULL);
 		above_text = ianjuta_editor_get_text (editor, start, iter, NULL);
 		g_object_unref (start);
@@ -321,9 +313,8 @@ parser_cxx_assist_parse_expression (ParserCxxAssist* assist, IAnjutaIterable* it
 		 */
 		res = engine_parser_process_expression (stmt,
 		                                        above_text,
-		                                        filename,
+		                                        assist->priv->editor_filename,
 		                                        lineno);
-		g_free (filename);
 		g_free (stmt);
 	}
 	g_object_unref (cur_pos);
@@ -1034,26 +1025,26 @@ parser_cxx_assist_install (ParserCxxAssist *assist, IAnjutaEditor *ieditor, IAnj
 		g_signal_connect (ieditor, "cancelled", G_CALLBACK (parser_cxx_assist_cancelled), assist);
 	}
 	else
-	{
 		assist->priv->iassist = NULL;
-	}
 
 	if (IANJUTA_IS_EDITOR_TIP (ieditor))
-	{
 		assist->priv->itip = IANJUTA_EDITOR_TIP (ieditor);
-	}
 	else
-	{
 		assist->priv->itip = NULL;
-	}
 
 	if (IANJUTA_IS_PARSER (iparser))
-	{
 		assist->priv->parser = IANJUTA_PARSER (iparser);
-	}
 	else
-	{
 		assist->priv->parser = NULL;
+		
+	if (IANJUTA_IS_FILE (assist->priv->iassist))
+	{
+		GFile *file = ianjuta_file_get_file (IANJUTA_FILE (assist->priv->iassist), NULL);
+		if (file != NULL)
+		{
+			assist->priv->editor_filename = g_file_get_path (file);
+			g_object_unref (file);
+		}
 	}
 }
 
