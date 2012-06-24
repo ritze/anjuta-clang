@@ -88,19 +88,18 @@ struct _PythonAssistPriv {
 	const gchar* editor_filename;
 	
 	/* Autocompletion */
-	gchar *search_cache;
+	GCompletion *completion_cache;
+	IAnjutaIterable* start_iter;
 	gchar *pre_word;
 	
-	GCompletion *completion_cache;
 	gint cache_position;
 	GString* rope_cache;
-	IAnjutaIterable* start_iter;
 
 	/* Calltips */
-	GString* calltip_cache;
 	gchar *calltip_context;
 	GList *tips;
 	IAnjutaIterable* calltip_iter;
+	GString* calltip_cache;
 };
 
 static gchar*
@@ -144,11 +143,6 @@ static void
 python_assist_destroy_completion_cache (PythonAssist *assist)
 {
 	python_assist_cancel_queries (assist);
-	if (assist->priv->search_cache)
-	{
-		g_free (assist->priv->search_cache);
-		assist->priv->search_cache = NULL;
-	}
 	if (assist->priv->completion_cache)
 	{
 		GList* items = assist->priv->completion_cache->items;
@@ -422,7 +416,6 @@ python_assist_create_word_completion_cache (PythonAssist *assist, IAnjutaIterabl
 	g_free (ropecommand);
 
 	assist->priv->cache_position = offset;
-	assist->priv->search_cache = g_strdup (assist->priv->pre_word);
 
 	ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (assist->priv->iassist),
 	                                 IANJUTA_PROVIDER (assist),

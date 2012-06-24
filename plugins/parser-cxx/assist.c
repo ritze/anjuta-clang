@@ -70,11 +70,9 @@ struct _ParserCxxAssistPriv {
 	IAnjutaEditorTip* itip;
 	IAnjutaParser* parser;
 	
-	GCompletion *completion_cache;
 	const gchar* editor_filename;
 
 	/* Calltips */
-	gboolean calltip_active;
 	gchar* calltip_context;
 	GList* tips;
 	IAnjutaIterable* calltip_iter;
@@ -88,10 +86,11 @@ struct _ParserCxxAssistPriv {
 	IAnjutaSymbolQuery *calltip_query_project;
 
 	/* Autocompletion */
-	gboolean member_completion;
-	gboolean autocompletion;
+	GCompletion *completion_cache;
 	IAnjutaIterable* start_iter;
 	gchar* pre_word;
+	gboolean member_completion;
+	gboolean autocompletion;
 
 	gint async_file_id;
 	gint async_system_id;
@@ -698,8 +697,6 @@ parser_cxx_assist_calltip (ParserCxxAssist *assist)
 					                         assist->priv->calltip_iter, NULL);
 				}
 			}
-			g_free (call_context);
-			return TRUE;
 		}
 		else /* New tip */
 		{
@@ -709,19 +706,20 @@ parser_cxx_assist_calltip (ParserCxxAssist *assist)
 			parser_cxx_assist_clear_calltip_context (assist);
 			parser_cxx_assist_create_calltip_context (assist, call_context, iter);
 			parser_cxx_assist_query_calltip (assist, call_context);
-			g_free (call_context);
-			return TRUE;
 		}
+		
+		g_free (call_context);
+		return TRUE;
 	}
 	else
 	{
 		if (ianjuta_editor_tip_visible (IANJUTA_EDITOR_TIP (editor), NULL))
 			ianjuta_editor_tip_cancel (IANJUTA_EDITOR_TIP (editor), NULL);
 		parser_cxx_assist_clear_calltip_context (assist);
+		
+		g_object_unref (iter);
+		return FALSE;
 	}
-
-	g_object_unref (iter);
-	return FALSE;
 }
 
 /**
@@ -788,7 +786,7 @@ parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GErr
 	    g_settings_get_boolean (assist->priv->settings,
 	                            PREF_CALLTIP_ENABLE))
 	{	
-		assist->priv->calltip_active = parser_cxx_assist_calltip (assist);
+		parser_cxx_assist_calltip (assist);
 			
 	}
 	
@@ -972,7 +970,7 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 		if (assist->priv->itip && 
 		    g_settings_get_boolean (assist->priv->settings,
 		                            PREF_CALLTIP_ENABLE))	
-			assist->priv->calltip_active = parser_cxx_assist_calltip (assist);
+			parser_cxx_assist_calltip (assist);
 
 	}
 	g_string_free (assistance, TRUE);
