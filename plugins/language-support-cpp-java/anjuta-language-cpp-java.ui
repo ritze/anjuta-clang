@@ -105,9 +105,6 @@
           </packing>
         </child>
       </object>
-      <packing>
-        <property name="position">2</property>
-      </packing>
     </child>
   </object>
 </interface>
