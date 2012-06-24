@@ -67,14 +67,6 @@ G_DEFINE_TYPE_WITH_CODE (PythonAssist,
 			 G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
 			                        python_assist_iface_init))
 
-typedef struct
-{
-	gchar *name;
-	gchar *info;
-	gboolean is_func;
-	IAnjutaSymbolType type;
-} PythonAssistTag;
-
 struct _PythonAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
@@ -105,15 +97,15 @@ struct _PythonAssistPriv {
 static gchar*
 completion_function (gpointer data)
 {
-	PythonAssistTag * tag = (PythonAssistTag*) data;
+	IAnjutaParserProposalData * tag = (IAnjutaParserProposalData*) data;
 	return tag->name;
 }
 
 static gint 
 completion_compare (gconstpointer a, gconstpointer b)
 {
-	PythonAssistTag * tag_a = (PythonAssistTag*) a;
-	PythonAssistTag * tag_b = (PythonAssistTag*) b;
+	IAnjutaParserProposalData * tag_a = (IAnjutaParserProposalData*) a;
+	IAnjutaParserProposalData * tag_b = (IAnjutaParserProposalData*) b;
 	gint cmp;
 	
 	cmp = strcmp (tag_a->name, tag_b->name);
@@ -123,7 +115,7 @@ completion_compare (gconstpointer a, gconstpointer b)
 }
 
 static void 
-python_assist_tag_destroy (PythonAssistTag *tag)
+python_assist_tag_destroy (IAnjutaParserProposalData *tag)
 {
 	g_free (tag->name);
 	g_free (tag);
@@ -182,7 +174,7 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	
 	for (node = completion_list; node != NULL; node = g_list_next (node))
 	{
-		PythonAssistTag *tag = node->data;
+		IAnjutaParserProposalData *tag = node->data;
 		IAnjutaEditorAssistProposal* proposal = g_new0(IAnjutaEditorAssistProposal, 1);
 
 		if (tag->is_func)
@@ -198,7 +190,7 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	suggestions = g_list_reverse (suggestions);
 	/* Hide if the only suggetions is exactly the typed word */
 	if (!(g_list_length (suggestions) == 1 && 
-	      g_str_equal (((PythonAssistTag*)(suggestions->data))->name, assist->priv->pre_word)))
+	      g_str_equal (((IAnjutaParserProposalData*)(suggestions->data))->name, assist->priv->pre_word)))
 	{
 		ianjuta_editor_assist_proposals (assist->priv->iassist, IANJUTA_PROVIDER(assist),
 		                                 suggestions, TRUE, NULL);
@@ -291,7 +283,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 		/* Parse output and create completion list */
 		for (cur_comp = completions; *cur_comp != NULL; cur_comp++)
 		{
-			PythonAssistTag* tag;
+			IAnjutaParserProposalData* tag;
 			GMatchInfo* match_info;
 			
 			g_regex_match (regex, *cur_comp, 0, &match_info);
@@ -301,7 +293,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 				gchar* type = g_match_info_fetch (match_info, 3); 
 				gchar* location = g_match_info_fetch (match_info, 4); 
 				gchar* info = g_match_info_fetch (match_info, 5); 
-				tag = g_new0 (PythonAssistTag, 1);
+				tag = g_new0 (IAnjutaParserProposalData, 1);
 				tag->name = g_match_info_fetch (match_info, 1);
 
 				/* info will be set to "_" if there is no relevant info */
@@ -746,21 +738,22 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 
 
 
-static void 
+static void
 python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer data, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST(self);
-	PythonAssistTag *tag;
+	IAnjutaParserProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *te;
 	gboolean add_space_after_func = FALSE;
 	gboolean add_brace_after_func = FALSE;
 	gboolean add_closebrace_after_func = FALSE;
 	
-	tag = data;	
-	assistance = g_string_new (tag->name);
+	g_return_if_fail (data != NULL);
+	prop_data = data;	
+	assistance = g_string_new (prop_data->name);
 	
-	if (tag->is_func)
+	if (prop_data->is_func)
 	{
 		IAnjutaIterable* next_brace = ianjuta_parser_find_next_brace (
 		                                  assist->priv->parser, iter, NULL);
@@ -773,6 +766,7 @@ python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer d
 		add_closebrace_after_func =
 			g_settings_get_boolean (assist->priv->settings,
 			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
+			                        
 		if (add_space_after_func
 			&& !ianjuta_parser_find_whitespace (assist->priv->parser, iter, NULL))
 			g_string_append (assistance, " ");

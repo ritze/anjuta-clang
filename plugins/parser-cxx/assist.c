@@ -56,14 +56,6 @@ G_DEFINE_TYPE_WITH_CODE (ParserCxxAssist,
 			 G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
 			                        parser_cxx_assist_iface_init))
 
-typedef struct
-{
-	gchar *name;
-	gboolean is_func;
-	GdkPixbuf* icon;
-	IAnjutaSymbolType type;
-} ParserCxxAssistTag;
-
 struct _ParserCxxAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
@@ -847,15 +839,15 @@ static void
 parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer data, GError** e)
 {
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST(self);
-	IAnjutaParserProposalData *prop_data = data;
+	IAnjutaParserProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *te;
 	gboolean add_space_after_func = FALSE;
 	gboolean add_brace_after_func = FALSE;
 	gboolean add_closebrace_after_func = FALSE;
 	
-	g_return_if_fail (prop_data != NULL);
-	
+	g_return_if_fail (data != NULL);
+	prop_data = data;
 	assistance = g_string_new (prop_data->name);
 	
 	if (prop_data->is_func)

@@ -6681,13 +6681,17 @@ interface IAnjutaParser
 
 	/**
 	 * IAnjutaParserProposalData:
+	 * @name: Name of the object
+	 * @info: Info about the object
 	 * @is_func: If this is a function
-	 * @name: Name of the function
+	 * @type: Type of the object
 	 */
 	 struct ProposalData
 	 {
-	    gboolean is_func;
 	    gchar* name;
+		gchar *info;
+	    gboolean is_func;
+		IAnjutaSymbolType type;
 	 }
 
 	/**

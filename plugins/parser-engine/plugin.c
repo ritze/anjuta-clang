@@ -324,11 +324,11 @@ static IAnjutaEditorAssistProposal*
 parser_engine_proposal_new (IAnjutaSymbol* symbol)
 {
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
-	IAnjutaSymbolType type = ianjuta_symbol_get_sym_type (symbol, NULL);
 	IAnjutaParserProposalData* data = g_new0 (IAnjutaParserProposalData, 1);
-
+	
 	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
-	switch (type)
+	data->type = ianjuta_symbol_get_sym_type (symbol, NULL);
+	switch (data->type)
 	{
 		case IANJUTA_SYMBOL_TYPE_PROTOTYPE:
 		case IANJUTA_SYMBOL_TYPE_FUNCTION:
