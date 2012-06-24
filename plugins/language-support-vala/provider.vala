@@ -16,7 +16,6 @@
  */
 
 public class ValaProvider : Object, IAnjuta.Provider {
-	IAnjuta.Iterable start_pos;
 	weak ValaPlugin plugin;
 
 	static Regex member_access;
@@ -40,9 +39,6 @@ public class ValaProvider : Object, IAnjuta.Provider {
 
 	public ValaProvider(ValaPlugin plugin) {
 		this.plugin = plugin;
-	}
-	public unowned string get_name () throws GLib.Error {
-		return "Vala";
 	}
 	public void populate (IAnjuta.Iterable iter) throws GLib.Error {
 		if (!plugin.settings.get_boolean (PREF_AUTOCOMPLETE_ENABLE))
@@ -79,9 +75,6 @@ public class ValaProvider : Object, IAnjuta.Provider {
 		}
 		proposals.reverse();
 		editor.proposals(this, proposals, true);
-	}
-	public unowned IAnjuta.Iterable get_start_iter () throws GLib.Error {
-		return start_pos;
 	}
 	public void activate (IAnjuta.Iterable iter, void* data) {
 		var sym = data as Vala.Symbol;

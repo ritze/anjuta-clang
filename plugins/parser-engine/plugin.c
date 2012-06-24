@@ -37,6 +37,11 @@
 
 static gpointer parent_class;
 
+struct _ParserEnginePluginPriv {
+	/* Autocompletion */
+	IAnjutaIterable* start_iter;
+}
+
 /* Enable/Disable language-support */
 static void
 install_support (ParserEnginePlugin *parser_plugin)
@@ -545,6 +550,16 @@ g_warning ("iparser_get_pre_word works");
 }
 
 static void
+iparser_set_start_iter (IAnjutaParser* self,
+						IAnjutaIterable* start_iter,
+						GError** e)
+{
+	ParserEnginePlugin *parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+	parser_plugin->priv->start_iter = ianjuta_iterable_clone (start_iter, NULL);
+g_warning ("iparser_set_start_iter: %s", parser_plugin->priv->start_iter);
+}
+
+static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->create_calltips = iparser_create_calltips;
@@ -553,6 +568,48 @@ iparser_iface_init (IAnjutaParserIface* iface)
 	iface->find_whitespace = iparser_find_whitespace;
 	iface->get_calltip_context = iparser_get_calltip_context;
 	iface->get_pre_word = iparser_get_pre_word;
+	iface->set_start_iter = iparser_set_start_iter;
+}
+
+/**
+ * iprovider_get_start_iter:
+ * @self: IAnjutaProvider object
+ * @e: Error population
+ *
+ * Returns: the iter where the autocompletion starts
+ */
+static IAnjutaIterable*
+iprovider_get_start_iter (IAnjutaProvider* self,
+                          GError** e)
+{ 
+	ParserEnginePlugin *parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+g_warning ("iprovider_get_start_iter: %s", parser_plugin->priv->start_iter);
+	return parser_plugin->priv->start_iter;
+}
+
+/**
+ * iprovider_get_name:
+ * @self: IAnjutaProvider object
+ * @e: Error population
+ *
+ * Returns: the provider name
+ */
+static const gchar*
+iprovider_get_name (IAnjutaProvider* self,
+                    GError** e)
+{
+	ParserEnginePlugin *parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+g_warning ("iprovider_get_name: %s", parser_plugin->current_language);
+	return parser_plugin->current_language;
+}
+
+//TODO: works this?
+static void python_assist_iface_init(IAnjutaProviderIface* iface)
+{
+	iface->activate = iprovider_activate;
+	iface->get_name = iprovider_get_name;
+	iface->get_start_iter = iprovider_get_start_iter;
+	iface->populate = iprovider_populate;
 }
 
 ANJUTA_PLUGIN_BEGIN (ParserEnginePlugin, parser_engine_plugin);

@@ -115,7 +115,6 @@ static void
 js_support_plugin_instance_init (GObject *obj)
 {
 	JSLang *plugin = (JSLang*)obj;
-	plugin->last = NULL;
 	plugin->prefs = NULL;
 	plugin->symbol = NULL;
 }
@@ -356,7 +355,7 @@ iprovider_activate (IAnjutaProvider *obj, IAnjutaIterable* iter,  gpointer data,
 	g_assert (plugin->current_editor);
 	g_assert (str);
 
-	gint a = ianjuta_iterable_diff (plugin->last, iter, NULL);
+	gint a = ianjuta_iterable_diff (plugin->start_iter, iter, NULL);
 
 	ianjuta_editor_insert (IANJUTA_EDITOR (plugin->current_editor), iter, str + a, -1, NULL);
 			
@@ -388,31 +387,17 @@ iprovider_activate (IAnjutaProvider *obj, IAnjutaIterable* iter,  gpointer data,
 	g_free (sym);
 }
 
-static const gchar* 
-iprovider_get_name (IAnjutaProvider *obj, GError **err)
-{
-	return _("JS");
-}
-
-static IAnjutaIterable* 
-iprovider_get_start_iter (IAnjutaProvider *obj, GError **err)
-{
-	JSLang *plugin = (JSLang*)obj;
-
-	return plugin->last;
-}
-
 static void 
 iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 {
 	static GList *trash = NULL;
 	JSLang *plugin = (JSLang*)obj;
 
-	if (plugin->last) {
-		g_object_unref (plugin->last);
+	if (plugin->start_iter) {
+		g_object_unref (plugin->start_iter);
 	}
 
-        plugin->last = ianjuta_iterable_clone(iter, NULL);
+        ianjuta_parser_set_start_iter (assist->priv->parser, iter, NULL);
 
 	if (!plugin->current_editor)
 		return;
@@ -467,7 +452,7 @@ iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 		}
 		GList *i;
 		for (; k > 0; k--)
-			ianjuta_iterable_previous (plugin->last, NULL);
+			ianjuta_iterable_previous (plugin->start_iter, NULL);
 
 		for (i = suggestions; i; i = g_list_next(i)) {
 			IAnjutaEditorAssistProposal* proposal = g_new0(IAnjutaEditorAssistProposal, 1);
@@ -491,8 +476,6 @@ static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
 	iface->activate	= iprovider_activate;
-	iface->get_name	= iprovider_get_name;
-	iface->get_start_iter = iprovider_get_start_iter;
 	iface->populate= iprovider_populate;
 }
 

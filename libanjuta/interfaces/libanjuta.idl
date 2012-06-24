@@ -6772,4 +6772,14 @@ interface IAnjutaParser
 	 * Returns: The current word (needs to be freed) or NULL if no word was found
 	 */
 	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter, const gchar* word_characters);
+	 
+	/**
+	 * ianjuta_parser_set_start_iter:
+	 * @obj: Self
+	 * @start_iter: the start iter to set
+	 * @err: Error propagation
+	 *
+	 * Set the current start iter
+	 */
+	 void set_start_iter (IAnjutaIterable *start_iter);
 }

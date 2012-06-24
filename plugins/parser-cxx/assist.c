@@ -79,7 +79,6 @@ struct _ParserCxxAssistPriv {
 
 	/* Autocompletion */
 	GCompletion *completion_cache;
-	IAnjutaIterable* start_iter;
 	gchar* pre_word;
 	gboolean member_completion;
 	gboolean autocompletion;
@@ -428,7 +427,7 @@ parser_cxx_assist_create_member_completion_cache (ParserCxxAssist* assist, IAnju
 			parser_cxx_assist_create_completion_cache (assist);
 			g_completion_add_items (assist->priv->completion_cache, proposals);
 
-			assist->priv->start_iter = start_iter;
+			ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
 
 			parser_cxx_assist_populate_real (assist, TRUE);
 			g_list_free (proposals);
@@ -523,8 +522,8 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaI
 		ianjuta_symbol_query_search (assist->priv->ac_query_system, pattern, NULL);
 		g_free (pre_word);
 		g_free (pattern);
-
-		assist->priv->start_iter = start_iter;
+		
+		ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
 		
 		return TRUE;
 	}
@@ -969,33 +968,6 @@ parser_cxx_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpoint
 }
 
 /**
- * parser_cxx_assist_get_start_iter:
- * @self: IAnjutaProvider object
- * @e: Error population
- *
- * Returns: the iter where the autocompletion starts
- */
-static IAnjutaIterable*
-parser_cxx_assist_get_start_iter (IAnjutaProvider* provider, GError** e)
-{
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (provider);
-	return assist->priv->start_iter;
-}
-
-/**
- * parser_cxx_assist_get_name:
- * @self: IAnjutaProvider object
- * @e: Error population
- *
- * Returns: the provider name
- */
-static const gchar*
-parser_cxx_assist_get_name (IAnjutaProvider* provider, GError** e)
-{
-	return _("C/C++");
-}
-
-/**
  * parser_cxx_assist_install:
  * @self: IAnjutaProvider object
  * @ieditor: Editor to install support for
@@ -1343,7 +1315,5 @@ parser_cxx_assist_new (IAnjutaEditor *ieditor,
 static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface)
 {
 	iface->populate = parser_cxx_assist_populate;
-	iface->get_start_iter = parser_cxx_assist_get_start_iter;
 	iface->activate = parser_cxx_assist_activate;
-	iface->get_name = parser_cxx_assist_get_name;
 }

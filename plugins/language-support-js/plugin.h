@@ -32,7 +32,6 @@ struct _JSLang{
 	gint editor_watch_id;
 	GObject *current_editor;
 //	gchar *current;
-	gpointer last;
 //	GList *complition_cache;
 //	gint uiid;
 	GSettings *prefs;

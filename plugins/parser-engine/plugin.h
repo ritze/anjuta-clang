@@ -31,11 +31,13 @@ extern GType parser_engine_plugin_get_type (GTypeModule *module);
 #define ANJUTA_IS_PLUGIN_PARSER_ENGINE_CLASS(k)  (G_TYPE_CHECK_CLASS_TYPE ((k), ANJUTA_TYPE_PLUGIN_PARSER_ENGINE))
 #define ANJUTA_PLUGIN_PARSER_ENGINE_GET_CLASS(o) (G_TYPE_INSTANCE_GET_CLASS ((o), ANJUTA_TYPE_PLUGIN_PARSER_ENGINE, ParserEnginePluginClass))
 
-typedef struct _ParserEnginePlugin ParserEnginePlugin;
 typedef struct _ParserEnginePluginClass ParserEnginePluginClass;
+typedef struct _ParserEnginePlugin ParserEnginePlugin;
+typedef struct _ParserEnginePluginPriv ParserEnginePluginPriv;
 
 struct _ParserEnginePlugin {
 	AnjutaPlugin parent;
+	ParserEnginePluginPriv *priv;
 
 	//TODO: which one is really needed?
 	gint editor_watch_id;

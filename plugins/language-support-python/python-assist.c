@@ -81,7 +81,6 @@ struct _PythonAssistPriv {
 	
 	/* Autocompletion */
 	GCompletion *completion_cache;
-	IAnjutaIterable* start_iter;
 	gchar *pre_word;
 	
 	gint cache_position;
@@ -825,19 +824,6 @@ python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer d
 	g_string_free (assistance, TRUE);
 }
 
-static IAnjutaIterable*
-python_assist_get_start_iter (IAnjutaProvider* provider, GError** e)
-{ 
-	PythonAssist* assist = PYTHON_ASSIST (provider);
-	return assist->priv->start_iter;
-}
-
-static const gchar*
-python_assist_get_name (IAnjutaProvider* provider, GError** e)
-{
-	return _("Python");
-}
-
 static void 
 python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor, IAnjutaParser *iparser)
 {
@@ -933,7 +919,5 @@ python_assist_new (IAnjutaEditor *ieditor,
 static void python_assist_iface_init(IAnjutaProviderIface* iface)
 {
 	iface->populate = python_assist_populate;
-	iface->get_start_iter = python_assist_get_start_iter;
 	iface->activate = python_assist_activate;
-	iface->get_name = python_assist_get_name;
 }
