@@ -80,10 +80,6 @@ struct _PythonAssistPriv {
 	GString* rope_cache;
 
 	/* Calltips */
-	//FIXME:
-	gchar *calltip_context;
-	GList *tips;
-	IAnjutaIterable* calltip_iter;
 	GString* calltip_cache;
 };
 
@@ -431,6 +427,7 @@ on_calltip_output (AnjutaLauncher *launcher,
 	}
 }
 
+//TODO: Move assist->priv->calltip_iter to parser-engine
 static void
 on_calltip_finished (AnjutaLauncher* launcher,
                           int child_pid, int exit_status,
@@ -496,6 +493,7 @@ python_assist_query_calltip (PythonAssist *assist, const gchar *call_context, gi
 	g_free (ropecommand);	
 }
 
+//TODO: Move assist->priv->calltip_context, assist->priv->calltip_iter and assist->priv->tips to parser-engine
 static void
 python_assist_clear_calltip_context (PythonAssist* assist)
 {
@@ -566,8 +564,7 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 	    g_settings_get_boolean (assist->priv->settings,
 	                            PREF_CALLTIP_ENABLE))
 	{	
-		//TODO: use parser_engine_calltip (parser)
-		python_assist_calltip (assist);	
+		parser_engine_calltip (assist);	
 	}
 	
 	/* Check if we actually want autocompletion at all */
@@ -598,9 +595,9 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 		{
 			DEBUG_PRINT ("Continue autocomplete for %s", pre_word);
 			/* Great, we just continue the current completion */
-			if (assist->priv->start_iter)
-				g_object_unref (assist->priv->start_iter);
-			assist->priv->start_iter = start_iter;
+			if (parser->priv->start_iter)
+				g_object_unref (parser->priv->start_iter);
+			parser->priv->start_iter = start_iter;
 
 			python_assist_update_pre_word (assist, pre_word);
 			python_assist_update_autocomplete (assist);
@@ -623,21 +620,21 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 	    python_assist_create_word_completion_cache (assist, cursor)) )
 	{
 		DEBUG_PRINT ("New autocomplete for %s", pre_word);
-		if (assist->priv->start_iter)
-			g_object_unref (assist->priv->start_iter);
+		if (parser->priv->start_iter)
+			g_object_unref (parser->priv->start_iter);
 		if (start_iter)
-			assist->priv->start_iter = start_iter;
+			parser->priv->start_iter = start_iter;
 		else
-			assist->priv->start_iter = ianjuta_iterable_clone (cursor, NULL);
+			parser->priv->start_iter = ianjuta_iterable_clone (cursor, NULL);
 		python_assist_update_pre_word (assist, pre_word ? pre_word : "");
 		g_free (pre_word);
 		return;
 	}		
 	/* Nothing to propose */
-	if (assist->priv->start_iter)
+	if (parser->priv->start_iter)
 	{
-		g_object_unref (assist->priv->start_iter);
-		assist->priv->start_iter = NULL;
+		g_object_unref (parser->priv->start_iter);
+		parser->priv->start_iter = NULL;
 	}
 	python_assist_none (self, assist);
 	g_free (pre_word);

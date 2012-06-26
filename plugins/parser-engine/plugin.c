@@ -35,12 +35,22 @@
 
 #define ICON_FILE "anjuta-parser-engine-plugin.png"
 
+//TODO:
+//static void parser_engine_iface_init (IAnjutaProviderIface* iface);
+//
+//G_DEFINE_TYPE_WITH_CODE (ParserEnginePlugin,
+//			 parser_engine_assist,
+//			 G_TYPE_OBJECT,
+//			 G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
+//			                        parser_engine_iface_init))
+
 static gpointer parent_class;
 
 struct _ParserEnginePluginPriv {
+	IAnjutaEditorTip* itip;
+	
 	/* Autocompletion */
 	IAnjutaIterable* start_iter;
-	IAnjutaEditorTip* itip;
 	
 	/* Calltips */
 	gchar* calltip_context;
@@ -256,6 +266,149 @@ parser_engine_create_calltip_context (ParserEnginePlugin* parser,
 	parser->priv->calltip_iter = position;
 }
 
+
+
+/**
+ * parser_engine_is_character:
+ * @ch: character to check
+ * @context_characters: language-specific context characters
+ *                      the end is marked with a '0' character
+ *
+ * Returns: if the current character seperates a scope
+ */
+static gboolean
+parser_engine_is_character (gchar ch,
+                            const gchar* characters)
+{
+g_warning ("parser_engine_is_scope_context_character works");
+	int i;
+	
+	if (g_ascii_isspace (ch))
+		return FALSE;
+	if (g_ascii_isalnum (ch))
+		return TRUE;
+	for (i = 0; characters[i] != '0'; i++)
+	{
+		if (ch == characters[i])
+		{
+			return TRUE;
+		}
+	}
+	
+	return FALSE;
+}
+
+#define SCOPE_BRACE_JUMP_LIMIT 50
+
+/**
+ * parser_engine_get_scope_context
+ * @editor: current editor
+ * @iter: Current cursor position
+ * @scope_context_characters: language-specific context characters
+ *                            the end is marked with a '0' character
+ *
+ * Find the scope context for calltips
+ */
+static gchar*
+parser_engine_get_scope_context (IAnjutaEditor* editor,
+                                 IAnjutaIterable *iter,
+                                 const gchar* scope_context_characters)
+{
+	IAnjutaIterable* end;	
+	gchar ch, *scope_chars = NULL;
+	gboolean out_of_range = FALSE;
+	gboolean scope_chars_found = FALSE;
+	
+	end = ianjuta_iterable_clone (iter, NULL);
+	ianjuta_iterable_next (end, NULL);
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	
+	while (ch)
+	{
+		if (parser_engine_is_character (ch, scope_context_characters))
+		{
+			scope_chars_found = TRUE;
+		}
+		else if (ch == ')')
+		{
+			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
+			{
+				out_of_range = TRUE;
+				break;
+			}
+		}
+		else
+			break;
+		if (!ianjuta_iterable_previous (iter, NULL))
+		{
+			out_of_range = TRUE;
+			break;
+		}		
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	}
+	if (scope_chars_found)
+	{
+		IAnjutaIterable* begin;
+		begin = ianjuta_iterable_clone (iter, NULL);
+		if (!out_of_range)
+			ianjuta_iterable_next (begin, NULL);
+		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
+		g_object_unref (begin);
+	}
+	g_object_unref (end);
+	return scope_chars;
+}
+
+#define BRACE_SEARCH_LIMIT 500
+/**
+ * parser_engine_get_calltip_context:
+ * @itip: 
+ * @iter: current cursor position
+ * @scope_context_characters: language-specific context characters
+ *                            the end is marked with a '0' character
+ *
+ * Searches for a calltip context
+ *
+ * Returns: name of the method to show a calltip for or NULL
+ */
+static gchar*
+parser_engine_get_calltip_context (IAnjutaEditorTip* itip,
+                                   IAnjutaIterable* iter,
+                                   const gchar* scope_context_characters)
+{
+	gchar ch;
+	gchar *context = NULL;
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	if (ch == ')')
+	{
+		if (!anjuta_util_jump_to_matching_brace (iter, ')', -1))
+			return NULL;
+		if (!ianjuta_iterable_previous (iter, NULL))
+			return NULL;
+	}
+	if (ch != '(')
+	{
+		if (!anjuta_util_jump_to_matching_brace (iter, ')',
+												   BRACE_SEARCH_LIMIT))
+			return NULL;
+	}
+	
+	/* Skip white spaces */
+	while (ianjuta_iterable_previous (iter, NULL)
+		&& g_ascii_isspace (ianjuta_editor_cell_get_char
+								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
+	
+	context = parser_engine_get_scope_context (IANJUTA_EDITOR (itip),
+	                                           iter, scope_context_characters);
+
+	/* Point iter to the first character of the scope to align calltip correctly */
+	ianjuta_iterable_next (iter, NULL);
+	
+	return context;
+}
+
 /**
  * parser_engine_calltip:
  * @parser: self
@@ -323,144 +476,44 @@ g_warning ("parser_engine_calltip: works");
 }
 
 /**
- * parser_engine_is_character:
- * @ch: character to check
- * @context_characters: language-specific context characters
- *                      the end is marked with a '0' character
+ * parser_engine_find_next_brace:
+ * @iter: Iter to start searching at
  *
- * Returns: if the current character seperates a scope
+ * Returns: The position of the brace, if the next non-whitespace character is a opening brace,
+ * NULL otherwise
+ */
+static IAnjutaIterable*
+parser_engine_find_next_brace (IAnjutaIterable* iter)
+{
+	IAnjutaIterable* current_iter = ianjuta_iterable_clone (iter, NULL);
+	gchar ch;
+	do
+	{
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (current_iter), 0, NULL);
+		if (ch == '(')
+			return current_iter;
+	}
+	while (g_ascii_isspace (ch) && ianjuta_iterable_next (current_iter, NULL));
+	
+	g_object_unref (current_iter);
+	return NULL;
+}
+
+/**
+ * parser_engine_find_whitespace:
+ * @iter: Iter to start searching at
+ *
+ * Returns: TRUE if the next character is a whitespace character,
+ * FALSE otherwise
  */
 static gboolean
-parser_engine_is_character (gchar ch,
-                            const gchar* characters)
+parser_engine_find_whitespace (IAnjutaIterable* iter)
 {
-g_warning ("parser_engine_is_scope_context_character works");
-	int i;
-	
-	if (g_ascii_isspace (ch))
-		return FALSE;
-	if (g_ascii_isalnum (ch))
+	gchar ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	if (g_ascii_isspace (ch) && ch != '\n' && parser_engine_find_next_brace (iter))
 		return TRUE;
-	for (i = 0; characters[i] != '0'; i++)
-	{
-		if (ch == characters[i])
-		{
-			return TRUE;
-		}
-	}
-	
-	return FALSE;
-}
-
-#define BRACE_SEARCH_LIMIT 500
-/**
- * parser_engine_get_calltip_context:
- * @itip: 
- * @iter: current cursor position
- * @scope_context_characters: language-specific context characters
- *                            the end is marked with a '0' character
- *
- * Searches for a calltip context
- *
- * Returns: name of the method to show a calltip for or NULL
- */
-static gchar*
-parser_engine_get_calltip_context (IAnjutaEditorTip* itip,
-                                   IAnjutaIterable* iter,
-                                   const gchar* scope_context_characters)
-{
-	gchar ch;
-	gchar *context = NULL;
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	if (ch == ')')
-	{
-		if (!anjuta_util_jump_to_matching_brace (iter, ')', -1))
-			return NULL;
-		if (!ianjuta_iterable_previous (iter, NULL))
-			return NULL;
-	}
-	if (ch != '(')
-	{
-		if (!anjuta_util_jump_to_matching_brace (iter, ')',
-												   BRACE_SEARCH_LIMIT))
-			return NULL;
-	}
-	
-	/* Skip white spaces */
-	while (ianjuta_iterable_previous (iter, NULL)
-		&& g_ascii_isspace (ianjuta_editor_cell_get_char
-								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
-	
-	context = parser_engine_get_scope_context (IANJUTA_EDITOR (itip),
-	                                           iter, scope_context_characters);
-
-	/* Point iter to the first character of the scope to align calltip correctly */
-	ianjuta_iterable_next (iter, NULL);
-	
-	return context;
-}
-
-#define SCOPE_BRACE_JUMP_LIMIT 50
-
-/**
- * parser_engine_get_scope_context
- * @editor: current editor
- * @iter: Current cursor position
- * @scope_context_characters: language-specific context characters
- *                            the end is marked with a '0' character
- *
- * Find the scope context for calltips
- */
-static gchar*
-parser_engine_get_scope_context (IAnjutaEditor* editor,
-                                 IAnjutaIterable *iter,
-                                 const gchar* scope_context_characters)
-{
-	IAnjutaIterable* end;	
-	gchar ch, *scope_chars = NULL;
-	gboolean out_of_range = FALSE;
-	gboolean scope_chars_found = FALSE;
-	
-	end = ianjuta_iterable_clone (iter, NULL);
-	ianjuta_iterable_next (end, NULL);
-	
-	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	
-	while (ch)
-	{
-		if (parser_engine_is_character (ch, scope_context_characters))
-		{
-			scope_chars_found = TRUE;
-		}
-		else if (ch == ')')
-		{
-			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
-			{
-				out_of_range = TRUE;
-				break;
-			}
-		}
-		else
-			break;
-		if (!ianjuta_iterable_previous (iter, NULL))
-		{
-			out_of_range = TRUE;
-			break;
-		}		
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	}
-	if (scope_chars_found)
-	{
-		IAnjutaIterable* begin;
-		begin = ianjuta_iterable_clone (iter, NULL);
-		if (!out_of_range)
-			ianjuta_iterable_next (begin, NULL);
-		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
-		g_object_unref (begin);
-	}
-	g_object_unref (end);
-	return scope_chars;
+	else
+		return FALSE;
 }
 
 //TODO: language-specific settings: only used in parser-cxx/assist.c
@@ -517,37 +570,6 @@ iparser_create_calltips (IAnjutaParser* self,
 		while (ianjuta_iterable_next (iter, NULL));
 	}
 	return tips;
-}
-
-static IAnjutaIterable*
-iparser_find_next_brace (IAnjutaParser* self,
-                         IAnjutaIterable* iter,
-                         GError** e)
-{
-	IAnjutaIterable* current_iter = ianjuta_iterable_clone (iter, NULL);
-	gchar ch;
-	do
-	{
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (current_iter), 0, NULL);
-		if (ch == '(')
-			return current_iter;
-	}
-	while (g_ascii_isspace (ch) && ianjuta_iterable_next (current_iter, NULL));
-	
-	g_object_unref (current_iter);
-	return NULL;
-}
-
-static gboolean
-iparser_find_whitespace (IAnjutaParser* self,
-                         IAnjutaIterable* iter,
-                         GError** e)
-{
-	gchar ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
-	if (g_ascii_isspace (ch) && ch != '\n' && iparser_find_next_brace(self, iter, NULL))
-		return TRUE;
-	else
-		return FALSE;
 }
 
 static gchar*
@@ -612,8 +634,6 @@ static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->create_calltips = iparser_create_calltips;
-	iface->find_next_brace = iparser_find_next_brace;
-	iface->find_whitespace = iparser_find_whitespace;
 	iface->get_pre_word = iparser_get_pre_word;
 	iface->set_calltip_settings = iparser_set_calltip_settings;
 	iface->set_start_iter = iparser_set_start_iter;
@@ -648,7 +668,7 @@ iprovider_activate (IAnjutaProvider* self,
 	
 	if (prop_data->is_func)
 	{
-		IAnjutaIterable* next_brace = iparser_find_next_brace (parser, iter, NULL);
+		IAnjutaIterable* next_brace = parser_engine_find_next_brace (iter);
 		//TODO:
 		add_space_after_func =
 			g_settings_get_boolean (assist->priv->settings,
@@ -661,7 +681,7 @@ iprovider_activate (IAnjutaProvider* self,
 			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
 
 		if (add_space_after_func
-			&& !iparser_find_whitespace (parser, iter, NULL))
+			&& !parser_engine_find_whitespace (iter))
 			g_string_append (assistance, " ");
 		if (add_brace_after_func && !next_brace)
 			g_string_append (assistance, "(");
@@ -694,7 +714,7 @@ iprovider_activate (IAnjutaProvider* self,
 									   ianjuta_iterable_get_position (parser->priv->start_iter, NULL)
 									   + strlen (assistance->str),
 									   NULL);
-		next_brace = iparser_find_next_brace (parser, pos, NULL);
+		next_brace = parser_engine_find_next_brace (pos);
 		if (!next_brace)
 			ianjuta_editor_insert (te, pos, ")", -1, NULL);
 		else
@@ -778,8 +798,8 @@ g_warning ("iprovider_get_name: %s", parser_plugin->current_language);
 	return parser_plugin->current_language;
 }
 
-//TODO: work all functions?
-static void python_assist_iface_init(IAnjutaProviderIface* iface)
+//TODO: Do all functions work?
+static void iprovider_iface_init (IAnjutaProviderIface* iface)
 {
 	iface->activate = iprovider_activate;
 	iface->get_name = iprovider_get_name;
@@ -789,6 +809,7 @@ static void python_assist_iface_init(IAnjutaProviderIface* iface)
 
 ANJUTA_PLUGIN_BEGIN (ParserEnginePlugin, parser_engine_plugin);
 ANJUTA_PLUGIN_ADD_INTERFACE (iparser, IANJUTA_TYPE_PARSER);
+//TODO:
 ANJUTA_PLUGIN_ADD_INTERFACE (iprovider, IANJUTA_TYPE_PROVIDER);
 ANJUTA_PLUGIN_END;
 

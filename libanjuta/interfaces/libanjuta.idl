@@ -6709,28 +6709,6 @@ interface IAnjutaParser
 	 GList* create_calltips (IAnjutaIterable* iter, GList* merge);
 
 	/**
-	 * ianjuta_parser_find_next_brace:
-	 * @obj: Self
-	 * @iter: Iter to start searching at
-	 * @err: Error propagation
-	 *
-	 * Returns: The position of the brace, if the next non-whitespace character is a opening brace,
-	 * NULL otherwise
-	 */
-	 IAnjutaIterable* find_next_brace (IAnjutaIterable* iter);
-
-	/**
-	 * ianjuta_parser_find_whitespace:
-	 * @obj: Self
-	 * @iter: Iter to start searching at
-	 * @err: Error propagation
-	 *
-	 * Returns: TRUE if the next character is a whitespace character,
-	 * FALSE otherwise
-	 */
-	 gboolean find_whitespace (IAnjutaIterable* iter);
-
-	/**
 	 * ianjuta_parser_get_pre_word:
 	 * @obj: Self
 	 * @editor: Editor object

@@ -59,11 +59,6 @@ struct _ParserCxxAssistPriv {
 	const gchar* editor_filename;
 
 	/* Calltips */
-	//FIXME:
-	gchar* calltip_context;
-	GList* tips;
-	IAnjutaIterable* calltip_iter;
-
 	gint async_calltip_file;
 	gint async_calltip_system;
 	gint async_calltip_project;
@@ -603,6 +598,7 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaI
  *
  * Called by the async search method when it found calltips
  */
+//TODO: Move assist->priv->tips and assist->priv->calltip_iter to parser-engine
 static void
 on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 							ParserCxxAssist* assist)
@@ -673,6 +669,7 @@ parser_cxx_assist_query_calltip (ParserCxxAssist *assist, const gchar *call_cont
  *
  * Clears the calltip context and brings it back into a save state
  */
+//TODO: Move assist->priv->tips, assist->priv->calltip_iter and assist->priv->calltip_context to parser-engine
 static void
 parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 {
