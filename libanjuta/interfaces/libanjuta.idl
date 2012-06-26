@@ -6691,6 +6691,7 @@ interface IAnjutaParser
 	    gchar* name;
 		gchar *info;
 	    gboolean is_func;
+	    gboolean has_para;
 		IAnjutaSymbolType type;
 	 }
 

@@ -40,6 +40,7 @@ static gpointer parent_class;
 struct _ParserEnginePluginPriv {
 	/* Autocompletion */
 	IAnjutaIterable* start_iter;
+	IAnjutaEditorTip* itip;
 }
 
 /* Enable/Disable language-support */
@@ -91,6 +92,10 @@ install_support (ParserEnginePlugin *parser_plugin)
 	else
 		return;
 */
+	//TODO: necessary?
+	//assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
+	ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (parser_plugin->current_editor),
+	                           IANJUTA_PROVIDER (parser_plugin), NULL);
 	parser_plugin->support_installed = TRUE;
 }
 
@@ -100,6 +105,8 @@ uninstall_support (ParserEnginePlugin *parser_plugin)
     if (!parser_plugin->support_installed)
         return;
 	
+	ianjuta_editor_assist_remove (IANJUTA_EDITOR_ASSIST (parser_plugin->current_editor),
+	                              IANJUTA_PROVIDER (parser_plugin), NULL);
     parser_plugin->support_installed = FALSE;
 }
 
@@ -122,13 +129,15 @@ on_value_added_current_editor (AnjutaPlugin *plugin, const gchar *name,
 	
     if (IANJUTA_IS_EDITOR(doc))
         parser_plugin->current_editor = G_OBJECT(doc);
+    	parser_plugin->priv->itip = IANJUTA_EDITOR_TIP (parser_plugin->current_editor);
     else
     {
         parser_plugin->current_editor = NULL;
+        parser_plugin->priv->itip = NULL;
         return;
     }
 	
-    if (IANJUTA_IS_EDITOR(parser_plugin->current_editor))
+    if (IANJUTA_IS_EDITOR (parser_plugin->current_editor))
         install_support (parser_plugin);
 	
     g_signal_connect (parser_plugin->current_editor, "language-changed",
@@ -317,6 +326,7 @@ parser_engine_get_scope_context (IAnjutaEditor* editor,
 	return scope_chars;
 }
 
+//TODO: language-specific setting: only used in parser-cxx
 /**
  * ianjuta_parser_assist_proposal_new:
  * @symbol: IAnjutaSymbol to create the proposal for
@@ -346,6 +356,16 @@ parser_engine_proposal_new (IAnjutaSymbol* symbol)
 			proposal->label = g_strdup (data->name);
 			data->is_func = FALSE;
 	}
+	data->has_para = false;
+	if (data->is_func)
+	{
+		const gchar* signature = ianjuta_symbol_get_string (symbol,
+		                                                    IANJUTA_SYMBOL_FIELD_SIGNATURE,
+		                                                    NULL);
+		if (!g_strcmp0 (signature, "(void)") || !g_strcmp0 (signature, "()"))
+			data->has_para = true;
+	}
+	
 	proposal->data = data;
 	/* Icons are lifetime object of the symbol-db so we can cast here */
 	proposal->icon = (GdkPixbuf*) ianjuta_symbol_get_icon (symbol, NULL);
@@ -569,6 +589,136 @@ iparser_iface_init (IAnjutaParserIface* iface)
 	iface->get_calltip_context = iparser_get_calltip_context;
 	iface->get_pre_word = iparser_get_pre_word;
 	iface->set_start_iter = iparser_set_start_iter;
+}
+
+/**
+ * iprovider_activate:
+ * @self: IAnjutaProvider object
+ * @iter: cursor position when proposal was activated
+ * @data: Data assigned to the completion object
+ * @e: Error population
+ *
+ * Called from the provider when the user activated a proposal
+ */
+static void
+iprovider_activate (IAnjutaProvider* self,
+                    IAnjutaIterable* iter,
+                    gpointer data,
+                    GError** e)
+{
+	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+	IAnjutaParserProposalData *prop_data;
+	GString *assistance;
+	IAnjutaEditor *te;
+	gboolean add_space_after_func = FALSE;
+	gboolean add_brace_after_func = FALSE;
+	gboolean add_closebrace_after_func = FALSE;
+	
+	g_return_if_fail (data != NULL);
+	prop_data = data;
+	assistance = g_string_new (prop_data->name);
+	
+	//TODO: adapt JS and Vala
+	if (prop_data->is_func)
+	{
+		IAnjutaIterable* next_brace = iparser_find_next_brace (parser, iter, NULL);
+		//TODO:
+		add_space_after_func =
+			g_settings_get_boolean (assist->priv->settings,
+			                        PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC);
+		add_brace_after_func =
+			g_settings_get_boolean (assist->priv->settings,
+			                        PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC);
+		add_closebrace_after_func =
+			g_settings_get_boolean (assist->priv->settings,
+			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
+
+		if (add_space_after_func
+			&& !iparser_find_whitespace (parser, iter, NULL))
+			g_string_append (assistance, " ");
+		if (add_brace_after_func && !next_brace)
+			g_string_append (assistance, "(");
+		else
+			g_object_unref (next_brace);
+	}
+	
+	te = IANJUTA_EDITOR (parser_plugin->current_editor);
+		
+	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (te), NULL);
+	
+	if (ianjuta_iterable_compare (iter, parser->priv->start_iter, NULL) != 0)
+	{
+		ianjuta_editor_selection_set (IANJUTA_EDITOR_SELECTION (te),
+									  parser->priv->start_iter, iter, FALSE, NULL);
+		ianjuta_editor_selection_replace (IANJUTA_EDITOR_SELECTION (te),
+										  assistance->str, -1, NULL);
+	}
+	else
+	{
+		ianjuta_editor_insert (te, iter, assistance->str, -1, NULL);
+	}
+	
+	if (add_brace_after_func && add_closebrace_after_func)
+	{
+		IAnjutaIterable *next_brace;
+		IAnjutaIterable *pos = ianjuta_iterable_clone (iter, NULL);
+
+		ianjuta_iterable_set_position (pos,
+									   ianjuta_iterable_get_position (assist->priv->start_iter, NULL)
+									   + strlen (assistance->str),
+									   NULL);
+		next_brace = iparser_find_next_brace (parser, pos, NULL);
+		if (!next_brace)
+			ianjuta_editor_insert (te, pos, ")", -1, NULL);
+		else
+		{
+			pos = next_brace;
+			ianjuta_iterable_next (pos, NULL);
+		}
+		
+		ianjuta_editor_goto_position (te, pos, NULL);
+
+		ianjuta_iterable_previous (pos, NULL);
+		if (!prop_data->has_para)
+		{
+			pos = ianjuta_editor_get_position (te, NULL);
+			ianjuta_iterable_next (pos, NULL);
+			ianjuta_editor_goto_position (te, pos, NULL);
+		}
+		
+		g_object_unref (pos);
+	}
+
+	ianjuta_document_end_undo_action (IANJUTA_DOCUMENT (te), NULL);
+
+	/* Show calltip if we completed function */
+	if (add_brace_after_func)
+	{
+		/* Check for calltip */
+		if (parser->priv->itip && 
+			//TODO:
+		    g_settings_get_boolean (assist->priv->settings,
+		                            PREF_CALLTIP_ENABLE))	
+		    //TODO: adapt
+		    //CXX-Parser: parser_cxx_assist_calltip (ParserCxxAssist *assist)
+		    //Python: python_assist_calltip (PythonAssist *assist)
+		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
+		    //TODO: JS  doesn't support calltip yet. I only found this:
+		    /*
+		    	GList *t = NULL;
+				gchar *args = code_completion_get_func_tooltip (plugin, sym);
+				t = g_list_append (t, args);
+				if (args)
+				{
+					ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(plugin->current_editor), t,
+							 position, NULL);
+					g_free (args);
+				}
+		    */
+			LANG_assist_calltip (assist);
+
+	}
+	g_string_free (assistance, TRUE);
 }
 
 /**

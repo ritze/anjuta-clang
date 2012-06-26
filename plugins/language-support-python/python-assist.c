@@ -58,14 +58,7 @@
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
 
-static void python_assist_iface_init(IAnjutaProviderIface* iface);
-
-//G_DEFINE_TYPE (PythonAssist, python_assist, G_TYPE_OBJECT);
-G_DEFINE_TYPE_WITH_CODE (PythonAssist,
-			 python_assist,
-			 G_TYPE_OBJECT,
-			 G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
-			                        python_assist_iface_init))
+G_DEFINE_TYPE_WITH_CODE (PythonAssist, python_assist, G_TYPE_OBJECT)
 
 struct _PythonAssistPriv {
 	GSettings* settings;
@@ -305,6 +298,8 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 				{
 					tag->type = IANJUTA_SYMBOL_TYPE_FUNCTION;
 					tag->is_func = TRUE;
+					//TODO: not implemented yet
+					tag->has_para = TRUE;
 				}
 				else if (g_str_equal(type, "builder_object"))
 				{
@@ -735,95 +730,6 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 	g_free (pre_word);
 } 
 
-
-
-static void
-python_assist_activate (IAnjutaProvider* self, IAnjutaIterable* iter, gpointer data, GError** e)
-{
-	PythonAssist* assist = PYTHON_ASSIST(self);
-	IAnjutaParserProposalData *prop_data;
-	GString *assistance;
-	IAnjutaEditor *te;
-	gboolean add_space_after_func = FALSE;
-	gboolean add_brace_after_func = FALSE;
-	gboolean add_closebrace_after_func = FALSE;
-	
-	g_return_if_fail (data != NULL);
-	prop_data = data;	
-	assistance = g_string_new (prop_data->name);
-	
-	if (prop_data->is_func)
-	{
-		IAnjutaIterable* next_brace = ianjuta_parser_find_next_brace (
-		                                  assist->priv->parser, iter, NULL);
-		add_space_after_func =
-			g_settings_get_boolean (assist->priv->settings,
-			                        PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC);
-		add_brace_after_func =
-			g_settings_get_boolean (assist->priv->settings,
-			                        PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC);
-		add_closebrace_after_func =
-			g_settings_get_boolean (assist->priv->settings,
-			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
-			                        
-		if (add_space_after_func
-			&& !ianjuta_parser_find_whitespace (assist->priv->parser, iter, NULL))
-			g_string_append (assistance, " ");
-		if (add_brace_after_func && !next_brace)
-			g_string_append (assistance, "(");
-		else
-			g_object_unref (next_brace);
-	}
-	
-	te = IANJUTA_EDITOR (assist->priv->iassist);
-		
-	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (te), NULL);
-	
-	if (ianjuta_iterable_compare(iter, assist->priv->start_iter, NULL) != 0)
-	{
-		ianjuta_editor_selection_set (IANJUTA_EDITOR_SELECTION (te),
-									  assist->priv->start_iter, iter, FALSE, NULL);
-		ianjuta_editor_selection_replace (IANJUTA_EDITOR_SELECTION (te),
-										  assistance->str, -1, NULL);
-	}
-	else
-	{
-		ianjuta_editor_insert (te, iter, assistance->str, -1, NULL);
-	}
-	
-	if (add_brace_after_func && add_closebrace_after_func)
-	{
-		IAnjutaIterable *next_brace;
-		IAnjutaIterable *pos = ianjuta_iterable_clone (iter, NULL);
-
-		ianjuta_iterable_set_position (pos,
-									   ianjuta_iterable_get_position (assist->priv->start_iter, NULL)
-									   + strlen (assistance->str),
-									   NULL);
-		next_brace = ianjuta_parser_find_next_brace (assist->priv->parser, pos, NULL);
-		if (!next_brace)
-			ianjuta_editor_insert (te, pos, ")", -1, NULL);
-		else
-		{
-			pos = next_brace;
-			ianjuta_iterable_next (pos, NULL);
-		}
-		
-		ianjuta_editor_goto_position (te, pos, NULL);
-
-		ianjuta_iterable_previous (pos, NULL);
-		g_object_unref (pos);
-	}
-	
-	ianjuta_document_end_undo_action (IANJUTA_DOCUMENT (te), NULL);
-	
-	/* Show calltip if we completed function */
-	if (add_brace_after_func)
-		python_assist_calltip (assist);
-	
-	g_string_free (assistance, TRUE);
-}
-
 static void 
 python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor, IAnjutaParser *iparser)
 {
@@ -832,7 +738,6 @@ python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor, IAnjutaPars
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
 	{
 		assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
-		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor), IANJUTA_PROVIDER(assist), NULL);
 		g_signal_connect (ieditor, "cancelled", G_CALLBACK (python_assist_cancelled), assist);
 	}
 	else
@@ -866,7 +771,6 @@ python_assist_uninstall (PythonAssist *assist)
 
 	if (IANJUTA_EDITOR_ASSIST (assist->priv->iassist))
 	{
-		ianjuta_editor_assist_remove (assist->priv->iassist, IANJUTA_PROVIDER(assist), NULL);
 		g_signal_handlers_disconnect_by_func (assist->priv->iassist, python_assist_cancelled, assist);
 	}
 
@@ -914,10 +818,4 @@ python_assist_new (IAnjutaEditor *ieditor,
 	/* Install support */
 	python_assist_install (assist, ieditor, iparser);
 	return assist;
-}
-
-static void python_assist_iface_init(IAnjutaProviderIface* iface)
-{
-	iface->populate = python_assist_populate;
-	iface->activate = python_assist_activate;
 }

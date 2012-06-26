@@ -269,8 +269,6 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 			}
 		}
 		if (current_editor != null) {
-			if (current_editor is IAnjuta.EditorAssist)
-				(current_editor as IAnjuta.EditorAssist).add(provider);
 			if (current_editor is IAnjuta.EditorTip)
 				current_editor.char_added.connect (on_char_added);
 			if (current_editor is IAnjuta.FileSavable) {
@@ -288,8 +286,6 @@ public class ValaPlugin : Plugin, IAnjuta.Preferences {
 	}
 	public void editor_value_removed (Anjuta.Plugin plugin, string name) {
 		debug("editor value removed");
-		if (current_editor is IAnjuta.EditorAssist)
-			(current_editor as IAnjuta.EditorAssist).remove(provider);
 		if (current_editor is IAnjuta.EditorTip)
 			current_editor.char_added.disconnect (on_char_added);
 		if (current_editor is IAnjuta.FileSavable) {

@@ -152,16 +152,12 @@ install_support (JSLang *plugin)
 		return;
 
 	DEBUG_PRINT ("%s", "JSLang: Install support");
-
-	ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST(plugin->current_editor), IANJUTA_PROVIDER(plugin), NULL);
 }
 
 static void
 uninstall_support (JSLang *plugin)
 {
 	DEBUG_PRINT ("%s", "JSLang: Uninstall support");
-
-	ianjuta_editor_assist_remove (IANJUTA_EDITOR_ASSIST(plugin->current_editor), IANJUTA_PROVIDER(plugin), NULL);
 }
 
 static void
@@ -344,49 +340,6 @@ ipreferences_iface_init (IAnjutaPreferencesIface* iface)
 	iface->unmerge = ipreferences_unmerge;
 }
 
-static void
-iprovider_activate (IAnjutaProvider *obj, IAnjutaIterable* iter,  gpointer data, GError **err)
-{
-	DEBUG_PRINT("activate");
-
-	JSLang *plugin = (JSLang*)obj;
-	gchar *str = (gchar*)data;
-
-	g_assert (plugin->current_editor);
-	g_assert (str);
-
-	gint a = ianjuta_iterable_diff (plugin->start_iter, iter, NULL);
-
-	ianjuta_editor_insert (IANJUTA_EDITOR (plugin->current_editor), iter, str + a, -1, NULL);
-			
-	gchar *sym = code_completion_get_str (IANJUTA_EDITOR (plugin->current_editor), FALSE);
-	g_assert (sym != NULL);
-
-	if (sym && code_completion_is_symbol_func (plugin, sym))
-	{
-		IAnjutaIterable *position = ianjuta_editor_get_position (IANJUTA_EDITOR (plugin->current_editor), NULL);
-
-		if (g_settings_get_boolean (plugin->prefs, ADD_BRACE_AFTER_FUNCCALL))
-		{
-			ianjuta_editor_insert (IANJUTA_EDITOR (plugin->current_editor), position, " (", -1, NULL);
-		}
-		if (g_settings_get_boolean (plugin->prefs, SHOW_CALLTIPS))
-		{
-/*			GList *t = NULL;
-			gchar *args = code_completion_get_func_tooltip (plugin, sym);
-			t = g_list_append (t, args);
-			if (args)
-			{
-				ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(plugin->current_editor), t,
-							 position, NULL);
-
-				g_free (args);
-			}*/
-		}
-	}
-	g_free (sym);
-}
-
 static void 
 iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 {
@@ -456,32 +409,34 @@ iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 
 		for (i = suggestions; i; i = g_list_next(i)) {
 			IAnjutaEditorAssistProposal* proposal = g_new0(IAnjutaEditorAssistProposal, 1);
+			IAnjutaParserProposalData* prop_data;
 
 			if (!i->data)
 				continue;
-	
-			proposal->label = i->data;
-			proposal->data = i->data;
+			
+			//TODO: Or "prop_data->name = i->data;" ?
+			prop_data->name = i->data->name;
+			prop_data->is_func = code_completion_is_symbol_func (plugin, i->data);
+			//TODO: not implemented yet
+			prop_data->has_para = TRUE;
+			//TODO: is this the right way?
+			prop_data->info = i->data;
+			
+			proposal->label = i->data->name;
+//			proposal->data = i->data;
+			proposal->data = prop_data;
 			nsuggest = g_list_prepend (nsuggest, proposal);
 		}
 		ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  nsuggest,  TRUE, NULL);
 		g_list_free (nsuggest);
-                trash = suggestions;
+        trash = suggestions;
 		return;
 	}
 	ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  NULL,  TRUE, NULL);
 }
 
-static void
-iprovider_iface_init (IAnjutaProviderIface* iface)
-{
-	iface->activate	= iprovider_activate;
-	iface->populate= iprovider_populate;
-}
-
 ANJUTA_PLUGIN_BEGIN (JSLang, js_support_plugin);
 ANJUTA_PLUGIN_ADD_INTERFACE(ipreferences, IANJUTA_TYPE_PREFERENCES);
-ANJUTA_PLUGIN_ADD_INTERFACE(iprovider, IANJUTA_TYPE_PROVIDER);
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (JSLang, js_support_plugin);

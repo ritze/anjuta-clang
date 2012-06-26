@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-public class ValaProvider : Object, IAnjuta.Provider {
+public class ValaProvider : Object {
 	weak ValaPlugin plugin;
 
 	static Regex member_access;
@@ -67,52 +67,37 @@ public class ValaProvider : Object, IAnjuta.Provider {
 			if (symbol is Vala.LocalVariable
 			    && symbol.source_reference.first_line > editor.get_lineno())
 				continue;
-
+		
+			var data = IAnjuta.ParserProposalData();
+			data.name = symbol.name;
+			
+			Vala.List<Vala.Parameter> parameters = null;
+			if (sym is Vala.Method) {
+				data.is_func = true;
+				parameters = ((Vala.Method) sym).get_parameters ();
+			} else if (sym is Vala.Signal) {
+				data.is_func = true;
+				parameters = ((Vala.Signal) sym).get_parameters ();
+			} else if (creation_method && sym is Vala.Class) {
+				parameters = ((Vala.Class) sym).default_construction_method.get_parameters ();
+			} else if (sym is Vala.Variable) {
+				var var_type = ((Vala.Variable) sym).variable_type;
+				if (var_type is Vala.DelegateType) {
+					data.is_func = true;
+					parameters = ((Vala.DelegateType) var_type).delegate_symbol.get_parameters ();
+				}
+			}
+			
+			data.has_para = !(parameters.length == 0);
+			
 			var prop = IAnjuta.EditorAssistProposal();
-			prop.data = symbol;
+			prop.data = data;
 			prop.label = symbol.name;
 			proposals.prepend(prop);
 		}
 		proposals.reverse();
 		editor.proposals(this, proposals, true);
 	}
-	public void activate (IAnjuta.Iterable iter, void* data) {
-		var sym = data as Vala.Symbol;
-		var editor = plugin.current_editor as IAnjuta.EditorAssist;
-		var assist = sym.name;
-		var is_func = false;
-		var calltip = false;
-
-		if (sym is Vala.Method || sym is Vala.Signal) {
-			is_func = true;
-		} else if (sym is Vala.Variable) {
-			if (((Vala.Variable) sym).variable_type is Vala.DelegateType) {
-				is_func = true;
-			}
-		}
-
-		if (is_func) {
-			if (plugin.settings.get_boolean (PREF_SPACE_AFTER_FUNC)) {
-				assist += " ";
-			}
-			if (plugin.settings.get_boolean (PREF_BRACE_AFTER_FUNC)) {
-				assist += "(";
-				if (plugin.settings.get_boolean (PREF_CALLTIP_ENABLE)) {
-					calltip = true;
-				}
-			}
-		}
-
-		(editor as IAnjuta.Document).begin_undo_action();
-		editor.erase(start_pos, iter);
-		editor.insert(start_pos, assist, -1);
-		(editor as IAnjuta.Document).end_undo_action();
-
-		if (calltip && editor is IAnjuta.EditorTip) {
-			show_call_tip ((IAnjuta.EditorTip) editor);
-		}
-	}
-
 	public void show_call_tip (IAnjuta.EditorTip editor) {
 		var current_position = editor.get_position ();
 		var line_start = editor.get_line_begin_position(editor.get_lineno());
