@@ -80,6 +80,7 @@ struct _PythonAssistPriv {
 	GString* rope_cache;
 
 	/* Calltips */
+	//FIXME:
 	gchar *calltip_context;
 	GList *tips;
 	IAnjutaIterable* calltip_iter;
@@ -410,15 +411,6 @@ python_assist_create_word_completion_cache (PythonAssist *assist, IAnjutaIterabl
 	return TRUE;
 }
 
-static void
-python_assist_create_calltip_context (PythonAssist* assist,
-                                      const gchar* call_context,
-                                      IAnjutaIterable* position)
-{
-	assist->priv->calltip_context = g_strdup (call_context);
-	assist->priv->calltip_iter = position;
-}
-
 static void 
 on_calltip_output (AnjutaLauncher *launcher,
                    AnjutaLauncherOutputType output_type,
@@ -525,86 +517,6 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 	assist->priv->calltip_iter = NULL;
 }
 
-static gint
-python_assist_get_calltip_context_position (IAnjutaIterable *iter)
-{
-	gchar ch;
-	gint final_offset;
-	IAnjutaIterable* current_iter = ianjuta_iterable_clone (iter, NULL);
-	
-	while (ianjuta_iterable_previous (current_iter, NULL))
-	{
-		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (current_iter), 0, NULL);
-		if (ch == '(')
-		    break;
-	}
-	final_offset = ianjuta_iterable_get_position (current_iter, NULL);
-	
-	g_object_unref (current_iter);
-	return final_offset - 1;
-}
-
-static gboolean
-python_assist_calltip (PythonAssist *assist)
-{
-	IAnjutaEditor *editor;
-	IAnjutaIterable *iter;
-	gchar *call_context;
-	gint call_context_position;
-	
-	editor = IANJUTA_EDITOR (assist->priv->iassist);
-	
-	iter = ianjuta_editor_get_position (editor, NULL);
-	ianjuta_iterable_previous (iter, NULL);
-
-	call_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
-	                                   IANJUTA_EDITOR_TIP (assist->priv->itip),
-	                                   iter, SCOPE_CONTEXT_CHARACTERS, NULL);
-	iter = ianjuta_editor_get_position (editor, NULL);
-	call_context_position = python_assist_get_calltip_context_position (iter);
-
-	if (call_context)
-	{
-		DEBUG_PRINT ("Searching calltip for: %s", call_context);
-		if (assist->priv->calltip_context &&
-		    g_str_equal (call_context, assist->priv->calltip_context))
-		{
-			/* Continue tip */
-			if (assist->priv->tips)
-			{
-				if (!ianjuta_editor_tip_visible (IANJUTA_EDITOR_TIP (editor), NULL))
-				{
-					ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP (editor),
-					                         assist->priv->tips,
-					                         assist->priv->calltip_iter, NULL);
-				}
-			}
-			g_free (call_context);
-			return TRUE;
-		}
-		else /* New tip */
-		{
-			if (ianjuta_editor_tip_visible (IANJUTA_EDITOR_TIP (editor), NULL))
-				ianjuta_editor_tip_cancel (IANJUTA_EDITOR_TIP (editor), NULL);
-			
-			python_assist_clear_calltip_context (assist);
-			python_assist_create_calltip_context (assist, call_context, iter);
-			python_assist_query_calltip (assist, call_context, call_context_position);
-			g_free (call_context);
-			return TRUE;
-		}
-	}
-	else
-	{
-		if (ianjuta_editor_tip_visible (IANJUTA_EDITOR_TIP (editor), NULL))
-			ianjuta_editor_tip_cancel (IANJUTA_EDITOR_TIP (editor), NULL);
-		python_assist_clear_calltip_context (assist);
-	}
-
-	g_object_unref (iter);
-	return FALSE;
-}
-
 static void
 python_assist_update_pre_word (PythonAssist* assist, const gchar* pre_word)
 {
@@ -654,6 +566,7 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 	    g_settings_get_boolean (assist->priv->settings,
 	                            PREF_CALLTIP_ENABLE))
 	{	
+		//TODO: use parser_engine_calltip (parser)
 		python_assist_calltip (assist);	
 	}
 	
