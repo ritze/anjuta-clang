@@ -6661,7 +6661,6 @@ interface IAnjutaIndenter
 	 void indent (IAnjutaIterable* start, IAnjutaIterable* end);
 }
 
-
 /**
  * SECTION:ianjuta-parser
  * @title: IAnjutaParser
@@ -6674,8 +6673,10 @@ interface IAnjutaIndenter
 
 interface IAnjutaParser
 {
-  #include <libanjuta/interfaces/ianjuta-editor-assist.h>
-  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
+//TODO: new include: Do this works?
+  #include <libanjuta/interfaces/ianjuta-editor.h>
+//  #include <libanjuta/interfaces/ianjuta-editor-assist.h>
+//  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
   #include <libanjuta/interfaces/ianjuta-symbol.h>
   #include <libanjuta/interfaces/ianjuta-iterable.h>
 
@@ -6696,19 +6697,6 @@ interface IAnjutaParser
 	 }
 
 	/**
-	 * ianjuta_parser_create_calltips:
-	 * @obj: Self
-	 * @iter: List of symbols
-	 * @merge: list of calltips to merge or NULL
-	 * @err: Error propagation
-	 *
-	 * Create a list of Calltips (string) from a list of symbols
-	 *
-	 * A newly allocated GList* with newly allocated strings
-	 */
-	 GList* create_calltips (IAnjutaIterable* iter, GList* merge);
-
-	/**
 	 * ianjuta_parser_get_pre_word:
 	 * @obj: Self
 	 * @editor: Editor object
@@ -6724,19 +6712,6 @@ interface IAnjutaParser
 	 */
 	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter, const gchar* word_characters);
 	 
-	 
-	/**
-	 * ianjuta_parser_set_calltip_settings:
-	 * @obj: Self
-	 * @tips: (element-type utf8): list of alternative tips.
-	 * @position: Tip position.
-	 * @err: Error propagation and reporting
-	 *
-	 * Set the parameters for a calltip. IAnjutaParser call ianjuta_editor_tip_show ()
-	 * with this parameters.
-	 */
-	void set_calltip_settings (List<const gchar*> tips, IAnjutaIterable *position);
-	 
 	/**
 	 * ianjuta_parser_set_start_iter:
 	 * @obj: Self
@@ -6746,4 +6721,56 @@ interface IAnjutaParser
 	 * Set the current start iter
 	 */
 	 void set_start_iter (IAnjutaIterable *start_iter);
+}
+
+/**
+ * SECTION:ianjuta-parser-utils
+ * @title: IAnjutaParserUtils
+ * @short_description: Interface to manage multiple parser with same utils
+ * @see_also:
+ * @stability: Unstable
+ * @include: libanjuta/interfaces/ianjuta-parser-utils.h
+ *
+ */
+ 
+interface IAnjutaParserUtils
+{
+  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
+  #include <libanjuta/interfaces/ianjuta-iterable.h>
+	
+	/**
+	 * parser_engine_utils_get_calltip_context:
+	 * @obj: Self
+	 * @itip: 
+	 * @iter: current cursor position
+	 * @scope_context_characters: language-specific context characters
+	 *                            the end is marked with a '0' character
+	 * @err: Error propagation
+	 *
+	 * Searches for a calltip context
+	 *
+	 * Returns: name of the method to show a calltip for or NULL
+	 */
+	 gchar* get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
+}
+
+/**
+ * SECTION:ianjuta-parser-calltip
+ * @title: IAnjutaParserCalltip
+ * @short_description: Interface to manage calltips
+ * @see_also:
+ * @stability: Unstable
+ * @include: libanjuta/interfaces/ianjuta-parser-calltip.h
+ *
+ */
+ 
+interface IAnjutaParserCalltip
+{
+  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
+  #include <libanjuta/interfaces/ianjuta-iterable.h>
+  
+  //TODO: integrate in cxx-parser, vala, python and js plugin
+	gchar* get_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
+	void clear_context (ParserCxxAssist* assist);
+	void query (ParserCxxAssist *assist, const gchar *call_context);
 }

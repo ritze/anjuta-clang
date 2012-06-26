@@ -31,7 +31,9 @@ plugin_LTLIBRARIES = libanjuta-parser-engine.la
 # Plugin sources
 libanjuta_parser_engine_la_SOURCES = \
 	plugin.h \
-	plugin.c 
+	plugin.c \
+	utils.h \
+	utils.c
 
 libanjuta_parser_engine_la_LDFLAGS = \
 	$(ANJUTA_PLUGIN_LDFLAGS)

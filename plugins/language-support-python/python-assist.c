@@ -37,6 +37,8 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
+#include <libanjuta/interfaces/ianjuta-parser-calltip.h>
+#include <libanjuta/interfaces/ianjuta-parser-utils.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h> 
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
@@ -58,7 +60,11 @@
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
 
-G_DEFINE_TYPE_WITH_CODE (PythonAssist, python_assist, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_CODE (PythonAssist,
+                         python_assist,
+                         G_TYPE_OBJECT,
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PARSER_CALLTIP,
+                                                python_assist_iface_init))
 
 struct _PythonAssistPriv {
 	GSettings* settings;
@@ -728,4 +734,11 @@ python_assist_new (IAnjutaEditor *ieditor,
 	/* Install support */
 	python_assist_install (assist, ieditor, iparser);
 	return assist;
+}
+
+static void python_assist_iface_init(IAnjutaProviderIface* iface)
+{
+	iface->get_context = ianjuta_parser_utils_get_calltip_context;
+	iface->clear_context = python_assist_clear_calltip_context;
+	iface->query = python_assist_query_calltip;
 }

@@ -32,6 +32,8 @@
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
+#include <libanjuta/interfaces/ianjuta-parser-calltip.h>
+#include <libanjuta/interfaces/ianjuta-parser-utils.h>
 #include <libanjuta/interfaces/ianjuta-provider.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
@@ -48,7 +50,11 @@
 #define SCOPE_CONTEXT_CHARACTERS "_.:>-0"
 #define WORD_CHARACTER "_0"
 
-G_DEFINE_TYPE_WITH_CODE (ParserCxxAssist, parser_cxx_assist, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_CODE (ParserCxxAssist,
+                         parser_cxx_assist,
+                         G_TYPE_OBJECT,
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PARSER_CALLTIP,
+                                                cxx_parser_assist_iface_init))
 
 struct _ParserCxxAssistPriv {
 	GSettings* settings;
@@ -591,6 +597,67 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaI
 }
 
 /**
+ * parser_cxx_assist_create_calltips:
+ * @iter: List of symbols
+ * @merge: list of calltips to merge or NULL
+ *
+ * Create a list of Calltips (string) from a list of symbols
+ *
+ * A newly allocated GList* with newly allocated strings
+ */
+static GList*
+parser_cxx_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
+{
+	GList* tips = merge;
+	if (iter)
+	{
+		do
+		{
+			IAnjutaSymbol* symbol = IANJUTA_SYMBOL (iter);
+			const gchar* name = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL);
+			if (name != NULL)
+			{
+				const gchar* args = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_SIGNATURE, NULL);
+				const gchar* rettype = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_RETURNTYPE, NULL);
+				gchar* print_args;
+				gchar* separator;
+				gchar* white_name;
+				gint white_count = 0;
+
+				if (!rettype)
+					rettype = "";
+				else
+					white_count += strlen(rettype) + 1;
+				
+				white_count += strlen(name) + 1;
+				
+				white_name = g_strnfill (white_count, ' ');
+				separator = g_strjoin (NULL, ", \n", white_name, NULL);
+				gchar** argv;
+				if (!args)
+					args = "()";
+				
+				argv = g_strsplit (args, ",", -1);
+				print_args = g_strjoinv (separator, argv);
+				gchar* tip = g_strdup_printf ("%s %s %s", rettype, name, print_args);
+				
+				if (!g_list_find_custom (tips, tip, (GCompareFunc) strcmp))
+					tips = g_list_append (tips, tip);
+				
+				g_strfreev (argv);
+				g_free (print_args);
+				g_free (separator);
+				g_free (white_name);
+			}
+			else
+				break;
+		}
+		while (ianjuta_iterable_next (iter, NULL));
+	}
+	return tips;
+}
+
+/**
  * on_calltip_search_complete:
  * @search_id: id of this search
  * @symbols: the returned symbols
@@ -603,7 +670,7 @@ static void
 on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 							ParserCxxAssist* assist)
 {
-	assist->priv->tips = ianjuta_parser_create_calltips (assist->priv->parser, symbols, assist->priv->tips, NULL);
+	assist->priv->tips = parser_cxx_assist_create_calltips (symbols, assist->priv->tips);
 	if (query == assist->priv->calltip_query_file)
 		assist->priv->async_calltip_file = 0;
 	else if (query == assist->priv->calltip_query_project)
@@ -1147,4 +1214,11 @@ parser_cxx_assist_new (IAnjutaEditor *ieditor,
 	engine_parser_init (isymbol_manager);	
 	
 	return assist;
+}
+
+static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface)
+{
+	iface->get_context = ianjuta_parser_utils_get_calltip_context;
+	iface->clear_context = parser_cxx_assist_clear_calltip_context;
+	iface->query = parser_cxx_assist_query_calltip;
 }
