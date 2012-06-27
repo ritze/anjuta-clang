@@ -6709,6 +6709,16 @@ interface IAnjutaParser
 	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter);
 	 
 	/**
+	 * ianjuta_parser_set_settings:
+	 * @obj: Self
+	 * @settings: the settings to set
+	 * @err: Error propagation
+	 *
+	 * Set the current start iter
+	 */
+	 void set_settings (GSettings *settings);
+	 
+	/**
 	 * ianjuta_parser_set_start_iter:
 	 * @obj: Self
 	 * @start_iter: the start iter to set
@@ -6773,15 +6783,13 @@ interface IAnjutaParserCalltip
 	 * ianjuta_parser_calltip_get_context:
 	 * @obj: Self
 	 * @iter: current cursor position
-	 * @scope_context_characters: language-specific context characters
-	 *                            the end is marked with a '0' character
 	 * @err: Error propagation
 	 *
 	 * Searches for a calltip context
 	 *
 	 * Returns: name of the method to show a calltip for or NULL
 	 */
-	 gchar* get_context (IAnjutaIterable* iter, const gchar* scope_context_characters);
+	 gchar* get_context (IAnjutaIterable* iter);
 	 
 	/**
 	 * ianjuta_parser_calltip_clear_context:

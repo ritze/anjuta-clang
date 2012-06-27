@@ -27,6 +27,8 @@
 #define _UTIL_H_
 
 #include <glib.h>
+#include <libanjuta/interfaces/ianjuta-editor-cell.h>
+#include <libanjuta/interfaces/ianjuta-parser.h>
 
 static gboolean parser_engine_utils_is_character (gchar ch,
                                                   const gchar* characters);
@@ -34,5 +36,5 @@ static gchar* iparser_utils_get_calltip_context (IAnjutaParser* self,
                                                  IAnjutaEditorTip* itip,
                                                  IAnjutaIterable* iter,
                                                  const gchar* scope_context_characters,
-                                                 GError** e)
+                                                 GError** e);
 #endif

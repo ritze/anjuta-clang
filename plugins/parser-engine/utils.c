@@ -26,6 +26,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
+#include <libanjuta/anjuta-utils.h>
 
 #include "utils.h"
 
@@ -88,10 +89,8 @@ parser_engine_utils_get_scope_context (IAnjutaEditor* editor,
 	
 	while (ch)
 	{
-		if (parser_engine_is_character (ch, scope_context_characters))
-		{
+		if (parser_engine_utils_is_character (ch, scope_context_characters))
 			scope_chars_found = TRUE;
-		}
 		else if (ch == ')')
 		{
 			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))

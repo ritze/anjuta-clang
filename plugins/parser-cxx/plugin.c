@@ -201,8 +201,8 @@ static void
 parser_cxx_plugin_dispose (GObject *obj)
 {
     ParserCxxPlugin* plugin = ANJUTA_PLUGIN_PARSER_CXX (obj);
+    
     /* Disposition codes */
-
     g_object_unref (plugin->settings);
     g_object_unref (plugin->editor_settings);
 	

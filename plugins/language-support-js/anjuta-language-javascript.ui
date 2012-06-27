@@ -215,7 +215,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkCheckButton" id="preferences_toggle:bool:1:1:javascript-add-brace-after-func">
+          <object class="GtkCheckButton" id="preferences_toggle:bool:1:1:completion-brace-after-func">
             <property name="label" translatable="yes">Add brace after function call autocompletion</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
@@ -227,7 +227,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkCheckButton" id="preferences_toggle:bool:1:1:javascript-show-calltips">
+          <object class="GtkCheckButton" id="preferences_toggle:bool:1:1:calltip-enable">
             <property name="label" translatable="yes">Show calltips</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>

@@ -25,14 +25,22 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
+#include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 #include <libanjuta/interfaces/ianjuta-parser.h>
+#include <libanjuta/interfaces/ianjuta-parser-calltip.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 
 #include "plugin.h"
 #include "utils.h"
+
+#define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
+#define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
+#define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-brace-after-func"
+#define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC "completion-closebrace-after-func"
+#define PREF_CALLTIP_ENABLE "calltip-enable"
 
 #define ICON_FILE "anjuta-parser-engine-plugin.png"
 
@@ -59,7 +67,7 @@ struct _ParserEnginePluginPriv {
 	gchar* calltip_context;
 	GList* tips;
 	IAnjutaIterable* calltip_iter;
-}
+};
 
 /* Enable/Disable language-support */
 static void
@@ -68,11 +76,10 @@ install_support (ParserEnginePlugin *parser_plugin)
     IAnjutaLanguage* lang_manager = anjuta_shell_get_interface (
                                         anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
                                         IAnjutaLanguage, NULL);
-                                    
-                                    
-	parser_calltip =  anjuta_shell_get_interface (
-	                      anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
-				          IAnjutaParserCalltip, NULL);
+    
+	parser_plugin->priv->parser_calltip =  anjuta_shell_get_interface (
+	                  anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
+				      IAnjutaParserCalltip, NULL);
 	
     if (!lang_manager)
         return;
@@ -151,8 +158,10 @@ on_value_added_current_editor (AnjutaPlugin *plugin, const gchar *name,
     parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (plugin);
 	
     if (IANJUTA_IS_EDITOR(doc))
+    {
         parser_plugin->current_editor = G_OBJECT(doc);
     	parser_plugin->priv->itip = IANJUTA_EDITOR_TIP (parser_plugin->current_editor);
+    }
     else
     {
         parser_plugin->current_editor = NULL;
@@ -208,8 +217,7 @@ parser_engine_plugin_activate_plugin (AnjutaPlugin *plugin)
 static gboolean
 parser_engine_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 {
-    ParserEnginePlugin *parser_plugin;
-    parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (plugin);
+    ParserEnginePlugin *parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (plugin);
 
     anjuta_plugin_remove_watch (plugin,
                                 parser_plugin->editor_watch_id,
@@ -229,10 +237,12 @@ parser_engine_plugin_finalize (GObject *obj)
 static void
 parser_engine_plugin_dispose (GObject *obj)
 {
+	ParserEnginePlugin* plugin = ANJUTA_PLUGIN_PARSER_ENGINE (obj);
+	
 	/* Disposition codes */
-	if (plugin->settings)
-		g_object_unref (plugin->settings);
-	plugin->settings = NULL;
+	if (plugin->priv->settings)
+		g_object_unref (plugin->priv->settings);
+	plugin->priv->settings = NULL;
 	
     G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
@@ -294,12 +304,11 @@ g_warning ("parser_engine_calltip: works");
 	IAnjutaIterable *iter;
 	gchar *call_context;
 	
-	iter = ianjuta_editor_get_position (parser->current_editor, NULL);
+	iter = ianjuta_editor_get_position (IANJUTA_EDITOR (parser->current_editor), NULL);
 	ianjuta_iterable_previous (iter, NULL);
 	
 	call_context = ianjuta_parser_calltip_get_context (parser->priv->parser_calltip,
 	                                                   iter,
-	                                                   SCOPE_CONTEXT_CHARACTERS,
 	                                                   NULL);
 	if (call_context)
 	{
@@ -454,21 +463,34 @@ g_warning ("iparser_get_pre_word works");
 }
 
 static void
+iparser_set_settings (IAnjutaParser* self,
+                      GSettings* settings,
+                      GError** e)
+{
+	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+	if (parser->priv->settings)
+		g_object_unref (parser->priv->settings);
+	parser->priv->settings = settings;
+g_warning ("iparser_set_settings: works");
+}
+
+static void
 iparser_set_start_iter (IAnjutaParser* self,
 						IAnjutaIterable* start_iter,
 						GError** e)
 {
 	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
 	if (parser->priv->start_iter)
-				g_object_unref (assist->priv->start_iter);
+		g_object_unref (parser->priv->start_iter);
 	parser->priv->start_iter = ianjuta_iterable_clone (start_iter, NULL);
-g_warning ("iparser_set_start_iter: %s", parser->priv->start_iter);
+g_warning ("iparser_set_start_iter: works");
 }
 
 static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->get_pre_word = iparser_get_pre_word;
+	iface->set_settings = iparser_set_settings;
 	iface->set_start_iter = iparser_set_start_iter;
 	iface->utils_get_calltip_context = iparser_utils_get_calltip_context;
 }
@@ -503,15 +525,14 @@ iprovider_activate (IAnjutaProvider* self,
 	if (prop_data->is_func)
 	{
 		IAnjutaIterable* next_brace = parser_engine_find_next_brace (iter);
-		//TODO: get language plugin specific setting
 		add_space_after_func =
-			g_settings_get_boolean (assist->priv->settings,
+			g_settings_get_boolean (parser->priv->settings,
 			                        PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC);
 		add_brace_after_func =
-			g_settings_get_boolean (assist->priv->settings,
+			g_settings_get_boolean (parser->priv->settings,
 			                        PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC);
 		add_closebrace_after_func =
-			g_settings_get_boolean (assist->priv->settings,
+			g_settings_get_boolean (parser->priv->settings,
 			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
 
 		if (add_space_after_func
@@ -523,7 +544,7 @@ iprovider_activate (IAnjutaProvider* self,
 			g_object_unref (next_brace);
 	}
 	
-	te = IANJUTA_EDITOR (parser_plugin->current_editor);
+	te = IANJUTA_EDITOR (parser->current_editor);
 		
 	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (te), NULL);
 	
@@ -577,8 +598,7 @@ iprovider_activate (IAnjutaProvider* self,
 	{
 		/* Check for calltip */
 		if (parser->priv->itip && 
-			//TODO: get language plugin specific setting
-		    g_settings_get_boolean (assist->priv->settings,
+		    g_settings_get_boolean (parser->priv->settings,
 		                            PREF_CALLTIP_ENABLE))
 		    //TODO: adapt
 		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
@@ -612,8 +632,7 @@ iprovider_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
 	
 	/* Check if we actually want autocompletion at all */
-	//TODO: get language plugin specific setting
-	if (!g_settings_get_boolean (assist->priv->settings,
+	if (!g_settings_get_boolean (parser->priv->settings,
 	                             PREF_AUTOCOMPLETE_ENABLE))
 	{
 		parser_engine_none (self, parser);
@@ -631,15 +650,14 @@ iprovider_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 
 	/* Check for calltip */
 	if (parser->priv->itip && 
-		//TODO: get language plugin specific setting
-	    g_settings_get_boolean (assist->priv->settings,
+	    g_settings_get_boolean (parser->priv->settings,
 	                            PREF_CALLTIP_ENABLE))
 	{	
 		parser_engine_calltip (parser);
 	}
 	
 	/* Execute language-specific part */
-	if (ianjuta_parser_calltip_populate (parser->parser_calltip, cursor, NULL))
+	if (ianjuta_parser_calltip_populate (parser->priv->parser_calltip, cursor, NULL))
 		return;
 
 	/* Nothing to propose */
@@ -664,7 +682,7 @@ iprovider_get_start_iter (IAnjutaProvider* self,
                           GError** e)
 { 
 	ParserEnginePlugin *parser_plugin = ANJUTA_PLUGIN_PARSER_ENGINE (self);
-g_warning ("iprovider_get_start_iter: %s", parser_plugin->priv->start_iter);
+g_warning ("iprovider_get_start_iter: works");
 	return parser_plugin->priv->start_iter;
 }
 

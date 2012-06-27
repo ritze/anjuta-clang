@@ -19,10 +19,10 @@
 #ifndef _JS_SUPPORT_PREFS_H_
 #define _JS_SUPPORT_PREFS_H_
 
-#define JS_SUPPORT_SCHEMA "org.gnome.anjuta.js"
+#define JS_SUPPORT_SCHEMA "org.gnome.anjuta.plugins.js"
 #define MIN_CODECOMPLETE "javascript-min-codecomplete"
-#define ADD_BRACE_AFTER_FUNCCALL "javascript-add-brace-after-func"
-#define SHOW_CALLTIPS "javascript-show-calltips"
+#define ADD_BRACE_AFTER_FUNCCALL "completion-brace-after-func"
+#define PREF_CALLTIP_ENABLE "calltip-enable"
 #define HIGHLIGHT_MISSEDSEMICOLON "javascript-missed"
 #define GIR_DIR_KEY "javascript-girdir"
 #define GJS_DIR_KEY "javascript-gjsdir"
