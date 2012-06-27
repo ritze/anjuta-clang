@@ -434,7 +434,6 @@ on_calltip_output (AnjutaLauncher *launcher,
 	}
 }
 
-//TODO: Move assist->priv->calltip_iter to parser-engine
 static void
 on_calltip_finished (AnjutaLauncher* launcher,
                      int child_pid, int exit_status,
@@ -449,9 +448,7 @@ on_calltip_finished (AnjutaLauncher* launcher,
 	if (assist->priv->calltip_cache)
 	{
 		GList* tips = g_list_prepend (NULL, assist->priv->calltip_cache->str);
-		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip), tips,
-		                         assist->priv->calltip_iter, 
-		                         NULL);
+		ianjuta_parser_calltip_show (assist->priv->parser, tips, NULL);
 		g_list_free (tips);
 		g_string_free (assist->priv->calltip_cache, TRUE);
 		assist->priv->calltip_cache = NULL;
@@ -532,17 +529,6 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 		g_object_unref (assist->priv->calltip_launcher);
 	}	
 	assist->priv->calltip_launcher = NULL;
-	
-	g_free (assist->priv->calltip_context);
-	assist->priv->calltip_context = NULL;
-	
-	g_list_foreach (assist->priv->tips, (GFunc) g_free, NULL);
-	g_list_free (assist->priv->tips);
-	assist->priv->tips = NULL;
-
-	if (assist->priv->calltip_iter)
-		g_object_unref (assist->priv->calltip_iter);
-	assist->priv->calltip_iter = NULL;
 }
 
 static void

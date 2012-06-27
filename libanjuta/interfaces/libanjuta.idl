@@ -6742,6 +6742,16 @@ interface IAnjutaParser
 	 * Returns: name of the method to show a calltip for or NULL
 	 */
 	 gchar* utils_get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
+	 
+	/**
+	 * ianjuta_parser_calltip_show:
+	 * @obj: Self
+	 * @tips: (element-type utf8): list of alternative tips.
+	 * @err: Error propagation
+	 *
+	 * Show a new calltip
+	 */
+	 void calltip_show (GList* tips);
 }
 
 /**

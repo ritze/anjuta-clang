@@ -66,6 +66,8 @@ struct _ParserCxxAssistPriv {
 	const gchar* editor_filename;
 
 	/* Calltips */
+	GList* tips;
+	
 	gint async_calltip_file;
 	gint async_calltip_system;
 	gint async_calltip_project;
@@ -691,7 +693,6 @@ parser_cxx_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
  *
  * Called by the async search method when it found calltips
  */
-//TODO: Move assist->priv->tips and assist->priv->calltip_iter to parser-engine
 static void
 on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 							ParserCxxAssist* assist)
@@ -711,11 +712,7 @@ on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 	DEBUG_PRINT ("Calltip search finished with %d items", g_list_length (assist->priv->tips));
 	
 	if (!running && assist->priv->tips)
-	{
-		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip), assist->priv->tips,
-		                         assist->priv->calltip_iter,
-		                         NULL);
-	}
+		ianjuta_parser_calltip_show (assist->priv->parser, assist->priv->tips, NULL);
 }
 
 /**
@@ -776,17 +773,6 @@ parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 	assist->priv->async_calltip_file = 0;
 	assist->priv->async_calltip_project = 0;
 	assist->priv->async_calltip_system = 0;
-	
-	g_free (assist->priv->calltip_context);
-	assist->priv->calltip_context = NULL;
-	
-	g_list_foreach (assist->priv->tips, (GFunc) g_free, NULL);
-	g_list_free (assist->priv->tips);
-	assist->priv->tips = NULL;
-
-	if (assist->priv->calltip_iter)
-		g_object_unref (assist->priv->calltip_iter);
-	assist->priv->calltip_iter = NULL;
 }
 
 static void

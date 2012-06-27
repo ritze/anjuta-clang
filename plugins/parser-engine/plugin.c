@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <libanjuta/anjuta-shell.h>
 #include <libanjuta/anjuta-debug.h>
+#include <libanjuta/anjuta-utils.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
@@ -43,6 +44,9 @@
 #define PREF_CALLTIP_ENABLE "calltip-enable"
 
 #define ICON_FILE "anjuta-parser-engine-plugin.png"
+
+#define SCOPE_BRACE_JUMP_LIMIT 50
+#define BRACE_SEARCH_LIMIT 500
 
 //TODO:
 //static void parser_engine_iface_init (IAnjutaProviderIface* iface);
@@ -228,9 +232,28 @@ parser_engine_plugin_deactivate_plugin (AnjutaPlugin *plugin)
 }
 
 static void
+parser_engine_clear_calltip_context (ParserEnginePlugin* parser)
+{
+	g_free (parser->priv->calltip_context);
+	parser->priv->calltip_context = NULL;
+	
+	g_list_foreach (parser->priv->tips, (GFunc) g_free, NULL);
+	g_list_free (parser->priv->tips);
+	parser->priv->tips = NULL;
+
+	if (parser->priv->calltip_iter)
+		g_object_unref (parser->priv->calltip_iter);
+	parser->priv->calltip_iter = NULL;
+}
+
+static void
 parser_engine_plugin_finalize (GObject *obj)
 {
+	ParserEnginePlugin* plugin = ANJUTA_PLUGIN_PARSER_ENGINE (obj);
+	
     /* Finalization codes here */
+	parser_engine_clear_calltip_context (plugin);
+	
     G_OBJECT_CLASS (parent_class)->finalize (obj);
 }
 
@@ -270,6 +293,133 @@ parser_engine_plugin_class_init (GObjectClass *klass)
 }
 
 /* support methods */
+
+/**
+ * parser_engine_is_character:
+ * @ch: character to check
+ * @context_characters: language-specific context characters
+ *                      the end is marked with a '0' character
+ *
+ * Returns: if the current character seperates a scope
+ */
+static gboolean
+parser_engine_is_character (gchar ch,
+                            const gchar* characters)
+{
+g_warning ("parser_engine_is_scope_context_character works");
+	int i;
+	
+	if (g_ascii_isspace (ch))
+		return FALSE;
+	if (g_ascii_isalnum (ch))
+		return TRUE;
+	for (i = 0; characters[i] != '0'; i++)
+	{
+		if (ch == characters[i])
+		{
+			return TRUE;
+		}
+	}
+	
+	return FALSE;
+}
+
+/**
+ * parser_engine_get_scope_context
+ * @editor: current editor
+ * @iter: Current cursor position
+ * @scope_context_characters: language-specific context characters
+ *                            the end is marked with a '0' character
+ *
+ * Find the scope context for calltips
+ */
+static gchar*
+parser_engine_get_scope_context (IAnjutaEditor* editor,
+                                 IAnjutaIterable *iter,
+                                 const gchar* scope_context_characters)
+{
+	IAnjutaIterable* end;	
+	gchar ch, *scope_chars = NULL;
+	gboolean out_of_range = FALSE;
+	gboolean scope_chars_found = FALSE;
+	
+	end = ianjuta_iterable_clone (iter, NULL);
+	ianjuta_iterable_next (end, NULL);
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	
+	while (ch)
+	{
+		if (parser_engine_is_character (ch, scope_context_characters))
+			scope_chars_found = TRUE;
+		else if (ch == ')')
+		{
+			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
+			{
+				out_of_range = TRUE;
+				break;
+			}
+		}
+		else
+			break;
+		if (!ianjuta_iterable_previous (iter, NULL))
+		{
+			out_of_range = TRUE;
+			break;
+		}		
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	}
+	if (scope_chars_found)
+	{
+		IAnjutaIterable* begin;
+		begin = ianjuta_iterable_clone (iter, NULL);
+		if (!out_of_range)
+			ianjuta_iterable_next (begin, NULL);
+		scope_chars = ianjuta_editor_get_text (editor, begin, end, NULL);
+		g_object_unref (begin);
+	}
+	g_object_unref (end);
+	return scope_chars;
+}
+
+static gchar*
+iparser_get_calltip_context (IAnjutaParser* self,
+                             IAnjutaEditorTip* itip,
+                             IAnjutaIterable* iter,
+                             const gchar* scope_context_characters,
+                             GError** e)
+{
+	gchar ch;
+	gchar *context = NULL;
+	
+	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (iter), 0, NULL);
+	if (ch == ')')
+	{
+		if (!anjuta_util_jump_to_matching_brace (iter, ')', -1))
+			return NULL;
+		if (!ianjuta_iterable_previous (iter, NULL))
+			return NULL;
+	}
+	if (ch != '(')
+	{
+		if (!anjuta_util_jump_to_matching_brace (iter, ')',
+												   BRACE_SEARCH_LIMIT))
+			return NULL;
+	}
+	
+	/* Skip white spaces */
+	while (ianjuta_iterable_previous (iter, NULL)
+		&& g_ascii_isspace (ianjuta_editor_cell_get_char
+								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
+	
+	context = parser_engine_get_scope_context (IANJUTA_EDITOR (itip),
+	                                           iter, scope_context_characters);
+
+	/* Point iter to the first character of the scope to align calltip correctly */
+	ianjuta_iterable_next (iter, NULL);
+	
+	return context;
+}
 
 /**
  * parser_engine_create_calltip_context:
@@ -333,6 +483,7 @@ g_warning ("parser_engine_calltip: works");
 				ianjuta_editor_tip_cancel (parser->priv->itip, NULL);
 				
 			ianjuta_parser_calltip_clear_context (parser->priv->parser_calltip, NULL);
+			parser_engine_clear_calltip_context (parser);
 			parser_engine_create_calltip_context (parser, call_context, iter);
 			ianjuta_parser_calltip_query (parser->priv->parser_calltip, call_context, NULL);
 		}
@@ -434,7 +585,7 @@ g_warning ("iparser_get_pre_word works");
 	gchar* word_characters = ianjuta_parser_calltip_get_word_characters (
 	                                     parser->priv->parser_calltip, NULL);
 	
-	while (ch && parser_engine_utils_is_character (ch, word_characters))
+	while (ch && parser_engine_is_character (ch, word_characters))
 	{
 		preword_found = TRUE;
 		if (!ianjuta_iterable_previous (begin, NULL))
@@ -487,12 +638,24 @@ g_warning ("iparser_set_start_iter: works");
 }
 
 static void
+iparser_calltip_show (IAnjutaParser* self,
+					  GList* tips,
+					  GError** e)
+{
+	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+	parser->priv->tips = tips;
+	ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(parser->priv->itip), parser->priv->tips,
+		                     parser->priv->calltip_iter, e);
+}
+
+static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->get_pre_word = iparser_get_pre_word;
 	iface->set_settings = iparser_set_settings;
 	iface->set_start_iter = iparser_set_start_iter;
-	iface->utils_get_calltip_context = iparser_utils_get_calltip_context;
+	iface->utils_get_calltip_context = iparser_get_calltip_context;
+	iface->calltip_show = iparser_calltip_show;
 }
 
 /**
