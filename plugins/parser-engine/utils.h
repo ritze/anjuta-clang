@@ -30,5 +30,9 @@
 
 static gboolean parser_engine_utils_is_character (gchar ch,
                                                   const gchar* characters);
-
+static gchar* iparser_utils_get_calltip_context (IAnjutaParser* self,
+                                                 IAnjutaEditorTip* itip,
+                                                 IAnjutaIterable* iter,
+                                                 const gchar* scope_context_characters,
+                                                 GError** e)
 #endif

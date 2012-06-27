@@ -48,6 +48,8 @@
 static gpointer parent_class;
 
 struct _ParserEnginePluginPriv {
+	GSettings* settings;
+	IAnjutaParserCalltip* parser_calltip;
 	IAnjutaEditorTip* itip;
 	
 	/* Autocompletion */
@@ -63,9 +65,14 @@ struct _ParserEnginePluginPriv {
 static void
 install_support (ParserEnginePlugin *parser_plugin)
 {
-    IAnjutaLanguage* lang_manager =
-        anjuta_shell_get_interface (ANJUTA_PLUGIN (parser_plugin)->shell,
-                                    IAnjutaLanguage, NULL);
+    IAnjutaLanguage* lang_manager = anjuta_shell_get_interface (
+                                        anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
+                                        IAnjutaLanguage, NULL);
+                                    
+                                    
+	parser_calltip =  anjuta_shell_get_interface (
+	                      anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
+				          IAnjutaParserCalltip, NULL);
 	
     if (!lang_manager)
         return;
@@ -223,6 +230,10 @@ static void
 parser_engine_plugin_dispose (GObject *obj)
 {
 	/* Disposition codes */
+	if (plugin->settings)
+		g_object_unref (plugin->settings);
+	plugin->settings = NULL;
+	
     G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
 
@@ -286,8 +297,7 @@ g_warning ("parser_engine_calltip: works");
 	iter = ianjuta_editor_get_position (parser->current_editor, NULL);
 	ianjuta_iterable_previous (iter, NULL);
 	
-	call_context = ianjuta_parser_calltip_get_context (###
-	                                                   parser->priv->itip,
+	call_context = ianjuta_parser_calltip_get_context (parser->priv->parser_calltip,
 	                                                   iter,
 	                                                   SCOPE_CONTEXT_CHARACTERS,
 	                                                   NULL);
@@ -313,9 +323,9 @@ g_warning ("parser_engine_calltip: works");
 			if (ianjuta_editor_tip_visible (parser->priv->itip, NULL))
 				ianjuta_editor_tip_cancel (parser->priv->itip, NULL);
 				
-			ianjuta_parser_calltip_clear_context (###, assist, NULL);
-			parser_engine_create_calltip_context (parser, call_context, iter)
-			ianjuta_parser_calltip_query (###, assist, call_context, NULL);
+			ianjuta_parser_calltip_clear_context (parser->priv->parser_calltip, NULL);
+			parser_engine_create_calltip_context (parser, call_context, iter);
+			ianjuta_parser_calltip_query (parser->priv->parser_calltip, call_context, NULL);
 		}
 		
 		g_free (call_context);
@@ -325,8 +335,7 @@ g_warning ("parser_engine_calltip: works");
 	{
 		if (ianjuta_editor_tip_visible (parser->priv->itip, NULL))
 			ianjuta_editor_tip_cancel (parser->priv->itip, NULL);
-		//TODO: new interface, which integrates this
-		ianjuta_parser_calltip_clear_context (###, assist, NULL);
+		ianjuta_parser_calltip_clear_context (parser->priv->parser_calltip, NULL);
 		
 		g_object_unref (iter);
 		return FALSE;
@@ -374,15 +383,34 @@ parser_engine_find_whitespace (IAnjutaIterable* iter)
 		return FALSE;
 }
 
+
+/**
+ * parser_engine_none:
+ * @self: IAnjutaProvider object
+ * @parser: ParserEnginePlugin object
+ *
+ * Indicate that there is nothing to autocomplete
+ */
+static void
+parser_engine_none (IAnjutaProvider* self,
+                    ParserEnginePlugin* parser)
+{
+	//TODO: necessary?
+	//assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
+	ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (parser->current_editor),
+	                                 self,
+	                                 NULL, TRUE, NULL);
+}
+
 static gchar*
 iparser_get_pre_word (IAnjutaParser* self,
                       IAnjutaEditor* editor,
                       IAnjutaIterable *iter,
                       IAnjutaIterable** start_iter,
-                      const gchar* word_characters,
                       GError** e)
 {
 g_warning ("iparser_get_pre_word works");
+	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
 	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
 	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
 	gchar ch, *preword_chars = NULL;
@@ -393,6 +421,9 @@ g_warning ("iparser_get_pre_word works");
 	ianjuta_iterable_previous (begin, NULL);
 	
 	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
+	
+	gchar* word_characters = ianjuta_parser_calltip_get_word_characters (
+	                                     parser->priv->parser_calltip, NULL);
 	
 	while (ch && parser_engine_utils_is_character (ch, word_characters))
 	{
@@ -428,6 +459,8 @@ iparser_set_start_iter (IAnjutaParser* self,
 						GError** e)
 {
 	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+	if (parser->priv->start_iter)
+				g_object_unref (assist->priv->start_iter);
 	parser->priv->start_iter = ianjuta_iterable_clone (start_iter, NULL);
 g_warning ("iparser_set_start_iter: %s", parser->priv->start_iter);
 }
@@ -437,6 +470,7 @@ iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->get_pre_word = iparser_get_pre_word;
 	iface->set_start_iter = iparser_set_start_iter;
+	iface->utils_get_calltip_context = iparser_utils_get_calltip_context;
 }
 
 /**
@@ -545,7 +579,7 @@ iprovider_activate (IAnjutaProvider* self,
 		if (parser->priv->itip && 
 			//TODO: get language plugin specific setting
 		    g_settings_get_boolean (assist->priv->settings,
-		                            PREF_CALLTIP_ENABLE))	
+		                            PREF_CALLTIP_ENABLE))
 		    //TODO: adapt
 		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
 		    //TODO: JS  doesn't support calltip yet. I only found this:
@@ -565,6 +599,58 @@ iprovider_activate (IAnjutaProvider* self,
 	}
 	g_string_free (assistance, TRUE);
 }
+
+/**
+ * iprovider_populate:
+ * @self: IAnjutaProvider object
+ * @cursor: Iter at current cursor position (after current character)
+ * @e: Error population
+ */
+static void
+iprovider_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
+{
+	ParserEnginePlugin *parser = ANJUTA_PLUGIN_PARSER_ENGINE (self);
+	
+	/* Check if we actually want autocompletion at all */
+	//TODO: get language plugin specific setting
+	if (!g_settings_get_boolean (assist->priv->settings,
+	                             PREF_AUTOCOMPLETE_ENABLE))
+	{
+		parser_engine_none (self, parser);
+		return;
+	}
+	
+	/* Check if this is a valid text region for completion */
+	IAnjutaEditorAttribute attrib = ianjuta_editor_cell_get_attribute (IANJUTA_EDITOR_CELL(cursor),
+	                                                                   NULL);
+	if (attrib == IANJUTA_EDITOR_COMMENT /*|| attrib == IANJUTA_EDITOR_STRING*/)
+	{
+		parser_engine_none (self, parser);
+		return;
+	}
+
+	/* Check for calltip */
+	if (parser->priv->itip && 
+		//TODO: get language plugin specific setting
+	    g_settings_get_boolean (assist->priv->settings,
+	                            PREF_CALLTIP_ENABLE))
+	{	
+		parser_engine_calltip (parser);
+	}
+	
+	/* Execute language-specific part */
+	if (ianjuta_parser_calltip_populate (parser->parser_calltip, cursor, NULL))
+		return;
+
+	/* Nothing to propose */
+	if (parser->priv->start_iter)
+	{
+		g_object_unref (parser->priv->start_iter);
+		parser->priv->start_iter = NULL;
+	}
+	parser_engine_none (self, parser);
+}
+	
 
 /**
  * iprovider_get_start_iter:
@@ -604,7 +690,7 @@ static void iprovider_iface_init (IAnjutaProviderIface* iface)
 	iface->activate = iprovider_activate;
 	iface->get_name = iprovider_get_name;
 	iface->get_start_iter = iprovider_get_start_iter;
-	//TODO: integrate
+	//TODO: integrate in vala and js
 	iface->populate = iprovider_populate;
 }
 

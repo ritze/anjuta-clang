@@ -38,7 +38,6 @@
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
 #include <libanjuta/interfaces/ianjuta-parser-calltip.h>
-#include <libanjuta/interfaces/ianjuta-parser-utils.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h> 
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
@@ -59,6 +58,8 @@
 #define FILE_LIST_DELIMITER "|"
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
+
+static void python_assist_iface_init (IAnjutaProviderIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (PythonAssist,
                          python_assist,
@@ -436,8 +437,8 @@ on_calltip_output (AnjutaLauncher *launcher,
 //TODO: Move assist->priv->calltip_iter to parser-engine
 static void
 on_calltip_finished (AnjutaLauncher* launcher,
-                          int child_pid, int exit_status,
-                          gulong time, gpointer user_data)
+                     int child_pid, int exit_status,
+                     gulong time, gpointer user_data)
 {
 	PythonAssist* assist = PYTHON_ASSIST (user_data);
 	DEBUG_PRINT ("Python-Complete took %lu seconds and returned %d", time, exit_status);
@@ -458,9 +459,14 @@ on_calltip_finished (AnjutaLauncher* launcher,
 }
 
 static void
-python_assist_query_calltip (PythonAssist *assist, const gchar *call_context, gint offset)
-{	
+python_assist_query_calltip (IAnjutaParserCalltip *self,
+                             const gchar *call_context,
+                             GError** e)
+{
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
+	gint offset = python_assist_get_calltip_context_position (assist);
+	
 	gchar *interpreter_path;
 	const gchar *cur_filename;
 	gchar *source = ianjuta_editor_get_text_all (editor, NULL);
@@ -499,10 +505,11 @@ python_assist_query_calltip (PythonAssist *assist, const gchar *call_context, gi
 	g_free (ropecommand);	
 }
 
-//TODO: Move assist->priv->calltip_context, assist->priv->calltip_iter and assist->priv->tips to parser-engine
 static void
-python_assist_clear_calltip_context (PythonAssist* assist)
+python_assist_clear_calltip_context (IAnjutaParser* self,
+                                     GError** e)
 {
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	if (assist->priv->calltip_launcher)
 	{
 		g_object_unref (assist->priv->calltip_launcher);
@@ -521,6 +528,41 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 	assist->priv->calltip_iter = NULL;
 }
 
+static gchar*
+python_assist_get_calltip_context (IAnjutaParserCalltip *self,
+                                   IAnjutaIterable *iter,
+                                   const gchar* scope_context_characters,
+                                   GError** e)
+{
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	gchar* calltip_context;
+	calltip_context = ianjuta_parser_utils_get_calltip_context (assist->priv->parser,
+	                                                            assist->priv->itip,
+	                                                            iter,
+	                                                            scope_context_characters,
+                                                                GError** e);
+	return calltip_context;
+}
+
+static gint
+python_assist_get_calltip_context_position (PythonAssist *assist)
+{
+	gchar ch;
+	gint final_offset;
+	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
+	IAnjutaIterable *current_iter = ianjuta_editor_get_position (editor, NULL);
+
+	while (ianjuta_iterable_previous (current_iter, NULL))
+	{
+		ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (current_iter), 0, NULL);
+		if (ch == '(')
+		    break;
+	}
+	final_offset = ianjuta_iterable_get_position (current_iter, NULL);
+
+	return final_offset-1;
+}
+
 static void
 python_assist_update_pre_word (PythonAssist* assist, const gchar* pre_word)
 {
@@ -528,15 +570,6 @@ python_assist_update_pre_word (PythonAssist* assist, const gchar* pre_word)
 	if (pre_word == NULL) 
 		pre_word = "";
 	assist->priv->pre_word = g_strdup (pre_word);
-}
-
-static void
-python_assist_none (IAnjutaProvider* self,
-                    PythonAssist* assist)
-{
-	ianjuta_editor_assist_proposals (assist->priv->iassist,
-	                                 self,
-	                                 NULL, TRUE, NULL);
 }
 
 /* returns TRUE if a '.', "'", or '"' preceeds the cursor position */
@@ -557,40 +590,15 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 	return retval;
 }
 
-static void
-python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
+static gboolean
+python_assist_populate (IAnjutaParserCalltip* self, IAnjutaIterable* cursor, GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
 	gchar* pre_word;
 	gboolean completion_trigger_char;
-
-	/* Check for calltip */
-	if (assist->priv->itip && 
-	    g_settings_get_boolean (assist->priv->settings,
-	                            PREF_CALLTIP_ENABLE))
-	{	
-		parser_engine_calltip (assist);	
-	}
 	
-	/* Check if we actually want autocompletion at all */
-	if (!g_settings_get_boolean (assist->priv->settings,
-	                             PREF_AUTOCOMPLETE_ENABLE))
-	{
-		python_assist_none (self, assist);
-		return;
-	}
-	
-	/* Check if this is a valid text region for completion */
-	IAnjutaEditorAttribute attrib = ianjuta_editor_cell_get_attribute (IANJUTA_EDITOR_CELL(cursor),
-	                                                                   NULL);
-	if (attrib == IANJUTA_EDITOR_COMMENT)
-	{
-		python_assist_none (self, assist);
-		return;
-	}
-
-	pre_word = ianjuta_parser_get_pre_word (assist->priv->parser, IANJUTA_EDITOR (assist->priv->iassist), cursor, &start_iter, WORD_CHARACTER, NULL);
+	pre_word = ianjuta_parser_get_pre_word (parser, IANJUTA_EDITOR (parser->current_editor),
+	                                        cursor, &start_iter, NULL);
 
 	DEBUG_PRINT ("Preword: %s", pre_word);
 	
@@ -601,14 +609,12 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 		{
 			DEBUG_PRINT ("Continue autocomplete for %s", pre_word);
 			/* Great, we just continue the current completion */
-			if (parser->priv->start_iter)
-				g_object_unref (parser->priv->start_iter);
-			parser->priv->start_iter = start_iter;
-
+			ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
+			
 			python_assist_update_pre_word (assist, pre_word);
 			python_assist_update_autocomplete (assist);
 			g_free (pre_word);
-			return;
+			return TRUE;
 		}
 	}
 	else
@@ -620,30 +626,23 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 	/* Autocompletion should not be triggered if we haven't started typing a word unless
 	 * we just typed . or ' or "
 	 */
-	completion_trigger_char = python_assist_completion_trigger_char (IANJUTA_EDITOR (assist->priv->iassist),
-	                         cursor);
+	completion_trigger_char = python_assist_completion_trigger_char (
+	                                  IANJUTA_EDITOR (assist->priv->iassist),
+	                                  cursor);
 	if ( (( (pre_word && strlen (pre_word) >= 3) || completion_trigger_char ) && 
 	    python_assist_create_word_completion_cache (assist, cursor)) )
 	{
 		DEBUG_PRINT ("New autocomplete for %s", pre_word);
-		if (parser->priv->start_iter)
-			g_object_unref (parser->priv->start_iter);
-		if (start_iter)
-			parser->priv->start_iter = start_iter;
-		else
-			parser->priv->start_iter = ianjuta_iterable_clone (cursor, NULL);
+		if (!start_iter)
+			start_iter = ianjuta_iterable_clone (cursor, NULL);
+		ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
 		python_assist_update_pre_word (assist, pre_word ? pre_word : "");
 		g_free (pre_word);
-		return;
-	}		
-	/* Nothing to propose */
-	if (parser->priv->start_iter)
-	{
-		g_object_unref (parser->priv->start_iter);
-		parser->priv->start_iter = NULL;
+		return TRUE;
 	}
-	python_assist_none (self, assist);
 	g_free (pre_word);
+	
+	return FALSE;
 } 
 
 static void 
@@ -736,9 +735,17 @@ python_assist_new (IAnjutaEditor *ieditor,
 	return assist;
 }
 
-static void python_assist_iface_init(IAnjutaProviderIface* iface)
+static gchar*
+python_assist_get_word_characters (IAnjutaParserCalltip* self, GError** e)
 {
-	iface->get_context = ianjuta_parser_utils_get_calltip_context;
+	return WORD_CHARACTER;
+}
+
+static void python_assist_iface_init(IAnjutaCalltipIface* iface)
+{
+	iface->populate = python_assist_populate;
+	iface->get_word_characters = python_assist_get_word_characters;
+	iface->get_context = python_assist_get_calltip_context;
 	iface->clear_context = python_assist_clear_calltip_context;
 	iface->query = python_assist_query_calltip;
 }

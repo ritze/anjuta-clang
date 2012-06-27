@@ -25,7 +25,6 @@
 
 #include <ctype.h>
 #include <string.h>
-#include <libanjuta/interfaces/ianjuta-parser-utils.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 
 #include "utils.h"
@@ -124,7 +123,7 @@ parser_engine_utils_get_scope_context (IAnjutaEditor* editor,
 }
 
 static gchar*
-iparser_utils_get_calltip_context (IAnjutaParserUtils* self,
+iparser_utils_get_calltip_context (IAnjutaParser* self,
                                    IAnjutaEditorTip* itip,
                                    IAnjutaIterable* iter,
                                    const gchar* scope_context_characters,
@@ -161,67 +160,3 @@ iparser_utils_get_calltip_context (IAnjutaParserUtils* self,
 	
 	return context;
 }
-
-static GList*
-parser_cxx_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
-{
-	GList* tips = merge;
-	if (iter)
-	{
-		do
-		{
-			IAnjutaSymbol* symbol = IANJUTA_SYMBOL (iter);
-			const gchar* name = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL);
-			if (name != NULL)
-			{
-				const gchar* args = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_SIGNATURE, NULL);
-				const gchar* rettype = ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_RETURNTYPE, NULL);
-				gchar* print_args;
-				gchar* separator;
-				gchar* white_name;
-				gint white_count = 0;
-
-				if (!rettype)
-					rettype = "";
-				else
-					white_count += strlen(rettype) + 1;
-				
-				white_count += strlen(name) + 1;
-				
-				white_name = g_strnfill (white_count, ' ');
-				separator = g_strjoin (NULL, ", \n", white_name, NULL);
-				gchar** argv;
-				if (!args)
-					args = "()";
-				
-				argv = g_strsplit (args, ",", -1);
-				print_args = g_strjoinv (separator, argv);
-				gchar* tip = g_strdup_printf ("%s %s %s", rettype, name, print_args);
-				
-				if (!g_list_find_custom (tips, tip, (GCompareFunc) strcmp))
-					tips = g_list_append (tips, tip);
-				
-				g_strfreev (argv);
-				g_free (print_args);
-				g_free (separator);
-				g_free (white_name);
-			}
-			else
-				break;
-		}
-		while (ianjuta_iterable_next (iter, NULL));
-	}
-	return tips;
-}
-
-static void
-iparser_utils_iface_init (IAnjutaParserUtilsIface* iface)
-{
-	iface->get_calltip_context = iparser_utils_get_calltip_context;
-}
-
-ANJUTA_PLUGIN_BEGIN (ParserEnginePlugin, parser_engine_plugin);
-ANJUTA_PLUGIN_ADD_INTERFACE (iparser_utils, IANJUTA_TYPE_PARSER);
-ANJUTA_PLUGIN_END;
-
-ANJUTA_SIMPLE_PLUGIN (ParserEnginePlugin, parser_engine_plugin);

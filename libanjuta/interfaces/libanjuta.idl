@@ -6673,10 +6673,8 @@ interface IAnjutaIndenter
 
 interface IAnjutaParser
 {
-//TODO: new include: Do this works?
   #include <libanjuta/interfaces/ianjuta-editor.h>
-//  #include <libanjuta/interfaces/ianjuta-editor-assist.h>
-//  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
+  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
   #include <libanjuta/interfaces/ianjuta-symbol.h>
   #include <libanjuta/interfaces/ianjuta-iterable.h>
 
@@ -6702,15 +6700,13 @@ interface IAnjutaParser
 	 * @editor: Editor object
 	 * @iter: current cursor position
 	 * @start_iter: return location for the start_iter (if a preword was found)
-	 * @word_characters: language-specific word characters
-	 *                   the end is marked with a '0' character
 	 * @err: Error propagation
 	 *
 	 * Search for the current typed word
 	 *
 	 * Returns: The current word (needs to be freed) or NULL if no word was found
 	 */
-	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter, const gchar* word_characters);
+	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter);
 	 
 	/**
 	 * ianjuta_parser_set_start_iter:
@@ -6721,25 +6717,9 @@ interface IAnjutaParser
 	 * Set the current start iter
 	 */
 	 void set_start_iter (IAnjutaIterable *start_iter);
-}
-
-/**
- * SECTION:ianjuta-parser-utils
- * @title: IAnjutaParserUtils
- * @short_description: Interface to manage multiple parser with same utils
- * @see_also:
- * @stability: Unstable
- * @include: libanjuta/interfaces/ianjuta-parser-utils.h
- *
- */
- 
-interface IAnjutaParserUtils
-{
-  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
-  #include <libanjuta/interfaces/ianjuta-iterable.h>
-	
+	 
 	/**
-	 * parser_engine_utils_get_calltip_context:
+	 * ianjuta_parser_utils_get_calltip_context:
 	 * @obj: Self
 	 * @itip: 
 	 * @iter: current cursor position
@@ -6751,7 +6731,7 @@ interface IAnjutaParserUtils
 	 *
 	 * Returns: name of the method to show a calltip for or NULL
 	 */
-	 gchar* get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
+	 gchar* utils_get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
 }
 
 /**
@@ -6764,13 +6744,61 @@ interface IAnjutaParserUtils
  *
  */
  
+//TODO: integrate in vala and js plugin
 interface IAnjutaParserCalltip
 {
   #include <libanjuta/interfaces/ianjuta-editor-tip.h>
   #include <libanjuta/interfaces/ianjuta-iterable.h>
   
-  //TODO: integrate in cxx-parser, vala, python and js plugin
-	gchar* get_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
-	void clear_context (ParserCxxAssist* assist);
-	void query (ParserCxxAssist *assist, const gchar *call_context);
+    /**
+	 * ianjuta_parser_get_word_characters:
+	 * @obj: Self
+	 * @iter: the text iter where the provider should be populated
+	 * @err: Error propagation
+	 *
+	 * Returns: language-specific context characters the end is marked with a '0' character
+	 */
+	 gboolean populate (IAnjutaIterable* iter);
+	 
+  	/**
+	 * ianjuta_parser_get_word_characters:
+	 * @obj: Self
+	 * @err: Error propagation
+	 *
+	 * Returns: language-specific context characters the end is marked with a '0' character
+	 */
+	 gchar* get_word_characters ();
+	 
+	/**
+	 * ianjuta_parser_calltip_get_context:
+	 * @obj: Self
+	 * @iter: current cursor position
+	 * @scope_context_characters: language-specific context characters
+	 *                            the end is marked with a '0' character
+	 * @err: Error propagation
+	 *
+	 * Searches for a calltip context
+	 *
+	 * Returns: name of the method to show a calltip for or NULL
+	 */
+	 gchar* get_context (IAnjutaIterable* iter, const gchar* scope_context_characters);
+	 
+	/**
+	 * ianjuta_parser_calltip_clear_context:
+	 * @obj: Self
+	 * @err: Error propagation
+	 *
+	 * Clears the calltip context and brings it back into a save state
+	 */
+	 void clear_context ();
+	 
+	/**
+	 * ianjuta_parser_calltip_query:
+	 * @obj: self
+	 * @call_context: name of method/function
+	 * @err: Error propagation
+	 *
+	 * Starts an async query for the calltip
+	 */
+	 void query (const gchar *call_context);
 }
