@@ -6692,16 +6692,6 @@ interface IAnjutaParser
 	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter);
 	 
 	/**
-	 * ianjuta_parser_set_start_iter:
-	 * @obj: Self
-	 * @start_iter: the start iter to set
-	 * @err: Error propagation
-	 *
-	 * Set the current start iter
-	 */
-	 void set_start_iter (IAnjutaIterable *start_iter);
-	 
-	/**
 	 * ianjuta_parser_get_calltip_context:
 	 * @obj: Self
 	 * @itip: 
@@ -6779,14 +6769,14 @@ interface IAnjutaCalltipProvider
 	 }
   
     /**
-	 * ianjuta_calltip_provider_get_word_characters:
+	 * ianjuta_calltip_provider_populate:
 	 * @obj: Self
 	 * @iter: the text iter where the provider should be populated
 	 * @err: Error propagation
 	 *
-	 * Returns: language-specific context characters the end is marked with a '0' character
+	 * Returns: the iter where the provider populated, NULL otherwise
 	 */
-	 gboolean populate (IAnjutaIterable* iter);
+	 IAnjutaIterable* populate (IAnjutaIterable* iter);
 	 
   	/**
 	 * ianjuta_calltip_provider_get_word_characters:

@@ -581,7 +581,7 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 	return retval;
 }
 
-static gboolean
+static IAnjutaIterable*
 python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
@@ -601,13 +601,12 @@ python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, G
 		if (pre_word && g_str_has_prefix (pre_word, assist->priv->pre_word))
 		{
 			DEBUG_PRINT ("Continue autocomplete for %s", pre_word);
-			/* Great, we just continue the current completion */
-			ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
 			
+			/* Great, we just continue the current completion */
 			python_assist_update_pre_word (assist, pre_word);
 			python_assist_update_autocomplete (assist);
 			g_free (pre_word);
-			return TRUE;
+			return start_iter;
 		}
 	}
 	else
@@ -628,14 +627,13 @@ python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, G
 		DEBUG_PRINT ("New autocomplete for %s", pre_word);
 		if (!start_iter)
 			start_iter = ianjuta_iterable_clone (cursor, NULL);
-		ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
 		python_assist_update_pre_word (assist, pre_word ? pre_word : "");
 		g_free (pre_word);
-		return TRUE;
+		return start_iter;
 	}
 	g_free (pre_word);
 	
-	return FALSE;
+	return NULL;
 }
 
 static gchar*

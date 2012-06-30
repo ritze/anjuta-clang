@@ -518,19 +518,6 @@ g_warning ("iparser_get_pre_word");
 }
 
 static void
-iparser_set_start_iter (IAnjutaParser* self,
-						IAnjutaIterable* start_iter,
-						GError** e)
-{
-g_warning ("iparser_set_start_iter");
-	ParserProvider *provider = PARSER_PROVIDER (self);
-	if (provider->priv->start_iter)
-		g_object_unref (provider->priv->start_iter);
-	provider->priv->start_iter = ianjuta_iterable_clone (start_iter, NULL);
-g_warning ("iparser_set_start_iter: works");
-}
-
-static void
 icalltip_provider_show (IAnjutaParser* self,
 					    GList* tips,
 					    GError** e)
@@ -547,7 +534,6 @@ static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->get_pre_word = iparser_get_pre_word;
-	iface->set_start_iter = iparser_set_start_iter;
 	iface->get_calltip_context = iparser_get_calltip_context;
 	iface->calltip_show = icalltip_provider_show;
 }
@@ -692,6 +678,7 @@ iprovider_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 g_warning ("iprovider_populate");
 	ParserProvider *provider = PARSER_PROVIDER (self);
+	IAnjutaIterable *start_iter;
 	
 	/* Check if we actually want autocompletion at all */
 	if (!ianjuta_calltip_provider_get_boolean (provider->priv->calltip_provider,
@@ -719,8 +706,15 @@ g_warning ("iprovider_populate");
 	}
 	
 	/* Execute language-specific part */
-	if (ianjuta_calltip_provider_populate (provider->priv->calltip_provider, cursor, NULL))
+	start_iter = ianjuta_calltip_provider_populate (provider->priv->calltip_provider,
+	                                                cursor, NULL);
+	if (start_iter)
+	{
+		if (provider->priv->start_iter)
+			g_object_unref (provider->priv->start_iter);
+		provider->priv->start_iter = start_iter;
 		return;
+	}
 
 	/* Nothing to propose */
 	if (provider->priv->start_iter)

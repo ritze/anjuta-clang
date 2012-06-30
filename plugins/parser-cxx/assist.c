@@ -492,9 +492,9 @@ g_warning ("parser_cxx_assist_populate_real");
  * 
  * Create the completion_cache for member completion if possible
  *
- * Returns: TRUE if a completion cache was build, FALSE otherwise
+ * Returns: the iter where a completion cache was build, NULL otherwise
  */
-static gboolean
+static IAnjutaIterable*
 parser_cxx_assist_create_member_completion_cache (ParserCxxAssist* assist, IAnjutaIterable* cursor)
 {
 g_warning ("parser_cxx_assist_create_member_completion_cache");
@@ -504,31 +504,28 @@ g_warning ("parser_cxx_assist_create_member_completion_cache");
 
 	if (symbol)
 	{
-		gint retval = FALSE;
 		/* Query symbol children */
 		IAnjutaIterable *children = 
 			ianjuta_symbol_query_search_members (assist->priv->query_members,
 			                                    IANJUTA_SYMBOL(symbol),
 			                                    NULL);
+			                                    
+		g_object_unref (symbol);
 		if (children)
 		{
 			GList* proposals = parser_cxx_assist_create_completion_from_symbols (children);
 			parser_cxx_assist_create_completion_cache (assist);
 			g_completion_add_items (assist->priv->completion_cache, proposals);
 
-			ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
-
 			parser_cxx_assist_populate_real (assist, TRUE);
 			g_list_free (proposals);
 			g_object_unref (children);
-			retval = TRUE;
+			return start_iter;
 		}
-		g_object_unref (symbol);
-		return retval;
 	}
 	else if (start_iter)
 		g_object_unref (start_iter);
-	return FALSE;
+	return NULL;
 }
 
 /**
@@ -571,9 +568,9 @@ g_warning ("on_symbol_search_complete");
  * 
  * Create completion cache for autocompletion. This is done async.
  *
- * Returns: TRUE if a preword was detected, FALSE otherwise
+ * Returns: the iter where a preword was detected, NULL otherwise
  */ 
-static gboolean
+static IAnjutaIterable*
 parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaIterable* cursor)
 {
 g_warning ("parser_cxx_assist_create_autocompletion_cache");
@@ -585,7 +582,7 @@ g_warning ("parser_cxx_assist_create_autocompletion_cache");
 	{
 		if (start_iter)
 			g_object_unref (start_iter);
-		return FALSE;
+		return NULL;
 	}
 	else
 	{
@@ -613,9 +610,7 @@ g_warning ("parser_cxx_assist_create_autocompletion_cache");
 		g_free (pre_word);
 		g_free (pattern);
 		
-		ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
-		
-		return TRUE;
+		return start_iter;
 	}
 }
 
@@ -827,16 +822,16 @@ g_warning ("parser_cxx_assist_cancelled");
 g_warning ("parser_cxx_assist_cancelled: works");
 }
 
-static gboolean
+static IAnjutaIterable*
 parser_cxx_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 g_warning ("parser_cxx_populate");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	IAnjutaIterable* start_iter = NULL;
 	
 	/* Check if completion was in progress */
 	if (assist->priv->member_completion || assist->priv->autocompletion)
 	{
-		IAnjutaIterable* start_iter = NULL;
 		g_assert (assist->priv->completion_cache != NULL);
 		gchar* pre_word = ianjuta_parser_get_pre_word (
 		                      assist->priv->parser,
@@ -846,13 +841,12 @@ g_warning ("parser_cxx_populate");
 		if (pre_word && g_str_has_prefix (pre_word, assist->priv->pre_word))
 		{
 			DEBUG_PRINT ("Continue autocomplete for %s", pre_word);
-			/* Great, we just continue the current completion */
-			ianjuta_parser_set_start_iter (assist->priv->parser, start_iter, NULL);
 			
+			/* Great, we just continue the current completion */			
 			parser_cxx_assist_update_pre_word (assist, pre_word);
 			parser_cxx_assist_populate_real (assist, TRUE);
 			g_free (pre_word);
-			return TRUE;
+			return start_iter;
 		}			
 		g_free (pre_word);
 	}
@@ -860,18 +854,17 @@ g_warning ("parser_cxx_populate");
 	parser_cxx_assist_clear_completion_cache (assist);
 	
 	/* Check for member completion */
-	if (parser_cxx_assist_create_member_completion_cache (assist, cursor))
-	{
+	start_iter = parser_cxx_assist_create_member_completion_cache (assist, cursor);
+	if (start_iter)
 		assist->priv->member_completion = TRUE;
-		return TRUE;
-	}
-	else if (parser_cxx_assist_create_autocompletion_cache (assist, cursor))
+	else
 	{
-		assist->priv->autocompletion = TRUE;
-		return TRUE;
+		start_iter = parser_cxx_assist_create_autocompletion_cache (assist, cursor);
+		if (start_iter)
+			assist->priv->autocompletion = TRUE;
 	}
 	
-	return FALSE;
+	return start_iter;
 }
 
 static gchar*
