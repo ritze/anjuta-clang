@@ -30,6 +30,8 @@ plugin_LTLIBRARIES = libanjuta-parser-engine.la
 
 # Plugin sources
 libanjuta_parser_engine_la_SOURCES = \
+	provider.h \
+	provider.c \
 	plugin.h \
 	plugin.c 
 

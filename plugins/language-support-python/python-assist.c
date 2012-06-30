@@ -29,6 +29,7 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-launcher.h>
 #include <libanjuta/anjuta-utils.h>
+#include <libanjuta/interfaces/ianjuta-calltip-provider.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
@@ -37,7 +38,6 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
-#include <libanjuta/interfaces/ianjuta-parser-calltip.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h> 
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
@@ -59,12 +59,12 @@
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
 
-static void python_assist_iface_init (IAnjutaParserCalltipIface* iface);
+static void python_assist_iface_init (IAnjutaCalltipProviderIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (PythonAssist,
                          python_assist,
                          G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PARSER_CALLTIP,
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_CALLTIP_PROVIDER,
                                                 python_assist_iface_init))
 
 struct _PythonAssistPriv {
@@ -475,7 +475,7 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 }
 
 static void
-python_assist_query_calltip (IAnjutaParserCalltip *self,
+python_assist_query_calltip (IAnjutaCalltipProvider *self,
                              const gchar *call_context,
                              GError** e)
 {
@@ -532,7 +532,7 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 }
 
 static void
-python_assist_clear_calltip_context_interface (IAnjutaParserCalltip* self,
+python_assist_clear_calltip_context_interface (IAnjutaCalltipProvider* self,
                                                GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
@@ -540,7 +540,7 @@ python_assist_clear_calltip_context_interface (IAnjutaParserCalltip* self,
 }
 
 static gchar*
-python_assist_get_calltip_context (IAnjutaParserCalltip *self,
+python_assist_get_calltip_context (IAnjutaCalltipProvider *self,
                                    IAnjutaIterable *iter,
                                    GError** e)
 {
@@ -582,7 +582,7 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 }
 
 static gboolean
-python_assist_populate (IAnjutaParserCalltip* self, IAnjutaIterable* cursor, GError** e)
+python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
@@ -730,12 +730,12 @@ python_assist_new (IAnjutaEditor *ieditor,
 }
 
 static gchar*
-python_assist_get_word_characters (IAnjutaParserCalltip* self, GError** e)
+python_assist_get_word_characters (IAnjutaCalltipProvider* self, GError** e)
 {
 	return WORD_CHARACTER;
 }
 
-static void python_assist_iface_init(IAnjutaParserCalltipIface* iface)
+static void python_assist_iface_init(IAnjutaCalltipProviderIface* iface)
 {
 	iface->populate = python_assist_populate;
 	iface->get_word_characters = python_assist_get_word_characters;

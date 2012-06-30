@@ -6755,17 +6755,17 @@ interface IAnjutaParser
 }
 
 /**
- * SECTION:ianjuta-parser-calltip
- * @title: IAnjutaParserCalltip
+ * SECTION:ianjuta-calltip-provider
+ * @title: IAnjutaCalltipProvider
  * @short_description: Interface to manage calltips
  * @see_also:
  * @stability: Unstable
- * @include: libanjuta/interfaces/ianjuta-parser-calltip.h
+ * @include: libanjuta/interfaces/ianjuta-calltip-provider.h
  *
  */
  
 //TODO: integrate in vala and js plugin
-interface IAnjutaParserCalltip
+interface IAnjutaCalltipProvider
 {
   #include <libanjuta/interfaces/ianjuta-editor-tip.h>
   #include <libanjuta/interfaces/ianjuta-iterable.h>

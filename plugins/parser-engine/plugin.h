@@ -22,6 +22,7 @@
 #define _PLUGIN_H_
 
 #include <libanjuta/anjuta-plugin.h>
+#include "provider.h"
 
 extern GType parser_engine_plugin_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_PARSER_ENGINE         (parser_engine_plugin_get_type (NULL))
@@ -44,6 +45,8 @@ struct _ParserEnginePlugin {
 	gboolean support_installed;
 	GObject *current_editor;
 	const gchar *current_language;
+	
+	ParserProvider *provider;
 };
 
 struct _ParserEnginePluginClass {

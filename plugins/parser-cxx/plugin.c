@@ -79,7 +79,6 @@ install_support (ParserCxxPlugin *parser_plugin)
 				    		IAnjutaSymbolManager, NULL),
 		            parser_plugin->settings);
 		
-		//TODO: only load assist, if it's available for c/c++
 		if (!assist)
 			return;
 	

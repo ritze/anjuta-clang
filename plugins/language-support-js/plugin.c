@@ -21,12 +21,12 @@
 #include <libanjuta/anjuta-shell.h>
 #include <libanjuta/anjuta-session.h>
 #include <libanjuta/anjuta-debug.h>
+#include <libanjuta/interfaces/ianjuta-calltip-provider.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
-#include <libanjuta/interfaces/ianjuta-parser-calltip.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 #include <ctype.h>
 
@@ -438,7 +438,7 @@ iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 
 ANJUTA_PLUGIN_BEGIN (JSLang, js_support_plugin);
 ANJUTA_PLUGIN_ADD_INTERFACE(ipreferences, IANJUTA_TYPE_PREFERENCES);
-ANJUTA_PLUGIN_ADD_INTERFACE(iparser_calltip, IANJUTA_TYPE_PARSER_CALLTIP);
+ANJUTA_PLUGIN_ADD_INTERFACE(iparser_calltip, IANJUTA_TYPE_CALLTIP_PROVIDER);
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (JSLang, js_support_plugin);
