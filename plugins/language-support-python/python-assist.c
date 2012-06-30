@@ -93,15 +93,15 @@ struct _PythonAssistPriv {
 static gchar*
 completion_function (gpointer data)
 {
-	IAnjutaParserProposalData * tag = (IAnjutaParserProposalData*) data;
+	IAnjutaCalltipProviderProposalData * tag = (IAnjutaCalltipProviderProposalData*) data;
 	return tag->name;
 }
 
 static gint 
 completion_compare (gconstpointer a, gconstpointer b)
 {
-	IAnjutaParserProposalData * tag_a = (IAnjutaParserProposalData*) a;
-	IAnjutaParserProposalData * tag_b = (IAnjutaParserProposalData*) b;
+	IAnjutaCalltipProviderProposalData * tag_a = (IAnjutaCalltipProviderProposalData*) a;
+	IAnjutaCalltipProviderProposalData * tag_b = (IAnjutaCalltipProviderProposalData*) b;
 	gint cmp;
 	
 	cmp = strcmp (tag_a->name, tag_b->name);
@@ -111,7 +111,7 @@ completion_compare (gconstpointer a, gconstpointer b)
 }
 
 static void 
-python_assist_tag_destroy (IAnjutaParserProposalData *tag)
+python_assist_tag_destroy (IAnjutaCalltipProviderProposalData *tag)
 {
 	g_free (tag->name);
 	g_free (tag);
@@ -170,7 +170,7 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	
 	for (node = completion_list; node != NULL; node = g_list_next (node))
 	{
-		IAnjutaParserProposalData *tag = node->data;
+		IAnjutaCalltipProviderProposalData *tag = node->data;
 		IAnjutaEditorAssistProposal* proposal = g_new0(IAnjutaEditorAssistProposal, 1);
 
 		if (tag->is_func)
@@ -186,7 +186,7 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	suggestions = g_list_reverse (suggestions);
 	/* Hide if the only suggetions is exactly the typed word */
 	if (!(g_list_length (suggestions) == 1 && 
-	      g_str_equal (((IAnjutaParserProposalData*)(suggestions->data))->name, assist->priv->pre_word)))
+	      g_str_equal (((IAnjutaCalltipProviderProposalData*)(suggestions->data))->name, assist->priv->pre_word)))
 	{
 		ianjuta_editor_assist_proposals (assist->priv->iassist, IANJUTA_PROVIDER(assist),
 		                                 suggestions, TRUE, NULL);
@@ -279,7 +279,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 		/* Parse output and create completion list */
 		for (cur_comp = completions; *cur_comp != NULL; cur_comp++)
 		{
-			IAnjutaParserProposalData* tag;
+			IAnjutaCalltipProviderProposalData* tag;
 			GMatchInfo* match_info;
 			
 			g_regex_match (regex, *cur_comp, 0, &match_info);
@@ -289,7 +289,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 				gchar* type = g_match_info_fetch (match_info, 3); 
 				gchar* location = g_match_info_fetch (match_info, 4); 
 				gchar* info = g_match_info_fetch (match_info, 5); 
-				tag = g_new0 (IAnjutaParserProposalData, 1);
+				tag = g_new0 (IAnjutaCalltipProviderProposalData, 1);
 				tag->name = g_match_info_fetch (match_info, 1);
 
 				/* info will be set to "_" if there is no relevant info */
@@ -546,11 +546,11 @@ python_assist_get_calltip_context (IAnjutaCalltipProvider *self,
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = ianjuta_parser_utils_get_calltip_context (assist->priv->parser,
-	                                                            assist->priv->itip,
-	                                                            iter,
-	                                                            SCOPE_CONTEXT_CHARACTERS,
-                                                                e);
+	calltip_context = ianjuta_parser_get_calltip_context (assist->priv->parser,
+	                                                      assist->priv->itip,
+	                                                      iter,
+	                                                      SCOPE_CONTEXT_CHARACTERS,
+                                                          e);
 	return calltip_context;
 }
 
@@ -636,7 +636,40 @@ python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, G
 	g_free (pre_word);
 	
 	return FALSE;
-} 
+}
+
+static gchar*
+python_assist_get_word_characters (IAnjutaCalltipProvider* self, GError** e)
+{
+	return WORD_CHARACTER;
+}
+
+static gboolean
+python_assist_get_boolean (IAnjutaCalltipProvider* self,
+                           IAnjutaCalltipProviderSetting setting,
+                           GError** e)
+{
+g_warning ("python_assist_get_boolean");
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	gchar * key;
+	
+	switch (setting)
+	{
+		case IANJUTA_CALLTIP_PROVIDER_PREF_CALLTIP_ENABLE:
+			key = PREF_CALLTIP_ENABLE;
+		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_ENABLE:
+			key = PREF_AUTOCOMPLETE_ENABLE;
+		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC:
+			key = PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC;
+		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC:
+			key = PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC;
+		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC:
+			key = PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC;
+		default:
+			return FALSE;
+	}
+	return g_settings_get_boolean (assist->priv->settings, key);
+}
 
 static void 
 python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor, IAnjutaParser *iparser)
@@ -725,21 +758,15 @@ python_assist_new (IAnjutaEditor *ieditor,
 		
 	/* Install support */
 	python_assist_install (assist, ieditor, iparser);
-	ianjuta_parser_set_settings (assist->priv->parser, assist->priv->settings, NULL);
 	return assist;
-}
-
-static gchar*
-python_assist_get_word_characters (IAnjutaCalltipProvider* self, GError** e)
-{
-	return WORD_CHARACTER;
 }
 
 static void python_assist_iface_init(IAnjutaCalltipProviderIface* iface)
 {
 	iface->populate = python_assist_populate;
-	iface->get_word_characters = python_assist_get_word_characters;
-	iface->get_context = python_assist_get_calltip_context;
 	iface->clear_context = python_assist_clear_calltip_context_interface;
 	iface->query = python_assist_query_calltip;
+	iface->get_word_characters = python_assist_get_word_characters;
+	iface->get_context = python_assist_get_calltip_context;
+	iface->get_boolean = python_assist_get_boolean;
 }

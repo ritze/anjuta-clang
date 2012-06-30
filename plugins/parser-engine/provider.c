@@ -35,12 +35,6 @@
 #include <libanjuta/interfaces/ianjuta-parser.h>
 #include "provider.h"
 
-#define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
-#define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
-#define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-brace-after-func"
-#define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC "completion-closebrace-after-func"
-#define PREF_CALLTIP_ENABLE "calltip-enable"
-
 #define SCOPE_BRACE_JUMP_LIMIT 50
 #define BRACE_SEARCH_LIMIT 500
 
@@ -57,7 +51,6 @@ G_DEFINE_TYPE_WITH_CODE (ParserProvider,
 
 struct _ParserProviderPriv {
 	IAnjutaEditorAssist* iassist;
-	GSettings* settings;
 	IAnjutaCalltipProvider* calltip_provider;
 	IAnjutaEditorTip* itip;
 	const gchar* current_language;
@@ -434,10 +427,6 @@ g_warning ("parser_provider_finalize");
 	parser_provider_uninstall (provider);
 	parser_provider_clear_calltip_context (provider);
 	
-	if (provider->priv->settings)
-		g_object_unref (provider->priv->settings);
-	provider->priv->settings = NULL;
-	
 	g_free (provider->priv);
 	G_OBJECT_CLASS (parser_provider_parent_class)->finalize (object);
 g_warning ("parser_provider_finalize: works");
@@ -529,22 +518,6 @@ g_warning ("iparser_get_pre_word");
 }
 
 static void
-iparser_set_settings (IAnjutaParser* self,
-                      GSettings* settings,
-                      GError** e)
-{
-g_warning ("iparser_set_settings");
-	ParserProvider *provider = PARSER_PROVIDER (self);
-	provider->priv->settings = settings;
-if (g_settings_get_boolean (provider->priv->settings, PREF_AUTOCOMPLETE_ENABLE))
-	g_warning("PREF_AUTOCOMPLETE_ENABLE is true.");
-else
-	g_warning("PREF_AUTOCOMPLETE_ENABLE is false.");
-	
-g_warning ("iparser_set_settings: works");
-}
-
-static void
 iparser_set_start_iter (IAnjutaParser* self,
 						IAnjutaIterable* start_iter,
 						GError** e)
@@ -559,8 +532,8 @@ g_warning ("iparser_set_start_iter: works");
 
 static void
 icalltip_provider_show (IAnjutaParser* self,
-					  GList* tips,
-					  GError** e)
+					    GList* tips,
+					    GError** e)
 {
 g_warning ("icalltip_provider_show");
 	ParserProvider *provider = PARSER_PROVIDER (self);
@@ -574,9 +547,8 @@ static void
 iparser_iface_init (IAnjutaParserIface* iface)
 {
 	iface->get_pre_word = iparser_get_pre_word;
-	iface->set_settings = iparser_set_settings;
 	iface->set_start_iter = iparser_set_start_iter;
-	iface->utils_get_calltip_context = iparser_get_calltip_context;
+	iface->get_calltip_context = iparser_get_calltip_context;
 	iface->calltip_show = icalltip_provider_show;
 }
 
@@ -597,7 +569,7 @@ iprovider_activate (IAnjutaProvider* self,
 {
 g_warning ("iprovider_activate");
 	ParserProvider *provider = PARSER_PROVIDER (self);
-	IAnjutaParserProposalData *prop_data;
+	IAnjutaCalltipProviderProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *te;
 	gboolean add_space_after_func = FALSE;
@@ -611,15 +583,18 @@ g_warning ("iprovider_activate");
 	if (prop_data->is_func)
 	{
 		IAnjutaIterable* next_brace = parser_provider_find_next_brace (iter);
-		add_space_after_func =
-			g_settings_get_boolean (provider->priv->settings,
-			                        PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC);
-		add_brace_after_func =
-			g_settings_get_boolean (provider->priv->settings,
-			                        PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC);
-		add_closebrace_after_func =
-			g_settings_get_boolean (provider->priv->settings,
-			                        PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC);
+		add_space_after_func = ianjuta_calltip_provider_get_boolean (
+		        provider->priv->calltip_provider,
+			    IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC,
+			    NULL);
+		add_brace_after_func = ianjuta_calltip_provider_get_boolean (
+		        provider->priv->calltip_provider,
+		        IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC,
+		        NULL);
+		add_closebrace_after_func = ianjuta_calltip_provider_get_boolean (
+		        provider->priv->calltip_provider,
+		        IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC,
+		        NULL);
 
 		if (add_space_after_func
 			&& !parser_provider_find_whitespace (iter))
@@ -683,9 +658,9 @@ g_warning ("iprovider_activate");
 	if (add_brace_after_func)
 	{
 		/* Check for calltip */
-		if (provider->priv->itip && 
-		    g_settings_get_boolean (provider->priv->settings,
-		                            PREF_CALLTIP_ENABLE))
+		if (provider->priv->itip &&
+		    ianjuta_calltip_provider_get_boolean ( provider->priv->calltip_provider,
+		            IANJUTA_CALLTIP_PROVIDER_PREF_CALLTIP_ENABLE, NULL))
 		    //TODO: adapt
 		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
 		    //TODO: JS  doesn't support calltip yet. I only found this:
@@ -719,8 +694,8 @@ g_warning ("iprovider_populate");
 	ParserProvider *provider = PARSER_PROVIDER (self);
 	
 	/* Check if we actually want autocompletion at all */
-	if (!g_settings_get_boolean (provider->priv->settings,
-	                             PREF_AUTOCOMPLETE_ENABLE))
+	if (!ianjuta_calltip_provider_get_boolean (provider->priv->calltip_provider,
+	             IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_ENABLE, NULL))
 	{
 		parser_provider_none (self, provider);
 		return;
@@ -737,8 +712,8 @@ g_warning ("iprovider_populate");
 
 	/* Check for calltip */
 	if (provider->priv->itip && 
-	    g_settings_get_boolean (provider->priv->settings,
-	                            PREF_CALLTIP_ENABLE))
+	    ianjuta_calltip_provider_get_boolean (provider->priv->calltip_provider,
+	            IANJUTA_CALLTIP_PROVIDER_PREF_CALLTIP_ENABLE, NULL))
 	{	
 		parser_provider_calltip (provider);
 	}
