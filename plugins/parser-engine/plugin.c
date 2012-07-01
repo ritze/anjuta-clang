@@ -27,7 +27,6 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
-#include <libanjuta/interfaces/ianjuta-parser.h>
 
 #include "plugin.h"
 
@@ -79,9 +78,6 @@ install_support (ParserEnginePlugin *parser_plugin)
 //End of debug code
 
 		provider = parser_provider_new (IANJUTA_EDITOR (parser_plugin->current_editor),
-					    anjuta_shell_get_interface (
-					        anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
-					        IAnjutaParser, NULL),
 					    calltip_provider,
                         parser_plugin->current_language);
 		

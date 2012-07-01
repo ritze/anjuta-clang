@@ -32,7 +32,6 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
-#include <libanjuta/interfaces/ianjuta-parser.h>
 #include "provider.h"
 
 static void iprovider_iface_init (IAnjutaProviderIface* iface);
@@ -243,7 +242,6 @@ g_warning ("on_calltip_search_complete: works");
 static void
 parser_provider_install (ParserProvider *provider,
                          IAnjutaEditor *ieditor,
-                         IAnjutaParser *iparser,
                          IAnjutaCalltipProvider *icalltip_provider)
 {
 g_warning ("parser_provider_install");
@@ -320,7 +318,6 @@ g_warning ("parser_provider_class_init: works");
 
 ParserProvider *
 parser_provider_new (IAnjutaEditor *ieditor,
-                     IAnjutaParser *iparser,
                      IAnjutaCalltipProvider *icalltip_provider,
                      const gchar *language)
 {
@@ -336,7 +333,7 @@ g_warning ("parser_provider_new");
 	provider->priv->current_language = language;
 	
 	/* Install support */
-	parser_provider_install (provider, ieditor, iparser, icalltip_provider);
+	parser_provider_install (provider, ieditor, icalltip_provider);
 	
 g_warning ("parser_provider_new: works");
 	return provider;
