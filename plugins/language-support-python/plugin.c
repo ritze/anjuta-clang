@@ -39,7 +39,6 @@
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-glade-signal.h>
-#include <libanjuta/interfaces/ianjuta-parser.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
@@ -264,7 +263,6 @@ install_support (PythonPlugin *lang_plugin)
 	{
 		AnjutaPlugin *plugin;
 		IAnjutaEditor* ieditor;
-		IAnjutaParser *iparser;
 
 		const gchar *project_root;
 
@@ -272,16 +270,12 @@ install_support (PythonPlugin *lang_plugin)
 
 		plugin = ANJUTA_PLUGIN (lang_plugin);
 		ieditor = IANJUTA_EDITOR (lang_plugin->current_editor);
-		iparser = anjuta_shell_get_interface (
-						anjuta_plugin_get_shell (ANJUTA_PLUGIN (lang_plugin)),
-				    	IAnjutaParser, NULL);
 
 		g_assert (lang_plugin->assist == NULL);
 
 		project_root = ANJUTA_PLUGIN_PYTHON(plugin)->project_root_directory;
 
 		lang_plugin->assist = python_assist_new (ieditor,
-		                                         iparser,
 		                                         sym_manager,
 		                                         lang_plugin->settings,
 		                                         plugin,

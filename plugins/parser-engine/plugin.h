@@ -34,11 +34,9 @@ extern GType parser_engine_plugin_get_type (GTypeModule *module);
 
 typedef struct _ParserEnginePluginClass ParserEnginePluginClass;
 typedef struct _ParserEnginePlugin ParserEnginePlugin;
-typedef struct _ParserEnginePluginPriv ParserEnginePluginPriv;
 
 struct _ParserEnginePlugin {
 	AnjutaPlugin parent;
-	ParserEnginePluginPriv *priv;
 
 	//TODO: which one is really needed?
 	gint editor_watch_id;
@@ -46,6 +44,7 @@ struct _ParserEnginePlugin {
 	GObject *current_editor;
 	const gchar *current_language;
 	
+	/* Provider */
 	ParserProvider *provider;
 };
 

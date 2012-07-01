@@ -26,7 +26,6 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
-#include <libanjuta/interfaces/ianjuta-parser.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 
@@ -71,9 +70,6 @@ install_support (ParserCxxPlugin *parser_plugin)
 		g_assert (parser_plugin->assist == NULL);
 	
 		assist = parser_cxx_assist_new (IANJUTA_EDITOR (parser_plugin->current_editor),
-		            anjuta_shell_get_interface (
-							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
-				    		IAnjutaParser, NULL),
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
 				    		IAnjutaSymbolManager, NULL),

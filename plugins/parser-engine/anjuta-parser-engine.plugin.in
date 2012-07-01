@@ -3,7 +3,7 @@ Location=anjuta-parser-engine:ParserEnginePlugin
 Icon=anjuta-parser-engine-plugin.png
 _Name=Parser engine Plugin
 _Description=Parser engine plugin for code completion
-Interfaces=IAnjutaParser
+Interfaces=IAnjutaLanguageSupport
 UserActivatable=no
 
 [Language Support]

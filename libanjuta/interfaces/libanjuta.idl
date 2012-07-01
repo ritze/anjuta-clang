@@ -6662,62 +6662,6 @@ interface IAnjutaIndenter
 }
 
 /**
- * SECTION:ianjuta-parser
- * @title: IAnjutaParser
- * @short_description: Interface to manage multiple parser
- * @see_also:
- * @stability: Unstable
- * @include: libanjuta/interfaces/ianjuta-parser.h
- *
- */
-
-interface IAnjutaParser
-{
-  #include <libanjuta/interfaces/ianjuta-editor.h>
-  #include <libanjuta/interfaces/ianjuta-editor-tip.h>
-  #include <libanjuta/interfaces/ianjuta-iterable.h>
-
-	/**
-	 * ianjuta_parser_get_pre_word:
-	 * @obj: Self
-	 * @editor: Editor object
-	 * @iter: current cursor position
-	 * @start_iter: return location for the start_iter (if a preword was found)
-	 * @err: Error propagation
-	 *
-	 * Search for the current typed word
-	 *
-	 * Returns: The current word (needs to be freed) or NULL if no word was found
-	 */
-	 gchar* get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter, IAnjutaIterable** start_iter);
-	 
-	/**
-	 * ianjuta_parser_get_calltip_context:
-	 * @obj: Self
-	 * @itip: 
-	 * @iter: current cursor position
-	 * @scope_context_characters: language-specific context characters
-	 *                            the end is marked with a '0' character
-	 * @err: Error propagation
-	 *
-	 * Searches for a calltip context
-	 *
-	 * Returns: name of the method to show a calltip for or NULL
-	 */
-	 gchar* get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter, const gchar* scope_context_characters);
-	 
-	/**
-	 * ianjuta_parser_calltip_show:
-	 * @obj: Self
-	 * @tips: (element-type utf8): list of alternative tips.
-	 * @err: Error propagation
-	 *
-	 * Show a new calltip
-	 */
-	 void calltip_show (GList* tips);
-}
-
-/**
  * SECTION:ianjuta-calltip-provider
  * @title: IAnjutaCalltipProvider
  * @short_description: Interface to manage calltips
@@ -6777,15 +6721,6 @@ interface IAnjutaCalltipProvider
 	 * Returns: the iter where the provider populated, NULL otherwise
 	 */
 	 IAnjutaIterable* populate (IAnjutaIterable* iter);
-	 
-  	/**
-	 * ianjuta_calltip_provider_get_word_characters:
-	 * @obj: Self
-	 * @err: Error propagation
-	 *
-	 * Returns: language-specific context characters the end is marked with a '0' character
-	 */
-	 gchar* get_word_characters ();
 	 
 	/**
 	 * ianjuta_calltip_provider_get_context:

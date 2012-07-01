@@ -46,9 +46,7 @@ typedef struct _ParserProviderContext ParserProviderContext;
 typedef struct _ParserProviderPriv ParserProviderPriv;
 
 struct _ParserProviderContext {
-	GCompletion* completion;
-	GList* tips;
-	gint position;
+	//TODO
 };
 
 struct _ParserProviderClass
