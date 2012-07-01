@@ -1244,7 +1244,8 @@ g_warning ("parser_cxx_assist_new: works");
 	return assist;
 }
 
-static void parser_cxx_assist_iface_init(IAnjutaCalltipProviderIface* iface)
+static void
+parser_cxx_assist_iface_init(IAnjutaCalltipProviderIface* iface)
 {
 	iface->populate = parser_cxx_populate;
 	iface->clear_context = parser_cxx_assist_clear_calltip_context_interface;

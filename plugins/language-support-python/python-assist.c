@@ -748,7 +748,8 @@ python_assist_new (IAnjutaEditor *ieditor,
 	return assist;
 }
 
-static void python_assist_iface_init(IAnjutaCalltipProviderIface* iface)
+static void
+python_assist_iface_init(IAnjutaCalltipProviderIface* iface)
 {
 	iface->populate = python_assist_populate;
 	iface->clear_context = python_assist_clear_calltip_context_interface;

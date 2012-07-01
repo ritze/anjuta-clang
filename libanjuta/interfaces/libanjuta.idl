@@ -6701,6 +6701,7 @@ interface IAnjutaCalltipProvider
 	 * @name: Name of the object
 	 * @info: Info about the object
 	 * @is_func: If this is a function
+	 * @has_para: If the function has at least one parameters
 	 * @type: Type of the object
 	 */
 	 struct ProposalData

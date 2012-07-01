@@ -565,7 +565,8 @@ g_warning ("iprovider_get_name: works");
 }
 
 //TODO: Do all functions work?
-static void iprovider_iface_init (IAnjutaProviderIface* iface)
+static void
+iprovider_iface_init (IAnjutaProviderIface* iface)
 {
 	iface->activate = iprovider_activate;
 	iface->get_name = iprovider_get_name;
