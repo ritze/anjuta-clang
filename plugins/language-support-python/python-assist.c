@@ -42,6 +42,7 @@
 #include <libanjuta/interfaces/ianjuta-project-manager.h> 
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
+#include "plugin.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
 #define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
@@ -60,18 +61,15 @@
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
 
-static void python_assist_iface_init (IAnjutaCalltipProviderIface* iface);
-
 G_DEFINE_TYPE_WITH_CODE (PythonAssist,
                          python_assist,
-                         G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_CALLTIP_PROVIDER,
-                                                python_assist_iface_init))
+                         G_TYPE_OBJECT,)
 
 struct _PythonAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
+	IAnjutaProvider* iprovider;
 	AnjutaLauncher* launcher;
 	AnjutaLauncher* calltip_launcher;	
 	AnjutaPlugin* plugin;
@@ -188,11 +186,13 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	if (!(g_list_length (suggestions) == 1 && 
 	      g_str_equal (((IAnjutaCalltipProviderProposalData*)(suggestions->data))->name, assist->priv->pre_word)))
 	{
-		ianjuta_editor_assist_proposals (assist->priv->iassist, IANJUTA_PROVIDER(assist),
+		ianjuta_editor_assist_proposals (assist->priv->iassist,
+		                                 IANJUTA_PROVIDER(assist->priv->iprovider),
 		                                 suggestions, TRUE, NULL);
 	}
 	else
-		ianjuta_editor_assist_proposals (assist->priv->iassist, IANJUTA_PROVIDER(assist),
+		ianjuta_editor_assist_proposals (assist->priv->iassist,
+		                                 IANJUTA_PROVIDER(assist->priv->iprovider),
 		                                 NULL, TRUE, NULL);		
 	g_list_foreach (suggestions, (GFunc) free_proposal, NULL);
 	g_list_free (suggestions);
@@ -408,7 +408,7 @@ python_assist_create_word_completion_cache (PythonAssist *assist, IAnjutaIterabl
 	assist->priv->cache_position = offset;
 
 	ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (assist->priv->iassist),
-	                                 IANJUTA_PROVIDER (assist),
+	                                 IANJUTA_PROVIDER (assist->priv->iprovider),
 	                                 NULL, FALSE, NULL);
 	
 	return TRUE;
@@ -478,12 +478,12 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 	return final_offset-1;
 }
 
-static void
+void
 python_assist_query_calltip (IAnjutaCalltipProvider *self,
                              const gchar *call_context,
                              GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (self);
+	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
 	gint offset = python_assist_get_calltip_context_position (assist);
 	
@@ -535,20 +535,20 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 	assist->priv->calltip_launcher = NULL;
 }
 
-static void
+void
 python_assist_clear_calltip_context_interface (IAnjutaCalltipProvider* self,
                                                GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (self);
+	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
 	python_assist_clear_calltip_context (assist);
 }
 
-static gchar*
+gchar*
 python_assist_get_calltip_context (IAnjutaCalltipProvider *self,
                                    IAnjutaIterable *iter,
                                    GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (self);
+	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
 	gchar* calltip_context;
 	calltip_context = anjuta_parser_util_get_calltip_context (
 	                     assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
@@ -582,10 +582,10 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 	return retval;
 }
 
-static IAnjutaIterable*
+IAnjutaIterable*
 python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (self);
+	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
 	IAnjutaIterable* start_iter = NULL;
 	gchar* pre_word;
 	gboolean completion_trigger_char;
@@ -637,27 +637,32 @@ python_assist_populate (IAnjutaCalltipProvider* self, IAnjutaIterable* cursor, G
 	return NULL;
 }
 
-static gboolean
+gboolean
 python_assist_get_boolean (IAnjutaCalltipProvider* self,
                            IAnjutaCalltipProviderSetting setting,
                            GError** e)
 {
 g_warning ("python_assist_get_boolean");
-	PythonAssist* assist = PYTHON_ASSIST (self);
+	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
 	gchar * key;
 	
 	switch (setting)
 	{
 		case IANJUTA_CALLTIP_PROVIDER_PREF_CALLTIP_ENABLE:
 			key = PREF_CALLTIP_ENABLE;
+			break;
 		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_ENABLE:
 			key = PREF_AUTOCOMPLETE_ENABLE;
+			break;
 		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC:
 			key = PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC;
+			break;
 		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC:
 			key = PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC;
+			break;
 		case IANJUTA_CALLTIP_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC:
 			key = PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC;
+			break;
 		default:
 			return FALSE;
 	}
@@ -665,7 +670,9 @@ g_warning ("python_assist_get_boolean");
 }
 
 static void 
-python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor)
+python_assist_install (PythonAssist *assist,
+                       IAnjutaEditor *ieditor,
+                       IAnjutaProvider *iprovider)
 {
 	g_return_if_fail (assist->priv->iassist == NULL);
 
@@ -691,6 +698,11 @@ python_assist_install (PythonAssist *assist, IAnjutaEditor *ieditor)
 			g_object_unref (file);
 		}
 	}
+	
+	if (IANJUTA_IS_PROVIDER (iprovider))
+		assist->priv->iprovider = IANJUTA_PROVIDER (iprovider);
+	else
+		assist->priv->iprovider = NULL;
 }
 
 static void
@@ -734,6 +746,7 @@ python_assist_class_init (PythonAssistClass *klass)
 PythonAssist * 
 python_assist_new (IAnjutaEditor *ieditor,
                    IAnjutaSymbolManager *isymbol_manager,
+                   IAnjutaProvider *iprovider,
                    GSettings* settings,
                    AnjutaPlugin *plugin,
                    const gchar *project_root)
@@ -744,16 +757,6 @@ python_assist_new (IAnjutaEditor *ieditor,
 	assist->priv->project_root = project_root;
 		
 	/* Install support */
-	python_assist_install (assist, ieditor);
+	python_assist_install (assist, ieditor, iprovider);
 	return assist;
-}
-
-static void
-python_assist_iface_init(IAnjutaCalltipProviderIface* iface)
-{
-	iface->populate = python_assist_populate;
-	iface->clear_context = python_assist_clear_calltip_context_interface;
-	iface->query = python_assist_query_calltip;
-	iface->get_context = python_assist_get_calltip_context;
-	iface->get_boolean = python_assist_get_boolean;
 }

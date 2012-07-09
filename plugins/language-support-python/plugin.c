@@ -240,6 +240,10 @@ install_support (PythonPlugin *lang_plugin)
 		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
 		                            IAnjutaSymbolManager,
 		                            NULL);
+	IAnjutaProvider* provider =
+		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
+		                            IAnjutaProvider,
+		                            NULL);
 
 	if (!lang_manager || !sym_manager)
 		return;
@@ -277,6 +281,7 @@ install_support (PythonPlugin *lang_plugin)
 
 		lang_plugin->assist = python_assist_new (ieditor,
 		                                         sym_manager,
+		                                         provider,
 		                                         lang_plugin->settings,
 		                                         plugin,
 		                                         project_root);
@@ -582,8 +587,19 @@ ipreferences_iface_init (IAnjutaPreferencesIface* iface)
 	iface->unmerge = ipreferences_unmerge;
 }
 
+static void
+icalltip_provider_iface_init (IAnjutaCalltipProviderIface* iface)
+{
+	iface->populate = python_assist_populate;
+	iface->clear_context = python_assist_clear_calltip_context_interface;
+	iface->query = python_assist_query_calltip;
+	iface->get_context = python_assist_get_calltip_context;
+	iface->get_boolean = python_assist_get_boolean;
+}
+
 ANJUTA_PLUGIN_BEGIN (PythonPlugin, python_plugin);
 ANJUTA_PLUGIN_ADD_INTERFACE(ipreferences, IANJUTA_TYPE_PREFERENCES);
+ANJUTA_PLUGIN_ADD_INTERFACE (icalltip_provider, IANJUTA_TYPE_CALLTIP_PROVIDER);
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (PythonPlugin, python_plugin);

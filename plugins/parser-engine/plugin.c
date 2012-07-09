@@ -66,19 +66,10 @@ install_support (ParserEnginePlugin *parser_plugin)
 	
 		g_assert (parser_plugin->provider == NULL);
 		
-//Debug code
-		IAnjutaCalltipProvider *calltip_provider = anjuta_shell_get_interface (
-				                   anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
-				                   IAnjutaCalltipProvider, NULL);
-				                   
-		if (calltip_provider && IANJUTA_IS_CALLTIP_PROVIDER (calltip_provider))
-			g_warning("IAnjutaCalltipProvider: set!");
-		else
-			g_warning("IAnjutaCalltipProvider: not set!");
-//End of debug code
-
 		provider = parser_provider_new (IANJUTA_EDITOR (parser_plugin->current_editor),
-					    calltip_provider,
+					    anjuta_shell_get_interface (
+				                   anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
+				                   IAnjutaCalltipProvider, NULL),
                         parser_plugin->current_language);
 		
 		if (!provider)

@@ -27,6 +27,7 @@
 
 #include <glib-object.h>
 #include <libanjuta/anjuta-preferences.h>
+#include <libanjuta/interfaces/ianjuta-calltip-provider.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 
@@ -62,9 +63,31 @@ struct _ParserCxxAssist
 };
 
 GType parser_cxx_assist_get_type (void) G_GNUC_CONST;
-ParserCxxAssist *parser_cxx_assist_new (IAnjutaEditor *ieditor,
-                                        IAnjutaSymbolManager *isymbol_manager,
-                                        GSettings* settings);
+
+ParserCxxAssist*
+parser_cxx_assist_new                             (IAnjutaEditor *ieditor,
+                                                   IAnjutaSymbolManager *isymbol_manager,
+                                                   IAnjutaProvider *iprovider,
+                                                   GSettings* settings);
+IAnjutaIterable*
+parser_cxx_assist_populate                        (IAnjutaCalltipProvider* self,
+                                                   IAnjutaIterable* cursor,
+                                                   GError** e);
+void
+parser_cxx_assist_clear_calltip_context_interface (IAnjutaCalltipProvider* self,
+                                                   GError** e);
+void
+parser_cxx_assist_query_calltip                   (IAnjutaCalltipProvider *self,
+                                                   const gchar *call_context,
+                                                   GError** e);
+gchar*
+parser_cxx_assist_get_calltip_context             (IAnjutaCalltipProvider *self,
+                                                   IAnjutaIterable *iter,
+                                                   GError** e);
+gboolean
+parser_cxx_assist_get_boolean                     (IAnjutaCalltipProvider* self,
+                                                   IAnjutaCalltipProviderSetting setting,
+                                                   GError** e);
 
 G_END_DECLS
 
