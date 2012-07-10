@@ -29,6 +29,7 @@
 #include <libanjuta/anjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-calltip-provider.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
+#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 
 G_BEGIN_DECLS
 
@@ -63,6 +64,13 @@ GType parser_provider_get_type (void) G_GNUC_CONST;
 ParserProvider *parser_provider_new (IAnjutaEditor *ieditor,
                                      IAnjutaCalltipProvider *icalltip_provider,
                                      const gchar *language);
+
+void
+iprovider_assist_proposals (IAnjutaProviderAssist* self,
+                            const gchar* pre_word,
+                            GList* proposals,
+                            gboolean finished,
+                            GError** e);
 
 G_END_DECLS
 

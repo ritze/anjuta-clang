@@ -34,6 +34,45 @@
 
 static gpointer parent_class;
 
+static GList*
+load_new_support_plugins (ParserEnginePlugin* parser_plugin, GList* new_plugin_ids,
+						  AnjutaPluginManager* plugin_manager)
+{
+	GList* node;
+	GList* needed_plugins = NULL;
+	for (node = new_plugin_ids; node != NULL; node = g_list_next (node))
+	{
+		gchar* plugin_id = node->data;
+		GObject* new_plugin = anjuta_plugin_manager_get_plugin_by_id (plugin_manager,
+																	  plugin_id);
+		GList* item = g_list_find (parser_plugin->support_plugins, new_plugin);
+		if (!item)
+			DEBUG_PRINT ("Loading plugin: %s", plugin_id);
+		needed_plugins = g_list_append (needed_plugins, new_plugin);
+	}
+	return needed_plugins;
+}
+
+static void
+unload_unused_support_plugins (ParserEnginePlugin* parser_plugin,
+							   GList* needed_plugins)
+{
+	GList* plugins = g_list_copy (parser_plugin->support_plugins);
+	GList* node;
+	DEBUG_PRINT ("Unloading plugins");
+	for (node = plugins; node != NULL; node = g_list_next (node))
+	{
+		AnjutaPlugin* plugin = ANJUTA_PLUGIN (node->data);
+		DEBUG_PRINT ("Checking plugin: %p", plugin);
+		if (g_list_find (needed_plugins, plugin) == NULL)
+		{
+			DEBUG_PRINT ("%s", "Unloading plugin");
+			anjuta_plugin_deactivate (plugin);
+		}
+	}
+	g_list_free (plugins);
+}
+
 /* Enable/Disable language-support */
 static void
 install_support (ParserEnginePlugin *parser_plugin)
@@ -62,8 +101,53 @@ install_support (ParserEnginePlugin *parser_plugin)
 	     g_str_equal (parser_plugin->current_language, "Python") ||
 	     g_str_equal (parser_plugin->current_language, "JavaScript")))
 	{
+		/* Load current language editor support plugins */
+		AnjutaPluginManager *plugin_manager;
+		GList *new_support_plugins, *support_plugin_descs, *needed_plugins, *node;
+		
+		plugin_manager = anjuta_shell_get_plugin_manager (
+		                     anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)), NULL);
+		support_plugin_descs = anjuta_plugin_manager_query (plugin_manager,
+		                                                    "Anjuta Plugin",
+		                                                    "Interfaces",
+		                                                    "IAnjutaCalltipProvider",
+		                                                    "Language Support",
+		                                                    "Languages",
+		                                                    parser_plugin->current_language,
+		                                                    NULL);
+		
+		//TODO: edit for parser-clang
+		new_support_plugins = NULL;
+		for (node = support_plugin_descs; node != NULL; node = g_list_next (node))
+		{
+			gchar *plugin_id;
+
+			AnjutaPluginDescription *desc = node->data;
+
+			anjuta_plugin_description_get_string (desc, "Anjuta Plugin", "Location",
+			                                      &plugin_id);
+
+			new_support_plugins = g_list_append (new_support_plugins, plugin_id);
+		}
+		g_list_free (support_plugin_descs);
+
+		/* Load new plugins */
+		needed_plugins =
+			load_new_support_plugins (parser_plugin, new_support_plugins,
+			                          plugin_manager);
+
+		/* Unload unused plugins */
+		unload_unused_support_plugins (parser_plugin, needed_plugins);
+
+		/* Update list */
+		g_list_free (parser_plugin->support_plugins);
+		parser_plugin->support_plugins = needed_plugins;
+
+		anjuta_util_glist_strings_free (new_support_plugins);
+		
+		
 		ParserProvider *provider;
-	
+		
 		g_assert (parser_plugin->provider == NULL);
 		
 		provider = parser_provider_new (IANJUTA_EDITOR (parser_plugin->current_editor),
@@ -220,7 +304,14 @@ parser_engine_plugin_class_init (GObjectClass *klass)
     klass->dispose = parser_engine_plugin_dispose;
 }
 
+static void
+iprovider_assist_iface_init (IAnjutaProviderAssistIface* iface)
+{
+	iface->proposals = iprovider_assist_proposals;
+}
+
 ANJUTA_PLUGIN_BEGIN (ParserEnginePlugin, parser_engine_plugin);
+ANJUTA_PLUGIN_ADD_INTERFACE (iprovider_assist, IANJUTA_TYPE_PROVIDER_ASSIST);
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (ParserEnginePlugin, parser_engine_plugin);

@@ -36,15 +36,12 @@
 #include "provider.h"
 
 static void iprovider_iface_init (IAnjutaProviderIface* iface);
-static void iprovider_assist_iface_init (IAnjutaProviderAssistIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (ParserProvider,
                          parser_provider,
                          G_TYPE_OBJECT,
                          G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
-                                                iprovider_iface_init)
-                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER_ASSIST,
-                                                iprovider_assist_iface_init));
+                                                iprovider_iface_init));
 
 struct _ParserProviderPriv {
 	IAnjutaEditorAssist* iassist;
@@ -343,7 +340,7 @@ g_warning ("parser_provider_new: works");
 	return provider;
 }
 
-static void
+void
 iprovider_assist_proposals (IAnjutaProviderAssist* self,
                             const gchar* pre_word,
                             GList* proposals,
@@ -368,12 +365,6 @@ iprovider_assist_proposals (IAnjutaProviderAssist* self,
 	ianjuta_editor_assist_proposals (provider->priv->iassist,
 			                         IANJUTA_PROVIDER (provider),
 	                                 proposals, finished, NULL);
-}
-
-static void
-iprovider_assist_iface_init (IAnjutaProviderAssistIface* iface)
-{
-	iface->proposals = iprovider_assist_proposals;
 }
 
 /**

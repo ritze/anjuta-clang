@@ -41,6 +41,7 @@ struct _ParserEnginePlugin {
 	//TODO: which one is really needed?
 	gint editor_watch_id;
 	gboolean support_installed;
+	GList *support_plugins;
 	GObject *current_editor;
 	const gchar *current_language;
 	
