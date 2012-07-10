@@ -32,15 +32,19 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
+#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 #include "provider.h"
 
 static void iprovider_iface_init (IAnjutaProviderIface* iface);
+static void iprovider_assist_iface_init (IAnjutaProviderAssistIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (ParserProvider,
                          parser_provider,
                          G_TYPE_OBJECT,
                          G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
-                                                iprovider_iface_init));
+                                                iprovider_iface_init)
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER_ASSIST,
+                                                iprovider_assist_iface_init));
 
 struct _ParserProviderPriv {
 	IAnjutaEditorAssist* iassist;
@@ -339,6 +343,39 @@ g_warning ("parser_provider_new: works");
 	return provider;
 }
 
+static void
+iprovider_assist_proposals (IAnjutaProviderAssist* self,
+                            const gchar* pre_word,
+                            GList* proposals,
+                            gboolean finished,
+                            GError** e)
+{
+	ParserProvider *provider = PARSER_PROVIDER (self);
+	
+	/* Hide if the only suggetions is exactly the typed word */
+	if (proposals && g_list_length (proposals) == 1)
+	{
+		IAnjutaEditorAssistProposal* proposal = proposals->data;
+		IAnjutaProviderAssistProposalData* data = proposal->data;
+		if (g_str_equal (pre_word, data->name))
+		{
+			ianjuta_editor_assist_proposals (provider->priv->iassist,
+			                                 IANJUTA_PROVIDER (provider),
+			                                 NULL, finished, NULL);
+			return;
+		}
+	}
+	ianjuta_editor_assist_proposals (provider->priv->iassist,
+			                         IANJUTA_PROVIDER (provider),
+	                                 proposals, finished, NULL);
+}
+
+static void
+iprovider_assist_iface_init (IAnjutaProviderAssistIface* iface)
+{
+	iface->proposals = iprovider_assist_proposals;
+}
+
 /**
  * iprovider_activate:
  * @self: IAnjutaProvider object
@@ -356,7 +393,7 @@ iprovider_activate (IAnjutaProvider* self,
 {
 g_warning ("iprovider_activate");
 	ParserProvider *provider = PARSER_PROVIDER (self);
-	IAnjutaCalltipProviderProposalData *prop_data;
+	IAnjutaProviderAssistProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *te;
 	gboolean add_space_after_func = FALSE;

@@ -40,6 +40,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-glade-signal.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
+#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 #include <libanjuta/interfaces/ianjuta-indenter.h>
@@ -240,9 +241,9 @@ install_support (PythonPlugin *lang_plugin)
 		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
 		                            IAnjutaSymbolManager,
 		                            NULL);
-	IAnjutaProvider* provider =
+	IAnjutaProviderAssist* provider_assist =
 		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
-		                            IAnjutaProvider,
+		                            IAnjutaProviderAssist,
 		                            NULL);
 
 	if (!lang_manager || !sym_manager)
@@ -281,7 +282,7 @@ install_support (PythonPlugin *lang_plugin)
 
 		lang_plugin->assist = python_assist_new (ieditor,
 		                                         sym_manager,
-		                                         provider,
+		                                         provider_assist,
 		                                         lang_plugin->settings,
 		                                         plugin,
 		                                         project_root);

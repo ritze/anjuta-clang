@@ -29,6 +29,7 @@
 #include <libanjuta/anjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-calltip-provider.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
+#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 
 G_BEGIN_DECLS
@@ -67,7 +68,7 @@ GType parser_cxx_assist_get_type (void) G_GNUC_CONST;
 ParserCxxAssist*
 parser_cxx_assist_new                             (IAnjutaEditor *ieditor,
                                                    IAnjutaSymbolManager *isymbol_manager,
-                                                   IAnjutaProvider *iprovider,
+                                                   IAnjutaProviderAssist *iprovider_assist,
                                                    GSettings* settings);
 IAnjutaIterable*
 parser_cxx_assist_populate                        (IAnjutaCalltipProvider* self,

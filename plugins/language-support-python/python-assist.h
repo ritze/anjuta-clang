@@ -30,6 +30,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h>
+#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 
 G_BEGIN_DECLS
 
@@ -67,7 +68,7 @@ GType python_assist_get_type (void) G_GNUC_CONST;
 PythonAssist*
 python_assist_new                             (IAnjutaEditor *ieditor,
                                                IAnjutaSymbolManager *isymbol_manager,
-                                               IAnjutaProvider *iprovider,
+                                               IAnjutaProviderAssist *iprovider_assist,
                                                GSettings* settings,
                                                AnjutaPlugin *plugin,
                                                const gchar *project_root);

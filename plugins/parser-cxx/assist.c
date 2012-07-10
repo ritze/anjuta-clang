@@ -34,7 +34,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
-#include <libanjuta/interfaces/ianjuta-provider.h>
+#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "assist.h"
@@ -58,7 +58,7 @@ struct _ParserCxxAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
-	IAnjutaProvider* iprovider;
+	IAnjutaProviderAssist* iprovider_assist;
 	
 	const gchar* editor_filename;
 
@@ -109,7 +109,7 @@ parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 {
 g_warning ("parser_cxx_assist_proposal_new");
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
-	IAnjutaCalltipProviderProposalData* data = g_new0 (IAnjutaCalltipProviderProposalData, 1);
+	IAnjutaProviderAssistProposalData* data = g_new0 (IAnjutaProviderAssistProposalData, 1);
 	
 	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
 	data->type = ianjuta_symbol_get_sym_type (symbol, NULL);
@@ -153,7 +153,7 @@ static void
 parser_cxx_assist_proposal_free (IAnjutaEditorAssistProposal* proposal)
 {
 g_warning ("parser_cxx_assist_proposal_free");
-	IAnjutaCalltipProviderProposalData* data = proposal->data;
+	IAnjutaProviderAssistProposalData* data = proposal->data;
 	g_free (data->name);
 	g_free (data);
 	g_free (proposal->label);
@@ -172,7 +172,7 @@ anjuta_proposal_completion_func (gpointer data)
 {
 g_warning ("anjuta_proposal_completion_func");
 	IAnjutaEditorAssistProposal* proposal = data;
-	IAnjutaCalltipProviderProposalData* prop_data = proposal->data;
+	IAnjutaProviderAssistProposalData* prop_data = proposal->data;
 	
 g_warning ("anjuta_proposal_completion_func: works");
 	return prop_data->name;
@@ -465,23 +465,15 @@ g_warning ("parser_cxx_assist_populate_real");
 	GList* proposals = g_completion_complete (assist->priv->completion_cache,
 	                                          assist->priv->pre_word,
 	                                          &prefix);
-	if (g_list_length (proposals) == 1)
-	{
-		IAnjutaEditorAssistProposal* proposal = proposals->data;
-		IAnjutaCalltipProviderProposalData* data = proposal->data;
-		if (g_str_equal (assist->priv->pre_word, data->name))
-		{
-			ianjuta_editor_assist_proposals (assist->priv->iassist,
-			                                 IANJUTA_PROVIDER(assist->priv->iprovider),
-			                                 NULL, finished, NULL);
-			return;
-		}
-	}
-g_warning ("parser_cxx_assist_populate_real: test 1");
-	ianjuta_editor_assist_proposals (assist->priv->iassist,
-			                         IANJUTA_PROVIDER(assist->priv->iprovider),
-	                                 proposals, finished, NULL);
-g_warning ("parser_cxx_assist_populate_real: test 2");
+	
+if (assist->priv->iprovider_assist)
+	g_warning ("iprovider_assist is not null!");
+else
+	g_warning ("iprovider_assist is null!");
+	
+	ianjuta_provider_assist_proposals (assist->priv->iprovider_assist,
+	                                   assist->priv->pre_word,
+	                                   proposals, finished, NULL);
 }
 
 /**
@@ -911,7 +903,7 @@ g_warning ("parser_cxx_assist_get_boolean");
 static void
 parser_cxx_assist_install (ParserCxxAssist *assist,
                            IAnjutaEditor *ieditor,
-                           IAnjutaProvider *iprovider)
+                           IAnjutaProviderAssist *iprovider_assist)
 {
 g_warning ("parser_cxx_assist_install");
 	g_return_if_fail (assist->priv->iassist == NULL);
@@ -939,10 +931,10 @@ g_warning ("parser_cxx_assist_install");
 		}
 	}
 	
-	if (IANJUTA_IS_PROVIDER (iprovider))
-		assist->priv->iprovider = IANJUTA_PROVIDER (iprovider);
+	if (IANJUTA_IS_PROVIDER_ASSIST (iprovider_assist))
+		assist->priv->iprovider_assist = IANJUTA_PROVIDER_ASSIST (iprovider_assist);
 	else
-		assist->priv->iprovider = NULL;
+		assist->priv->iprovider_assist = NULL;
 
 g_warning ("parser_cxx_assist_install: works");
 }
@@ -1045,7 +1037,7 @@ g_warning ("parser_cxx_assist_class_init: works");
 ParserCxxAssist *
 parser_cxx_assist_new (IAnjutaEditor *ieditor,
                        IAnjutaSymbolManager *isymbol_manager,
-                       IAnjutaProvider *iprovider,
+                       IAnjutaProviderAssist *iprovider_assist,
                        GSettings* settings)
 {
 g_warning ("parser_cxx_assist_new");
@@ -1250,7 +1242,7 @@ g_warning ("parser_cxx_assist_new");
 	                                     IANJUTA_SYMBOL_QUERY_SEARCH_FS_PUBLIC, NULL);
 
 	/* Install support */
-	parser_cxx_assist_install (assist, ieditor, iprovider);
+	parser_cxx_assist_install (assist, ieditor, iprovider_assist);
 
 	engine_parser_init (isymbol_manager);	
 	

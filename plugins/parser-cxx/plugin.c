@@ -75,7 +75,7 @@ install_support (ParserCxxPlugin *parser_plugin)
 				    		IAnjutaSymbolManager, NULL),
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
-				    		IAnjutaProvider, NULL),
+				    		IAnjutaProviderAssist, NULL),
 		            parser_plugin->settings);
 		
 		if (!assist)
