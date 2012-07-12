@@ -26,11 +26,9 @@
 #define _PYTHON_ASSIST_H_
 
 #include <glib-object.h>
-#include <libanjuta/interfaces/ianjuta-calltip-provider.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h>
-#include <libanjuta/interfaces/ianjuta-provider-assist.h>
 
 G_BEGIN_DECLS
 
@@ -68,30 +66,9 @@ GType python_assist_get_type (void) G_GNUC_CONST;
 PythonAssist*
 python_assist_new                             (IAnjutaEditor *ieditor,
                                                IAnjutaSymbolManager *isymbol_manager,
-                                               IAnjutaProviderAssist *iprovider_assist,
                                                GSettings* settings,
                                                AnjutaPlugin *plugin,
                                                const gchar *project_root);
-
-IAnjutaIterable*
-python_assist_populate                        (IAnjutaCalltipProvider* self,
-                                               IAnjutaIterable* cursor,
-                                               GError** e);
-void
-python_assist_clear_calltip_context_interface (IAnjutaCalltipProvider* self,
-                                               GError** e);
-void
-python_assist_query_calltip                   (IAnjutaCalltipProvider *self,
-                                               const gchar *call_context,
-                                               GError** e);
-gchar*
-python_assist_get_calltip_context             (IAnjutaCalltipProvider *self,
-                                               IAnjutaIterable *iter,
-                                               GError** e);
-gboolean
-python_assist_get_boolean                     (IAnjutaCalltipProvider* self,
-                                               IAnjutaCalltipProviderSetting setting,
-                                               GError** e);
 
 G_END_DECLS
 

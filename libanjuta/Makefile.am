@@ -114,8 +114,8 @@ libanjuta_3_la_SOURCES= \
 	anjuta-dock-pane.h \
 	anjuta-file-list.c \
 	anjuta-file-list.h \
-	anjuta-parser-utils.c \
-	anjuta-parser-utils.h \
+	anjuta-provider-utils.c \
+	anjuta-provider-utils.h \
 	anjuta-pkg-config-chooser.h \
 	anjuta-pkg-config-chooser.c \
 	anjuta-pkg-config.h \

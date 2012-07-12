@@ -35,6 +35,7 @@ G_BEGIN_DECLS
 
 typedef struct _SourceviewProviderClass SourceviewProviderClass;
 typedef struct _SourceviewProvider SourceviewProvider;
+typedef struct _SourceviewProviderPriv SourceviewProviderPriv;
 
 struct _SourceviewProviderClass
 {
@@ -44,6 +45,7 @@ struct _SourceviewProviderClass
 struct _SourceviewProvider
 {
 	GObject parent_instance;
+	SourceviewProviderPriv *priv;
 	
 	Sourceview* sv;
 	IAnjutaProvider* iprov;

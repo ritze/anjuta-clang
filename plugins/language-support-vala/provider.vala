@@ -96,7 +96,7 @@ public class ValaProvider : Object {
 			proposals.prepend(prop);
 		}
 		proposals.reverse();
-		editor.proposals(this, proposals, true);
+		editor.proposals(this, proposals, null, true);
 	}
 	public void show_call_tip (IAnjuta.EditorTip editor) {
 		var current_position = editor.get_position ();

@@ -40,7 +40,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-glade-signal.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
-#include <libanjuta/interfaces/ianjuta-provider-assist.h>
+#include <libanjuta/interfaces/ianjuta-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 #include <libanjuta/interfaces/ianjuta-indenter.h>
@@ -241,10 +241,6 @@ install_support (PythonPlugin *lang_plugin)
 		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
 		                            IAnjutaSymbolManager,
 		                            NULL);
-	IAnjutaProviderAssist* provider_assist =
-		anjuta_shell_get_interface (ANJUTA_PLUGIN (lang_plugin)->shell,
-		                            IAnjutaProviderAssist,
-		                            NULL);
 
 	if (!lang_manager || !sym_manager)
 		return;
@@ -282,7 +278,6 @@ install_support (PythonPlugin *lang_plugin)
 
 		lang_plugin->assist = python_assist_new (ieditor,
 		                                         sym_manager,
-		                                         provider_assist,
 		                                         lang_plugin->settings,
 		                                         plugin,
 		                                         project_root);
@@ -440,16 +435,16 @@ python_plugin_activate (AnjutaPlugin *plugin)
 
 	/* Add watches */
 	python_plugin->project_root_watch_id = anjuta_plugin_add_watch (plugin,
-																 IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
-																 on_project_root_added,
-																 on_project_root_removed,
-																 NULL);
+									IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
+									on_project_root_added,
+									on_project_root_removed,
+									NULL);
 
 	python_plugin->editor_watch_id = anjuta_plugin_add_watch (plugin,
-														   IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
-														   on_editor_added,
-														   on_editor_removed,
-														   NULL);
+									IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
+									on_editor_added,
+									on_editor_removed,
+									NULL);
 	return TRUE;
 }
 
@@ -588,19 +583,8 @@ ipreferences_iface_init (IAnjutaPreferencesIface* iface)
 	iface->unmerge = ipreferences_unmerge;
 }
 
-static void
-icalltip_provider_iface_init (IAnjutaCalltipProviderIface* iface)
-{
-	iface->populate = python_assist_populate;
-	iface->clear_context = python_assist_clear_calltip_context_interface;
-	iface->query = python_assist_query_calltip;
-	iface->get_context = python_assist_get_calltip_context;
-	iface->get_boolean = python_assist_get_boolean;
-}
-
 ANJUTA_PLUGIN_BEGIN (PythonPlugin, python_plugin);
 ANJUTA_PLUGIN_ADD_INTERFACE(ipreferences, IANJUTA_TYPE_PREFERENCES);
-ANJUTA_PLUGIN_ADD_INTERFACE (icalltip_provider, IANJUTA_TYPE_CALLTIP_PROVIDER);
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (PythonPlugin, python_plugin);

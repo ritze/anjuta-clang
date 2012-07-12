@@ -29,7 +29,6 @@ SUBDIRS = . \
 	mk-project \
 	patch \
 	parser-cxx \
-	parser-engine \
 	project-import \
 	project-manager \
 	project-wizard \

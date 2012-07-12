@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/anjuta-parser-utils.h>
+#include <libanjuta/anjuta-provider-utils.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 
 #define SCOPE_BRACE_JUMP_LIMIT 50

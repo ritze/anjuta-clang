@@ -73,9 +73,6 @@ install_support (ParserCxxPlugin *parser_plugin)
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
 				    		IAnjutaSymbolManager, NULL),
-					anjuta_shell_get_interface (
-							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
-				    		IAnjutaProviderAssist, NULL),
 		            parser_plugin->settings);
 		
 		if (!assist)
@@ -293,19 +290,8 @@ ipreferences_iface_init (IAnjutaPreferencesIface* iface)
     iface->unmerge = ipreferences_unmerge;
 }
 
-static void
-icalltip_provider_iface_init (IAnjutaCalltipProviderIface* iface)
-{
-	iface->populate = parser_cxx_assist_populate;
-	iface->clear_context = parser_cxx_assist_clear_calltip_context_interface;
-	iface->query = parser_cxx_assist_query_calltip;
-	iface->get_context = parser_cxx_assist_get_calltip_context;
-	iface->get_boolean = parser_cxx_assist_get_boolean;
-}
-
 ANJUTA_PLUGIN_BEGIN (ParserCxxPlugin, parser_cxx_plugin);
 ANJUTA_PLUGIN_ADD_INTERFACE (ipreferences, IANJUTA_TYPE_PREFERENCES);
-ANJUTA_PLUGIN_ADD_INTERFACE (icalltip_provider, IANJUTA_TYPE_CALLTIP_PROVIDER);
 ANJUTA_PLUGIN_END;
 
 ANJUTA_SIMPLE_PLUGIN (ParserCxxPlugin, parser_cxx_plugin);

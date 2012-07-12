@@ -373,7 +373,7 @@ iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 
 	if (strlen (str) < g_settings_get_int (plugin->prefs, MIN_CODECOMPLETE))
 	{
-		ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  NULL,  TRUE, NULL);
+		ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  NULL, NULL,  TRUE, NULL);
 		return;
 	}
 
@@ -428,12 +428,12 @@ iprovider_populate (IAnjutaProvider *obj, IAnjutaIterable* iter, GError **err)
 			proposal->data = prop_data;
 			nsuggest = g_list_prepend (nsuggest, proposal);
 		}
-		ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  nsuggest,  TRUE, NULL);
+		ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  nsuggest, NULL, TRUE, NULL);
 		g_list_free (nsuggest);
         trash = suggestions;
 		return;
 	}
-	ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  NULL,  TRUE, NULL);
+	ianjuta_editor_assist_proposals ( IANJUTA_EDITOR_ASSIST (plugin->current_editor), obj,  NULL, NULL, TRUE, NULL);
 }
 
 ANJUTA_PLUGIN_BEGIN (JSLang, js_support_plugin);
