@@ -479,7 +479,7 @@ python_assist_query_calltip (IAnjutaProvider *self,
                              const gchar *call_context,
                              GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
 	gint offset = python_assist_get_calltip_context_position (assist);
 	
@@ -535,7 +535,7 @@ void
 python_assist_clear_calltip_context_interface (IAnjutaProvider* self,
                                                GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	python_assist_clear_calltip_context (assist);
 }
 
@@ -544,7 +544,7 @@ python_assist_get_calltip_context (IAnjutaProvider *self,
                                    IAnjutaIterable *iter,
                                    GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar* calltip_context;
 	calltip_context = anjuta_parser_util_get_calltip_context (
 	                     assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
@@ -581,7 +581,7 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 IAnjutaIterable*
 python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
 	gchar* pre_word;
 	gboolean completion_trigger_char;
@@ -639,7 +639,7 @@ python_assist_get_boolean (IAnjutaProvider* self,
                            GError** e)
 {
 g_warning ("python_assist_get_boolean");
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
+	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar * key;
 	
 	switch (setting)
@@ -665,24 +665,17 @@ g_warning ("python_assist_get_boolean");
 	return g_settings_get_boolean (assist->priv->settings, key);
 }
 
-static IAnjutaEditorAssist*
-python_assist_get_assist (IAnjutaProvider* provider, GError** e)
+static IAnjutaEditor*
+python_assist_get_editor (IAnjutaProvider* provider, GError** e)
 {
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
-	return assist->priv->iassist;
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	return IANJUTA_EDITOR (assist->priv->iassist);
 }
 
 static const gchar*
 python_assist_get_name (IAnjutaProvider* provider, GError** e)
 {
 	return _("Python");
-}
-
-static IAnjutaEditorTip*
-python_assist_get_tip (IAnjutaProvider* provider, GError** e)
-{
-	PythonAssist* assist = PYTHON_ASSIST (ANJUTA_PLUGIN_PYTHON (self)->assist);
-	return assist->priv->itip;
 }
 
 static void 
@@ -778,7 +771,6 @@ python_assist_iface_init (IAnjutaProviderIface* iface)
 	iface->query = python_assist_query_calltip;
 	iface->get_context = python_assist_get_calltip_context;
 	iface->get_boolean = python_assist_get_boolean;
-	iface->get_assist = python_assist_get_assist;
+	iface->get_assist = python_assist_get_editor;
 	iface->get_name = python_assist_get_name;
-	iface->get_tip = python_assist_get_tip;
 }

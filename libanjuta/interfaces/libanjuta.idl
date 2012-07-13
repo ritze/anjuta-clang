@@ -2624,8 +2624,7 @@ interface IAnjutaEditorFactory
  */
 interface IAnjutaProvider
 {
-	#include "ianjuta-editor-assist.h"
-	#include "ianjuta-editor-tip.h"
+	#include "ianjuta-editor.h"
 	#include "ianjuta-iterable.h"
 	#include "ianjuta-symbol.h"
 	
@@ -2683,12 +2682,12 @@ interface IAnjutaProvider
 	IAnjutaIterable* populate(IAnjutaIterable* iter);
 	 
 	/**
-	 * ianjuta_provider_get_assist:
+	 * ianjuta_provider_get_editor:
 	 * @obj: Self
 	 *
-	 * Return the assist for the provider
+	 * Return the editor for the provider
 	 */
-	IAnjutaEditorAssist* get_assist();
+	IAnjutaEditor* get_editor();
 
 	/**
 	 * ianjuta_provider_get_name:
@@ -2697,14 +2696,6 @@ interface IAnjutaProvider
 	 * Return a (translatable) name for the provider
 	 */
 	const gchar* get_name();
-	 
-	/**
-	 * ianjuta_provider_get_tip:
-	 * @obj: Self
-	 *
-	 * Return a tip for the provider
-	 */
-	IAnjutaEditorTip* get_tip();
 	 
 	/**
 	 * ianjuta_provider_get_context:

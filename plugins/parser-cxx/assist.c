@@ -616,7 +616,7 @@ parser_cxx_assist_get_calltip_context (IAnjutaProvider *self,
                                        GError** e)
 {
 g_warning ("parser_cxx_assist_get_calltip_context");
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	gchar* calltip_context;
 	calltip_context = anjuta_parser_util_get_calltip_context (
 	                      assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
@@ -737,7 +737,7 @@ parser_cxx_assist_query_calltip (IAnjutaProvider *self,
                                  GError** e)
 {
 g_warning ("parser_cxx_assist_query_calltip");
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	
 	/* Search file */
 	if (IANJUTA_IS_FILE (assist->priv->itip))
@@ -791,7 +791,7 @@ parser_cxx_assist_clear_calltip_context_interface (IAnjutaProvider* self,
                                                    GError** e)
 {
 g_warning ("parser_cxx_assist_clear_calltip_context_interface");
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	parser_cxx_assist_clear_calltip_context (assist);
 g_warning ("parser_cxx_assist_clear_calltip_context_interface: works");
 }
@@ -815,7 +815,7 @@ IAnjutaIterable*
 parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 g_warning ("parser_cxx_populate");
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
 	
 	/* Check if completion was in progress */
@@ -861,7 +861,7 @@ parser_cxx_assist_get_boolean (IAnjutaProvider* self,
                                GError** e)
 {
 g_warning ("parser_cxx_assist_get_boolean");
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	gchar * key;
 	
 	switch (setting)
@@ -887,11 +887,11 @@ g_warning ("parser_cxx_assist_get_boolean");
 	return g_settings_get_boolean (assist->priv->settings, key);
 }
 
-static IAnjutaEditorTip*
-parser_cxx_assist_get_assist (IAnjutaProvider* provider, GError** e)
+static IAnjutaEditor*
+parser_cxx_assist_get_editor (IAnjutaProvider* provider, GError** e)
 {
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
-	return assist->priv->iassist;
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	return IANJUTA_EDITOR (assist->priv->iassist);
 }
 
 /**
@@ -905,13 +905,6 @@ static const gchar*
 parser_cxx_assist_get_name (IAnjutaProvider* provider, GError** e)
 {
 	return _("C/C++");
-}
-
-static IAnjutaEditorTip*
-parser_cxx_assist_get_tip (IAnjutaProvider* provider, GError** e)
-{
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (ANJUTA_PLUGIN_PARSER_CXX (self)->assist);
-	return assist->priv->itip;
 }
 
 /**
@@ -1273,7 +1266,6 @@ parser_cxx_assist_iface_init (IAnjutaProviderIface* iface)
 	iface->query = parser_cxx_assist_query_calltip;
 	iface->get_context = parser_cxx_assist_get_calltip_context;
 	iface->get_boolean = parser_cxx_assist_get_boolean;
-	iface->get_assist = parser_cxx_assist_get_assist;
+	iface->get_assist = parser_cxx_assist_get_editor;
 	iface->get_name = parser_cxx_assist_get_name;
-	iface->get_tip = parser_cxx_assist_get_tip;
 }

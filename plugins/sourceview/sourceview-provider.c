@@ -93,8 +93,8 @@ g_warning ("sourceview_provider_calltip");
 	IAnjutaIterable *iter;
 	gchar *call_context;
 	
-	tip = ianjuta_provider_get_tip (IANJUTA_PROVIDER (prov), NULL)
-	editor = IANJUTA_EDITOR (tip);
+	editor = ianjuta_provider_get_editor (IANJUTA_PROVIDER (prov), NULL)
+	tip = IANJUTA_EDITOR_TIP (editor);
 	
 	iter = ianjuta_editor_get_position (editor, NULL);
 	ianjuta_iterable_previous (iter, NULL);
@@ -111,8 +111,7 @@ g_warning ("sourceview_provider_calltip");
 			{
 				if (!ianjuta_editor_tip_visible (tip, NULL))
 				{
-					ianjuta_editor_tip_show (tip,
-					                         prov->priv->tips,
+					ianjuta_editor_tip_show (tip, prov->priv->tips,
 					                         prov->priv->calltip_iter, NULL);
 				}
 			}
@@ -125,7 +124,8 @@ g_warning ("sourceview_provider_calltip");
 				
 			ianjuta_provider_clear_context (prov->iprov, NULL);
 			sourceview_provider_clear_calltip_context (prov);
-			sourceview_provider_create_calltip_context (prov, call_context, iter);
+			sourceview_provider_create_calltip_context (prov, call_context,
+			                                            iter);
 			ianjuta_provider_query (prov->iprov, call_context, NULL);
 		}
 		
@@ -197,9 +197,11 @@ static void
 sourceview_provider_none (SourceviewProvider* prov)
 {
 g_warning ("sourceview_provider_none");
-	ianjuta_editor_assist_proposals (ianjuta_provider_get_assist (prov->ipriv,
-	                                                              NULL),
-	                                 prov->ipriv, NULL, NULL, TRUE, NULL);
+	IAnjutaEditor *editor = ianjuta_provider_get_editor (prov->ipriv, NULL);
+	
+	if (IANJUTA_IS_EDITOR_ASSIST (editor))
+		ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (editor),
+		                                 prov->ipriv, NULL, NULL, TRUE, NULL);
 }
 
 /**
@@ -218,7 +220,7 @@ sourceview_provider_activate (SourceviewProvider* prov,
 g_warning ("sourceview_provider_activate");
 	IAnjutaProviderAssistProposalData *prop_data;
 	GString *assistance;
-	IAnjutaEditor *te;
+	IAnjutaEditor *editor;
 	gboolean add_space_after_func = FALSE;
 	gboolean add_brace_after_func = FALSE;
 	gboolean add_closebrace_after_func = FALSE;
@@ -246,19 +248,19 @@ g_warning ("sourceview_provider_activate");
 			g_object_unref (next_brace);
 	}
 	
-	te = IANJUTA_EDITOR (ianjuta_provider_get_assist (prov->iprov, NULL));
+	editor = ianjuta_provider_get_editor (prov->iprov, NULL);
 		
-	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (te), NULL);
+	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (editor), NULL);
 	
 	if (ianjuta_iterable_compare (iter, prov->priv->start_iter, NULL) != 0)
 	{
 		ianjuta_editor_selection_set (IANJUTA_EDITOR_SELECTION (te),
 									  prov->priv->start_iter, iter, FALSE, NULL);
-		ianjuta_editor_selection_replace (IANJUTA_EDITOR_SELECTION (te),
+		ianjuta_editor_selection_replace (IANJUTA_EDITOR_SELECTION (editor),
 										  assistance->str, -1, NULL);
 	}
 	else
-		ianjuta_editor_insert (te, iter, assistance->str, -1, NULL);
+		ianjuta_editor_insert (editor, iter, assistance->str, -1, NULL);
 	
 	if (add_brace_after_func && add_closebrace_after_func)
 	{
@@ -272,33 +274,33 @@ g_warning ("sourceview_provider_activate");
 									   NULL);
 		next_brace = sourceview_provider_find_next_brace (pos);
 		if (!next_brace)
-			ianjuta_editor_insert (te, pos, ")", -1, NULL);
+			ianjuta_editor_insert (editor, pos, ")", -1, NULL);
 		else
 		{
 			pos = next_brace;
 			ianjuta_iterable_next (pos, NULL);
 		}
 		
-		ianjuta_editor_goto_position (te, pos, NULL);
+		ianjuta_editor_goto_position (editor, pos, NULL);
 
 		ianjuta_iterable_previous (pos, NULL);
 		if (!prop_data->has_para)
 		{
-			pos = ianjuta_editor_get_position (te, NULL);
+			pos = ianjuta_editor_get_position (editor, NULL);
 			ianjuta_iterable_next (pos, NULL);
-			ianjuta_editor_goto_position (te, pos, NULL);
+			ianjuta_editor_goto_position (editor, pos, NULL);
 		}
 		
 		g_object_unref (pos);
 	}
 
-	ianjuta_document_end_undo_action (IANJUTA_DOCUMENT (te), NULL);
+	ianjuta_document_end_undo_action (IANJUTA_DOCUMENT (editor), NULL);
 
 	/* Show calltip if we completed function */
 	if (add_brace_after_func)
 	{
 		/* Check for calltip */
-		if (ianjuta_provider_get_tip (prov->iprov, NULL) &&
+		if (IANJUTA_IS_EDITOR_TIP (editor) &&
 		    ianjuta_provider_get_boolean (prov->iprov,
 		                                  IANJUTA_PROVIDER_PREF_CALLTIP_ENABLE,
 		                                  NULL))
@@ -368,7 +370,8 @@ g_warning ("sourceview_provider_populate");
 	}
 
 	/* Check for calltip */
-	if (ianjuta_provider_get_tip (prov->iprov, NULL) && 
+	IAnjutaEditor editor = ianjuta_provider_get_editor (prov->iprov, NULL);
+	if (IANJUTA_IS_EDITOR_TIP (editor) && 
 	    ianjuta_provider_get_boolean (prov->iprov,
 	                                  IANJUTA_PROVIDER_PREF_CALLTIP_ENABLE,
 	                                  NULL))
