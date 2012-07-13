@@ -37,7 +37,6 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "assist.h"
-#include "plugin.h"
 #include "engine-parser.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"

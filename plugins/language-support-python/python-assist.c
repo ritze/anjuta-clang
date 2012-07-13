@@ -42,7 +42,6 @@
 #include <libanjuta/interfaces/ianjuta-provider.h>
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
-#include "plugin.h"
 
 #define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
 #define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"

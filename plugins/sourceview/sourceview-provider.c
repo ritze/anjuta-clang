@@ -357,6 +357,13 @@ g_warning ("sourceview_provider_populate");
 	prov->cancelled = FALSE;
 	g_signal_connect (context, "cancelled", G_CALLBACK(on_context_cancelled), prov);
 	
+
+g_warning ("sourceview_provider_populate 1");
+if (prov->iprov)
+	g_warning ("is not null");
+else
+	g_warning ("is null");
+g_warning ("sourceview_provider_populate 2");
 	/* Check if we actually want autocompletion at all */
 	if (!ianjuta_provider_get_boolean (prov->iprov,
 	                                   IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_ENABLE,
@@ -470,7 +477,8 @@ sourceview_provider_iface_init (GtkSourceCompletionProviderIface* provider)
 static void
 sourceview_provider_init (SourceviewProvider *object)
 {
-  object->context = NULL;
+	object->priv = g_new0 (SourceviewProviderPriv, 1);
+	object->context = NULL;
 }
 
 static void
@@ -480,10 +488,19 @@ sourceview_provider_dispose (GObject* obj)
 }
 
 static void
+sourceview_provider_finalize (GObject* obj)
+{
+	SourceviewProvider* prov = SOURCEVIEW_PROVIDER (obj);
+	sourceview_provider_clear_calltip_context (prov);
+	g_free (prov->priv);
+	//TODO: G_OBJECT_CLASS (sourceview_provider_parent_class)->finalize (object);
+}
+
+static void
 sourceview_provider_class_init (SourceviewProviderClass *klass)
 {
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
-
+	object_class->finalize = sourceview_provider_finalize;
 	object_class->dispose = sourceview_provider_dispose;
 }
 
