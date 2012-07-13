@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * anjuta-provider-utils.h
+ * anjuta-language-provider-utils.h
  * Copyright (C) Naba Kumar  <naba@gnome.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
-#ifndef _ANJUTA_PARSER_UTILS_H_
-#define _ANJUTA_PARSER_UTILS_H_
+#ifndef _ANJUTA_LANGUAGE_PROVIDER_UTILS_H_
+#define _ANJUTA_LANGUAGE_PROVIDER_UTILS_H_
 
 #include <glib.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
@@ -27,14 +27,16 @@
 
 G_BEGIN_DECLS
 
-gchar*		anjuta_parser_util_get_pre_word				(IAnjutaEditor* editor,
-                                                         IAnjutaIterable *iter,
-                                                         IAnjutaIterable** start_iter,
-                                                         const gchar *word_characters);
+gchar*		anjuta_language_provider_util_get_pre_word	(
+		                                IAnjutaEditor* editor,
+                                        IAnjutaIterable *iter,
+                                        IAnjutaIterable** start_iter,
+                                        const gchar *word_characters);
                                      
-gchar*		anjuta_parser_util_get_calltip_context		(IAnjutaEditorTip* itip,
-                                                         IAnjutaIterable* iter,
-                                                         const gchar* scope_context_characters);
+gchar*		anjuta_language_provider_util_get_calltip_context (
+		                                IAnjutaEditorTip* itip,
+                                        IAnjutaIterable* iter,
+                                        const gchar* scope_context_characters);
                                      
 G_END_DECLS
 

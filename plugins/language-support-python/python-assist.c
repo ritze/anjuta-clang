@@ -29,25 +29,20 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-launcher.h>
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/anjuta-provider-utils.h>
+#include <libanjuta/anjuta-language-provider-utils.h>
+#include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
-#include <libanjuta/interfaces/ianjuta-document.h>
+#include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
 #include <libanjuta/interfaces/ianjuta-project-manager.h> 
-#include <libanjuta/interfaces/ianjuta-provider.h>
 #include <libanjuta/anjuta-plugin.h>
 #include "python-assist.h"
 
-#define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
-#define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
-#define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-brace-after-func"
-#define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC "completion-closebrace-after-func"
-#define PREF_CALLTIP_ENABLE "calltip-enable"
 #define PREF_INTERPRETER_PATH "interpreter-path"
 #define MAX_COMPLETIONS 30
 #define BRACE_SEARCH_LIMIT 500
@@ -60,12 +55,12 @@
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
 
-static void python_assist_iface_init(IAnjutaProviderIface* iface);
+static void python_assist_iface_init(IAnjutaLanguageProviderIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (PythonAssist,
                          python_assist,
                          G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_LANGUAGE_PROVIDER,
 			                                    python_assist_iface_init))
 
 struct _PythonAssistPriv {
@@ -93,15 +88,15 @@ struct _PythonAssistPriv {
 static gchar*
 completion_function (gpointer data)
 {
-	IAnjutaProviderProposalData * tag = (IAnjutaProviderProposalData*) data;
+	IAnjutaLanguageProviderProposalData * tag = (IAnjutaLanguageProviderProposalData*) data;
 	return tag->name;
 }
 
 static gint 
 completion_compare (gconstpointer a, gconstpointer b)
 {
-	IAnjutaProviderProposalData * tag_a = (IAnjutaProviderProposalData*) a;
-	IAnjutaProviderProposalData * tag_b = (IAnjutaProviderProposalData*) b;
+	IAnjutaLanguageProviderProposalData * tag_a = (IAnjutaLanguageProviderProposalData*) a;
+	IAnjutaLanguageProviderProposalData * tag_b = (IAnjutaLanguageProviderProposalData*) b;
 	gint cmp;
 	
 	cmp = strcmp (tag_a->name, tag_b->name);
@@ -111,7 +106,7 @@ completion_compare (gconstpointer a, gconstpointer b)
 }
 
 static void 
-python_assist_tag_destroy (IAnjutaProviderProposalData *tag)
+python_assist_tag_destroy (IAnjutaLanguageProviderProposalData *tag)
 {
 	g_free (tag->name);
 	g_free (tag);
@@ -170,7 +165,7 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	
 	for (node = completion_list; node != NULL; node = g_list_next (node))
 	{
-		IAnjutaProviderProposalData *tag = node->data;
+		IAnjutaLanguageProviderProposalData *tag = node->data;
 		IAnjutaEditorAssistProposal* proposal = g_new0(IAnjutaEditorAssistProposal, 1);
 
 		if (tag->is_func)
@@ -274,7 +269,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 		/* Parse output and create completion list */
 		for (cur_comp = completions; *cur_comp != NULL; cur_comp++)
 		{
-			IAnjutaProviderProposalData* tag;
+			IAnjutaLanguageProviderProposalData* tag;
 			GMatchInfo* match_info;
 			
 			g_regex_match (regex, *cur_comp, 0, &match_info);
@@ -284,7 +279,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 				gchar* type = g_match_info_fetch (match_info, 3); 
 				gchar* location = g_match_info_fetch (match_info, 4); 
 				gchar* info = g_match_info_fetch (match_info, 5); 
-				tag = g_new0 (IAnjutaProviderProposalData, 1);
+				tag = g_new0 (IAnjutaLanguageProviderProposalData, 1);
 				tag->name = g_match_info_fetch (match_info, 1);
 
 				/* info will be set to "_" if there is no relevant info */
@@ -474,7 +469,7 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 }
 
 static void
-python_assist_query_calltip (IAnjutaProvider *self,
+python_assist_query_calltip (IAnjutaLanguageProvider *self,
                              const gchar *call_context,
                              GError** e)
 {
@@ -531,7 +526,7 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 }
 
 static void
-python_assist_clear_calltip_context_interface (IAnjutaProvider* self,
+python_assist_clear_calltip_context_interface (IAnjutaLanguageProvider* self,
                                                GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
@@ -539,13 +534,13 @@ python_assist_clear_calltip_context_interface (IAnjutaProvider* self,
 }
 
 static gchar*
-python_assist_get_calltip_context (IAnjutaProvider *self,
+python_assist_get_calltip_context (IAnjutaLanguageProvider *self,
                                    IAnjutaIterable *iter,
                                    GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = anjuta_parser_util_get_calltip_context (
+	calltip_context = anjuta_language_provider_util_get_calltip_context (
 	                     assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
 	return calltip_context;
 }
@@ -578,14 +573,14 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 }
 
 static IAnjutaIterable*
-python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
+python_assist_populate (IAnjutaLanguageProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
 	gchar* pre_word;
 	gboolean completion_trigger_char;
 	
-	pre_word = anjuta_parser_util_get_pre_word (
+	pre_word = anjuta_language_provider_util_get_pre_word (
 	                               IANJUTA_EDITOR (assist->priv->iassist),
 	                               cursor, &start_iter, WORD_CHARACTER);
 
@@ -633,46 +628,25 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 }
 
 static gboolean
-python_assist_get_boolean (IAnjutaProvider* self,
-                           IAnjutaProviderSetting setting,
+python_assist_get_boolean (IAnjutaLanguageProvider* self,
+                           const gchar* setting,
                            GError** e)
 {
 g_warning ("python_assist_get_boolean");
 	PythonAssist* assist = PYTHON_ASSIST (self);
-	gchar * key;
 	
-	switch (setting)
-	{
-		case IANJUTA_PROVIDER_PREF_CALLTIP_ENABLE:
-			key = PREF_CALLTIP_ENABLE;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_ENABLE:
-			key = PREF_AUTOCOMPLETE_ENABLE;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC:
-			key = PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC:
-			key = PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC:
-			key = PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC;
-			break;
-		default:
-			return FALSE;
-	}
-	return g_settings_get_boolean (assist->priv->settings, key);
+	return g_settings_get_boolean (assist->priv->settings, setting);
 }
 
 static IAnjutaEditor*
-python_assist_get_editor (IAnjutaProvider* self, GError** e)
+python_assist_get_editor (IAnjutaLanguageProvider* self, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	return IANJUTA_EDITOR (assist->priv->iassist);
 }
 
 static const gchar*
-python_assist_get_name (IAnjutaProvider* provider, GError** e)
+python_assist_get_name (IAnjutaLanguageProvider* provider, GError** e)
 {
 	return _("Python");
 }
@@ -764,7 +738,7 @@ python_assist_new (IAnjutaEditor *ieditor,
 }
 
 static void
-python_assist_iface_init (IAnjutaProviderIface* iface)
+python_assist_iface_init (IAnjutaLanguageProviderIface* iface)
 {
 	iface->populate       = python_assist_populate;
 	iface->clear_context  = python_assist_clear_calltip_context_interface;

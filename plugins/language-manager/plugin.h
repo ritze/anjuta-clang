@@ -29,9 +29,11 @@
 
 typedef struct _LanguageManager LanguageManager;
 typedef struct _LanguageManagerClass LanguageManagerClass;
+typedef struct _LanguageManagerPriv LanguageManagerPriv;
 
 struct _LanguageManager{
 	AnjutaPlugin parent;
+	LanguageManagerPriv *priv;
 	
 	GHashTable* languages;
 };

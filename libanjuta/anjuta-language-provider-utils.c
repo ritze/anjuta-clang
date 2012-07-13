@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * anjuta-parser-utils.c
+ * anjuta-language-provider-utils.c
  * Copyright (C) Naba Kumar  <naba@gnome.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,14 +18,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/anjuta-provider-utils.h>
+#include <libanjuta/anjuta-language-provider-utils.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 
 #define SCOPE_BRACE_JUMP_LIMIT 50
 #define BRACE_SEARCH_LIMIT 500
 
 /**
- * anjuta_parser_util_is_character:
+ * anjuta_language_provider_util_is_character:
  * @ch: character to check
  * @context_characters: language-specific context characters
  *                      the end is marked with a '0' character
@@ -33,7 +33,7 @@
  * Returns: if the current character seperates a scope
  */
 static gboolean
-anjuta_parser_util_is_character (gchar ch, const gchar* characters)
+anjuta_language_provider_util_is_character (gchar ch, const gchar* characters)
 {
 	int i;
 	
@@ -53,7 +53,7 @@ anjuta_parser_util_is_character (gchar ch, const gchar* characters)
 }
 
 /**
- * anjuta_parser_util_get_scope_context
+ * anjuta_language_provider_util_get_scope_context
  * @editor: current editor
  * @iter: Current cursor position
  * @scope_context_characters: language-specific context characters
@@ -62,8 +62,9 @@ anjuta_parser_util_is_character (gchar ch, const gchar* characters)
  * Find the scope context for calltips
  */
 static gchar*
-anjuta_parser_util_get_scope_context (IAnjutaEditor* editor, IAnjutaIterable *iter,
-                                      const gchar* scope_context_characters)
+anjuta_language_provider_util_get_scope_context (IAnjutaEditor* editor,
+		                                         IAnjutaIterable *iter,
+                                                 const gchar* scope_context_characters)
 {
 	IAnjutaIterable* end;	
 	gchar ch, *scope_chars = NULL;
@@ -77,11 +78,13 @@ anjuta_parser_util_get_scope_context (IAnjutaEditor* editor, IAnjutaIterable *it
 	
 	while (ch)
 	{
-		if (anjuta_parser_util_is_character (ch, scope_context_characters))
+		if (anjuta_language_provider_util_is_character (ch,
+					                                    scope_context_characters))
 			scope_chars_found = TRUE;
 		else if (ch == ')')
 		{
-			if (!anjuta_util_jump_to_matching_brace (iter, ch, SCOPE_BRACE_JUMP_LIMIT))
+			if (!anjuta_util_jump_to_matching_brace (iter, ch,
+						                             SCOPE_BRACE_JUMP_LIMIT))
 			{
 				out_of_range = TRUE;
 				break;
@@ -110,7 +113,7 @@ anjuta_parser_util_get_scope_context (IAnjutaEditor* editor, IAnjutaIterable *it
 }
 
 /**
- * anjuta_parser_util_get_calltip_context:
+ * anjuta_language_provider_util_get_calltip_context:
  * @itip: whether a tooltip is crrently shown
  * @iter: current cursor position
  * @scope_context_characters: language-specific context characters
@@ -121,8 +124,9 @@ anjuta_parser_util_get_scope_context (IAnjutaEditor* editor, IAnjutaIterable *it
  * Returns: name of the method to show a calltip for or NULL
  */
 gchar*
-anjuta_parser_util_get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable* iter,
-                                        const gchar* scope_context_characters)
+anjuta_language_provider_util_get_calltip_context (IAnjutaEditorTip* itip,
+		                                           IAnjutaIterable* iter,
+                                                   const gchar* scope_context_characters)
 {
 	gchar ch;
 	gchar *context = NULL;
@@ -147,8 +151,8 @@ anjuta_parser_util_get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable*
 		&& g_ascii_isspace (ianjuta_editor_cell_get_char
 								(IANJUTA_EDITOR_CELL (iter), 0, NULL)));
 	
-	context = anjuta_parser_util_get_scope_context (IANJUTA_EDITOR (itip),
-	                                                iter, scope_context_characters);
+	context = anjuta_language_provider_util_get_scope_context (
+	                  IANJUTA_EDITOR (itip), iter, scope_context_characters);
 
 	/* Point iter to the first character of the scope to align calltip correctly */
 	ianjuta_iterable_next (iter, NULL);
@@ -157,7 +161,7 @@ anjuta_parser_util_get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable*
 }
 
 /**
- * anjuta_parser_util_get_pre_word:
+ * anjuta_language_provider_util_get_pre_word:
  * @editor: Editor object
  * @iter: current cursor position
  * @start_iter: return location for the start_iter (if a preword was found)
@@ -167,8 +171,10 @@ anjuta_parser_util_get_calltip_context (IAnjutaEditorTip* itip, IAnjutaIterable*
  * Returns: The current word (needs to be freed) or NULL if no word was found
  */
 gchar*
-anjuta_parser_util_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter,
-                                 IAnjutaIterable** start_iter, const gchar *word_characters)
+anjuta_language_provider_util_get_pre_word (IAnjutaEditor* editor,
+                                            IAnjutaIterable *iter,
+                                            IAnjutaIterable** start_iter,
+											const gchar *word_characters)
 {
 	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
 	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
@@ -181,7 +187,8 @@ anjuta_parser_util_get_pre_word (IAnjutaEditor* editor, IAnjutaIterable *iter,
 	
 	ch = ianjuta_editor_cell_get_char (IANJUTA_EDITOR_CELL (begin), 0, NULL);
 	
-	while (ch && anjuta_parser_util_is_character (ch, word_characters))
+	while (ch && anjuta_language_provider_util_is_character (ch,
+				                                             word_characters))
 	{
 		preword_found = TRUE;
 		if (!ianjuta_iterable_previous (begin, NULL))

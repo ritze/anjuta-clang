@@ -27,33 +27,28 @@
 #include <string.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/anjuta-provider-utils.h>
+#include <libanjuta/anjuta-language-provider-utils.h>
+#include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
-#include <libanjuta/interfaces/ianjuta-provider.h>
-#include <libanjuta/interfaces/ianjuta-document.h>
+#include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "assist.h"
 #include "engine-parser.h"
 
-#define PREF_AUTOCOMPLETE_ENABLE "completion-enable"
-#define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC "completion-space-after-func"
-#define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC "completion-brace-after-func"
-#define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC "completion-closebrace-after-func"
-#define PREF_CALLTIP_ENABLE "calltip-enable"
 #define BRACE_SEARCH_LIMIT 500
 #define SCOPE_CONTEXT_CHARACTERS "_.:>-0"
 #define WORD_CHARACTER "_0"
 
-static void parser_cxx_assist_iface_init(IAnjutaProviderIface* iface);
+static void parser_cxx_assist_iface_init(IAnjutaLanguageProviderIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (ParserCxxAssist,
                          parser_cxx_assist,
                          G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_LANGUAGE_PROVIDER,
 			                                    parser_cxx_assist_iface_init))
 
 struct _ParserCxxAssistPriv {
@@ -110,7 +105,7 @@ parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 {
 g_warning ("parser_cxx_assist_proposal_new");
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
-	IAnjutaProviderProposalData* data = g_new0 (IAnjutaProviderProposalData, 1);
+	IAnjutaLanguageProviderProposalData* data = g_new0 (IAnjutaLanguageProviderProposalData, 1);
 	
 	data->name = g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL));
 	data->type = ianjuta_symbol_get_sym_type (symbol, NULL);
@@ -154,7 +149,7 @@ static void
 parser_cxx_assist_proposal_free (IAnjutaEditorAssistProposal* proposal)
 {
 g_warning ("parser_cxx_assist_proposal_free");
-	IAnjutaProviderProposalData* data = proposal->data;
+	IAnjutaLanguageProviderProposalData* data = proposal->data;
 	g_free (data->name);
 	g_free (data);
 	g_free (proposal->label);
@@ -173,7 +168,7 @@ anjuta_proposal_completion_func (gpointer data)
 {
 g_warning ("anjuta_proposal_completion_func");
 	IAnjutaEditorAssistProposal* proposal = data;
-	IAnjutaProviderProposalData* prop_data = proposal->data;
+	IAnjutaLanguageProviderProposalData* prop_data = proposal->data;
 	
 g_warning ("anjuta_proposal_completion_func: works");
 	return prop_data->name;
@@ -560,7 +555,7 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaI
 {
 g_warning ("parser_cxx_assist_create_autocompletion_cache");
 	IAnjutaIterable* start_iter;
-	gchar* pre_word = anjuta_parser_util_get_pre_word (
+	gchar* pre_word = anjuta_language_provider_util_get_pre_word (
                           IANJUTA_EDITOR (assist->priv->iassist),
 	                      cursor, &start_iter, WORD_CHARACTER);
 	if (!pre_word || strlen (pre_word) <= 3)
@@ -610,14 +605,14 @@ g_warning ("parser_cxx_assist_create_autocompletion_cache");
  * Returns: name of the method to show a calltip for or NULL
  */
 static gchar*
-parser_cxx_assist_get_calltip_context (IAnjutaProvider *self,
+parser_cxx_assist_get_calltip_context (IAnjutaLanguageProvider *self,
                                        IAnjutaIterable *iter,
                                        GError** e)
 {
 g_warning ("parser_cxx_assist_get_calltip_context");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = anjuta_parser_util_get_calltip_context (
+	calltip_context = anjuta_language_provider_util_get_calltip_context (
 	                      assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
 g_warning ("parser_cxx_assist_get_calltip_context: works");
 	return calltip_context;
@@ -731,7 +726,7 @@ g_warning ("on_calltip_search_complete");
  * Starts an async query for the calltip
  */
 static void
-parser_cxx_assist_query_calltip (IAnjutaProvider *self,
+parser_cxx_assist_query_calltip (IAnjutaLanguageProvider *self,
                                  const gchar *call_context,
                                  GError** e)
 {
@@ -786,7 +781,7 @@ g_warning ("parser_cxx_assist_clear_calltip_context: works");
 }
 
 static void
-parser_cxx_assist_clear_calltip_context_interface (IAnjutaProvider* self,
+parser_cxx_assist_clear_calltip_context_interface (IAnjutaLanguageProvider* self,
                                                    GError** e)
 {
 g_warning ("parser_cxx_assist_clear_calltip_context_interface");
@@ -811,7 +806,7 @@ g_warning ("parser_cxx_assist_cancelled: works");
 }
 
 static IAnjutaIterable*
-parser_cxx_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
+parser_cxx_assist_populate (IAnjutaLanguageProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 g_warning ("parser_cxx_populate");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
@@ -821,7 +816,7 @@ g_warning ("parser_cxx_populate");
 	if (assist->priv->member_completion || assist->priv->autocompletion)
 	{
 		g_assert (assist->priv->completion_cache != NULL);
-		gchar* pre_word = anjuta_parser_util_get_pre_word (
+		gchar* pre_word = anjuta_language_provider_util_get_pre_word (
 		                      IANJUTA_EDITOR (assist->priv->iassist),
 		                      cursor, &start_iter, WORD_CHARACTER);
 		DEBUG_PRINT ("Preword: %s", pre_word);
@@ -855,39 +850,18 @@ g_warning ("parser_cxx_populate");
 }
 
 static gboolean
-parser_cxx_assist_get_boolean (IAnjutaProvider* self,
-                               IAnjutaProviderSetting setting,
+parser_cxx_assist_get_boolean (IAnjutaLanguageProvider* self,
+                               const gchar* setting,
                                GError** e)
 {
 g_warning ("parser_cxx_assist_get_boolean");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
-	gchar * key;
 	
-	switch (setting)
-	{
-		case IANJUTA_PROVIDER_PREF_CALLTIP_ENABLE:
-			key = PREF_CALLTIP_ENABLE;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_ENABLE:
-			key = PREF_AUTOCOMPLETE_ENABLE;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC:
-			key = PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC:
-			key = PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC;
-			break;
-		case IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC:
-			key = PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC;
-			break;
-		default:
-			return FALSE;
-	}
-	return g_settings_get_boolean (assist->priv->settings, key);
+	return g_settings_get_boolean (assist->priv->settings, setting);
 }
 
 static IAnjutaEditor*
-parser_cxx_assist_get_editor (IAnjutaProvider* self, GError** e)
+parser_cxx_assist_get_editor (IAnjutaLanguageProvider* self, GError** e)
 {
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	return IANJUTA_EDITOR (assist->priv->iassist);
@@ -895,13 +869,13 @@ parser_cxx_assist_get_editor (IAnjutaProvider* self, GError** e)
 
 /**
  * parser_cxx_assist_get_name:
- * @self: IAnjutaProvider object
+ * @self: IAnjutaLanguageProvider object
  * @e: Error population
  *
  * Returns: the provider name
  */
 static const gchar*
-parser_cxx_assist_get_name (IAnjutaProvider* provider, GError** e)
+parser_cxx_assist_get_name (IAnjutaLanguageProvider* provider, GError** e)
 {
 	return _("C/C++");
 }
@@ -1259,7 +1233,7 @@ g_warning ("parser_cxx_assist_new: works");
 }
 
 static void
-parser_cxx_assist_iface_init (IAnjutaProviderIface* iface)
+parser_cxx_assist_iface_init (IAnjutaLanguageProviderIface* iface)
 {
 	iface->populate       = parser_cxx_assist_populate;
 	iface->clear_context  = parser_cxx_assist_clear_calltip_context_interface;

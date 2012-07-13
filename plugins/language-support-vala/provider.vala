@@ -22,11 +22,6 @@ public class ValaProvider : Object {
 	static Regex member_access_split;
 	static Regex function_call;
 
-	const string PREF_AUTOCOMPLETE_ENABLE = "completion-enable";
-	const string PREF_SPACE_AFTER_FUNC = "completion-space-after-func";
-	const string PREF_BRACE_AFTER_FUNC = "completion-brace-after-func";
-	internal const string PREF_CALLTIP_ENABLE = "calltip-enable";
-
 	static construct {
 		try {
 			member_access = new Regex("""((?:\w+(?:\s*\([^()]*\))?\.)*)(\w*)$""");

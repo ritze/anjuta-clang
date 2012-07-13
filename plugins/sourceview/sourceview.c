@@ -43,6 +43,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-search.h>
 #include <libanjuta/interfaces/ianjuta-editor-hover.h>
 #include <libanjuta/interfaces/ianjuta-editor-glade-signal.h>
+#include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-provider.h>
 
 #include <gtksourceview/gtksourceview.h>
@@ -2323,7 +2324,7 @@ iassist_proposals(IAnjutaEditorAssist* iassist,
 	if (pre_word && proposals && g_list_length (proposals) == 1)
 	{
 		IAnjutaEditorAssistProposal* proposal = proposals->data;
-		IAnjutaProviderProposalData* data = proposal->data;
+		IAnjutaLanguageProviderProposalData* data = proposal->data;
 		if (g_str_equal (pre_word, data->name))
 			proposals = NULL;
 	}

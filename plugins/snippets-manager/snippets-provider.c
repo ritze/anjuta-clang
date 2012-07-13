@@ -70,25 +70,14 @@ static void             snippets_provider_iface_init     (IAnjutaProviderIface* 
 static void             snippets_provider_populate       (IAnjutaProvider *self,
                                                           IAnjutaIterable *cursor,
                                                           GError **error);
-/*TODO:
 static IAnjutaIterable* snippets_provider_get_start_iter (IAnjutaProvider *self,
                                                           GError **error);
-//TODO:
 static void             snippets_provider_activate       (IAnjutaProvider *self,
                                                           IAnjutaIterable *iter,
                                                           gpointer data,
                                                           GError **error);
-*/
 static const gchar*     snippets_provider_get_name       (IAnjutaProvider *self,
                                                           GError **error);
-
-
-
-iface->clear_context  = snippets_providert_clear_calltip_context_interface;
-	iface->query          = snippets_provider_query_calltip;
-	iface->get_context    = snippets_provider_get_calltip_context;
-	iface->get_boolean    = snippets_provider_get_boolean;
-	iface->get_editor     = snippets_provider_get_editor;
 
 G_DEFINE_TYPE_WITH_CODE (SnippetsProvider,
 			 snippets_provider,
@@ -127,18 +116,10 @@ static void
 snippets_provider_iface_init (IAnjutaProviderIface* iface)
 {
 	iface->populate       = snippets_provider_populate;
-	//TODO:
-//	iface->get_start_iter = snippets_provider_get_start_iter;
-	//TODO:
-//	iface->activate       = snippets_provider_activate;
+	iface->get_start_iter = snippets_provider_get_start_iter;
+	iface->activate       = snippets_provider_activate;
 	iface->get_name       = snippets_provider_get_name;
-	
-	
-	iface->clear_context  = snippets_providert_clear_calltip_context_interface;
-	iface->query          = snippets_provider_query_calltip;
-	iface->get_context    = snippets_provider_get_calltip_context;
-	iface->get_boolean    = snippets_provider_get_boolean;
-	iface->get_editor     = snippets_provider_get_editor;
+
 }
 
 /* Private methods */
@@ -709,7 +690,6 @@ snippets_provider_populate (IAnjutaProvider *self,
 
 }
 
-//TODO:
 static IAnjutaIterable*
 snippets_provider_get_start_iter (IAnjutaProvider *self,
                                   GError **error)
@@ -723,8 +703,6 @@ snippets_provider_get_start_iter (IAnjutaProvider *self,
 	return priv->start_iter;
 }
 
-
-//TODO:
 static void
 snippets_provider_activate (IAnjutaProvider *self,
                             IAnjutaIterable *iter,
