@@ -21,6 +21,11 @@
 #include "sourceview-cell.h"
 #include "sourceview-private.h"
 #include <libanjuta/anjuta-debug.h>
+#include <libanjuta/interfaces/ianjuta-document.h>
+#include <libanjuta/interfaces/ianjuta-editor-assist.h>
+#include <libanjuta/interfaces/ianjuta-editor-cell.h>
+#include <libanjuta/interfaces/ianjuta-editor-selection.h>
+#include <libanjuta/interfaces/ianjuta-editor-tip.h>
 
 
 static void
@@ -45,6 +50,7 @@ struct _SourceviewProviderPriv {
 static void
 sourceview_provider_clear_calltip_context (SourceviewProvider* prov)
 {
+g_warning ("sourceview_provider_clear_calltip_context");
 	g_free (prov->priv->calltip_context);
 	prov->priv->calltip_context = NULL;
 	
@@ -93,7 +99,7 @@ g_warning ("sourceview_provider_calltip");
 	IAnjutaIterable *iter;
 	gchar *call_context;
 	
-	editor = ianjuta_provider_get_editor (IANJUTA_PROVIDER (prov), NULL)
+	editor = ianjuta_provider_get_editor (prov->iprov, NULL);
 	tip = IANJUTA_EDITOR_TIP (editor);
 	
 	iter = ianjuta_editor_get_position (editor, NULL);
@@ -197,11 +203,11 @@ static void
 sourceview_provider_none (SourceviewProvider* prov)
 {
 g_warning ("sourceview_provider_none");
-	IAnjutaEditor *editor = ianjuta_provider_get_editor (prov->ipriv, NULL);
+	IAnjutaEditor *editor = ianjuta_provider_get_editor (prov->iprov, NULL);
 	
 	if (IANJUTA_IS_EDITOR_ASSIST (editor))
 		ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (editor),
-		                                 prov->ipriv, NULL, NULL, TRUE, NULL);
+		                                 prov->iprov, NULL, NULL, TRUE, NULL);
 }
 
 /**
@@ -218,7 +224,7 @@ sourceview_provider_activate (SourceviewProvider* prov,
                               gpointer data)
 {
 g_warning ("sourceview_provider_activate");
-	IAnjutaProviderAssistProposalData *prop_data;
+	IAnjutaProviderProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *editor;
 	gboolean add_space_after_func = FALSE;
@@ -254,7 +260,7 @@ g_warning ("sourceview_provider_activate");
 	
 	if (ianjuta_iterable_compare (iter, prov->priv->start_iter, NULL) != 0)
 	{
-		ianjuta_editor_selection_set (IANJUTA_EDITOR_SELECTION (te),
+		ianjuta_editor_selection_set (IANJUTA_EDITOR_SELECTION (editor),
 									  prov->priv->start_iter, iter, FALSE, NULL);
 		ianjuta_editor_selection_replace (IANJUTA_EDITOR_SELECTION (editor),
 										  assistance->str, -1, NULL);
@@ -353,7 +359,8 @@ g_warning ("sourceview_provider_populate");
 	
 	/* Check if we actually want autocompletion at all */
 	if (!ianjuta_provider_get_boolean (prov->iprov,
-	             IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_ENABLE, NULL))
+	                                   IANJUTA_PROVIDER_PREF_AUTOCOMPLETE_ENABLE,
+	                                   NULL))
 	{
 		sourceview_provider_none (prov);
 		return;
@@ -370,13 +377,13 @@ g_warning ("sourceview_provider_populate");
 	}
 
 	/* Check for calltip */
-	IAnjutaEditor editor = ianjuta_provider_get_editor (prov->iprov, NULL);
+	IAnjutaEditor *editor = ianjuta_provider_get_editor (prov->iprov, NULL);
 	if (IANJUTA_IS_EDITOR_TIP (editor) && 
 	    ianjuta_provider_get_boolean (prov->iprov,
 	                                  IANJUTA_PROVIDER_PREF_CALLTIP_ENABLE,
 	                                  NULL))
 	{	
-		sourceview_provider_calltip (provider);
+		sourceview_provider_calltip (prov);
 	}
 	
 	/* Execute language-specific part */
@@ -413,6 +420,7 @@ sourceview_provider_get_start_iter (GtkSourceCompletionProvider* provider,
                                     GtkSourceCompletionProposal* proposal,
                                     GtkTextIter* iter)
 {
+g_warning ("sourceview_provider_get_start_iter");
 	SourceviewProvider* prov = SOURCEVIEW_PROVIDER(provider);
 	if (prov->priv->start_iter)
 	{
@@ -431,6 +439,7 @@ sourceview_provider_activate_proposal (GtkSourceCompletionProvider* provider,
                                        GtkSourceCompletionProposal* proposal,
                                        GtkTextIter* iter)
 {
+g_warning ("sourceview_provider_activate_proposal");
 	SourceviewProvider* prov = SOURCEVIEW_PROVIDER (provider);
 	SourceviewCell* cell = sourceview_cell_new (iter, GTK_TEXT_VIEW(prov->sv->priv->view));
 	gpointer data = g_object_get_data (G_OBJECT(proposal), "__data");

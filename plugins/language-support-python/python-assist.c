@@ -187,8 +187,8 @@ python_assist_update_autocomplete (PythonAssist *assist)
 	suggestions = g_list_reverse (suggestions);
 	
 	ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (assist->priv->iassist),
-	                                 IANJUTA_PROVIDER(assist), proposals,
-	                                 assist->priv->pre_word, finished, NULL);
+	                                 IANJUTA_PROVIDER(assist), suggestions,
+	                                 assist->priv->pre_word, TRUE, NULL);
 	
 	g_list_foreach (suggestions, (GFunc) free_proposal, NULL);
 	g_list_free (suggestions);
@@ -474,7 +474,7 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 	return final_offset-1;
 }
 
-void
+static void
 python_assist_query_calltip (IAnjutaProvider *self,
                              const gchar *call_context,
                              GError** e)
@@ -531,7 +531,7 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 	assist->priv->calltip_launcher = NULL;
 }
 
-void
+static void
 python_assist_clear_calltip_context_interface (IAnjutaProvider* self,
                                                GError** e)
 {
@@ -539,7 +539,7 @@ python_assist_clear_calltip_context_interface (IAnjutaProvider* self,
 	python_assist_clear_calltip_context (assist);
 }
 
-gchar*
+static gchar*
 python_assist_get_calltip_context (IAnjutaProvider *self,
                                    IAnjutaIterable *iter,
                                    GError** e)
@@ -578,7 +578,7 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 	return retval;
 }
 
-IAnjutaIterable*
+static IAnjutaIterable*
 python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
@@ -633,7 +633,7 @@ python_assist_populate (IAnjutaProvider* self, IAnjutaIterable* cursor, GError**
 	return NULL;
 }
 
-gboolean
+static gboolean
 python_assist_get_boolean (IAnjutaProvider* self,
                            IAnjutaProviderSetting setting,
                            GError** e)
@@ -666,7 +666,7 @@ g_warning ("python_assist_get_boolean");
 }
 
 static IAnjutaEditor*
-python_assist_get_editor (IAnjutaProvider* provider, GError** e)
+python_assist_get_editor (IAnjutaProvider* self, GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	return IANJUTA_EDITOR (assist->priv->iassist);
@@ -687,6 +687,7 @@ python_assist_install (PythonAssist *assist,
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
 	{
 		assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
+		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor), IANJUTA_PROVIDER(assist), NULL);
 		g_signal_connect (ieditor, "cancelled", G_CALLBACK (python_assist_cancelled), assist);
 	}
 	else
@@ -766,11 +767,11 @@ python_assist_new (IAnjutaEditor *ieditor,
 static void
 python_assist_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->populate = python_assist_populate;
-	iface->clear_context = python_assist_clear_calltip_context_interface;
-	iface->query = python_assist_query_calltip;
-	iface->get_context = python_assist_get_calltip_context;
-	iface->get_boolean = python_assist_get_boolean;
-	iface->get_assist = python_assist_get_editor;
-	iface->get_name = python_assist_get_name;
+	iface->populate       = python_assist_populate;
+	iface->clear_context  = python_assist_clear_calltip_context_interface;
+	iface->query          = python_assist_query_calltip;
+	iface->get_context    = python_assist_get_calltip_context;
+	iface->get_boolean    = python_assist_get_boolean;
+	iface->get_editor     = python_assist_get_editor;
+	iface->get_name       = python_assist_get_name;
 }
