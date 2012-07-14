@@ -22,9 +22,7 @@ SUBDIRS = . \
 	indentation-python-style \
 	language-manager \
 	language-support-cpp-java \
-	language-support-js \
 	language-support-python \
-	language-support-vala \
 	message-view \
 	mk-project \
 	patch \
