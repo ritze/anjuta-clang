@@ -26,16 +26,21 @@
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
+#include <libanjuta/interfaces/ianjuta-language-provider.h>
 
 static void
 sourceview_provider_iface_init (GtkSourceCompletionProviderIface* provider);
+static void
+sourceview_provider_anjuta_iface_init (IAnjutaProviderIface* provider);
 
 G_DEFINE_TYPE_WITH_CODE (SourceviewProvider,
 			 sourceview_provider,
 			 G_TYPE_OBJECT,
 			 G_IMPLEMENT_INTERFACE (GTK_SOURCE_TYPE_COMPLETION_PROVIDER,
-			                        sourceview_provider_iface_init))
-
+			                        sourceview_provider_iface_init)
+			 G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
+			                        sourceview_provider_anjuta_iface_init))
+			                        
 struct _SourceviewProviderPriv {
 	/* Autocompletion */
 	IAnjutaIterable* start_iter;
@@ -45,6 +50,8 @@ struct _SourceviewProviderPriv {
 	GList* tips;
 	IAnjutaIterable* calltip_iter;
 };
+
+static gpointer parent_class;
 
 static void
 on_context_cancelled (GtkSourceCompletionContext* context, SourceviewProvider* provider)
@@ -184,8 +191,7 @@ g_warning ("sourceview_provider_calltip");
 	IAnjutaIterable *iter;
 	gchar *call_context;
 	
-	editor = ianjuta_language_provider_get_editor (
-	                                 provider->iprov, NULL);
+	editor = ianjuta_language_provider_get_editor (provider->iprov, NULL);
 	tip = IANJUTA_EDITOR_TIP (editor);
 	
 	iter = ianjuta_editor_get_position (editor, NULL);
@@ -298,17 +304,18 @@ g_warning ("sourceview_provider_none");
 	
 	if (IANJUTA_IS_EDITOR_ASSIST (editor))
 		ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (editor),
-		                                 iprov, NULL, NULL, TRUE, NULL);
+		                                 provider->iprov, NULL, NULL, TRUE,
+		                                 NULL);
 }
 
 static void
-sourceview_provider_activate (IAnjutaProvider* iprov,
-                              IAnjutaIterable* iter,
-                              gpointer data,
-                              GError** e)
+sourceview_provider_language_activate (IAnjutaProvider* iprov,
+                                       IAnjutaIterable* iter,
+                                       gpointer data,
+                                       GError** e)
 {
 g_warning ("sourceview_provider_activate");
-	SourceviewProvider* provider = LANGUAGE_MANAGER (iprov);
+	SourceviewProvider* provider = SOURCEVIEW_PROVIDER (iprov);
 	IAnjutaLanguageProviderProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *editor;
@@ -323,16 +330,13 @@ g_warning ("sourceview_provider_activate");
 	if (prop_data->is_func)
 	{
 		IAnjutaIterable* next_brace = sourceview_provider_find_next_brace (iter);
-		add_space_after_func = ianjuta_language_provider_get_boolean (
-		        provider->iprov,
+		add_space_after_func = ianjuta_language_provider_get_boolean (iprov,
 			    IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC,
 			    NULL);
-		add_brace_after_func = ianjuta_language_provider_get_boolean (
-		        provider->iprov,
+		add_brace_after_func = ianjuta_language_provider_get_boolean (iprov,
 		        IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC,
 		        NULL);
-		add_closebrace_after_func = ianjuta_language_provider_get_boolean (
-		        provider->iprov,
+		add_closebrace_after_func = ianjuta_language_provider_get_boolean (iprov,
 		        IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC,
 		        NULL);
 
@@ -345,7 +349,7 @@ g_warning ("sourceview_provider_activate");
 			g_object_unref (next_brace);
 	}
 	
-	editor = ianjuta_language_provider_get_editor (provider->iprov, NULL);
+	editor = ianjuta_language_provider_get_editor (iprov, NULL);
 		
 	ianjuta_document_begin_undo_action (IANJUTA_DOCUMENT (editor), NULL);
 	
@@ -399,7 +403,7 @@ g_warning ("sourceview_provider_activate");
 	{
 		/* Check for calltip */
 		if (IANJUTA_IS_EDITOR_TIP (editor) &&
-		    ianjuta_language_provider_get_boolean (provider->iprov,
+		    ianjuta_language_provider_get_boolean (iprov,
 		                          IANJUTA_LANGUAGE_PROVIDER_PREF_CALLTIP_ENABLE,
 		                          NULL))
 		    //TODO: adapt
@@ -424,14 +428,16 @@ g_warning ("sourceview_provider_activate");
 
 //TODO:
 static void
-sourceview_provider_populate (IAnjutaProvider* iprov, IAnjutaIterable* cursor, GError** e)
+sourceview_provider_language_populate (IAnjutaProvider* iprov,
+                                       IAnjutaIterable* cursor,
+                                       GError** e)
 {
 g_warning ("sourceview_provider_populate");
 	SourceviewProvider* provider = SOURCEVIEW_PROVIDER (iprov);
 	IAnjutaIterable *start_iter;
 
 	/* Check if we actually want autocompletion at all */
-	if (!ianjuta_language_provider_get_boolean (provider->iprov,
+	if (!ianjuta_language_provider_get_boolean (iprov,
 	                       IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_ENABLE,
 	                       NULL))
 	{
@@ -449,9 +455,9 @@ g_warning ("sourceview_provider_populate");
 	}
 
 	/* Check for calltip */
-	IAnjutaEditor *editor = ianjuta_language_provider_get_editor (provider->iprov, NULL);
+	IAnjutaEditor *editor = ianjuta_language_provider_get_editor (iprov, NULL);
 	if (IANJUTA_IS_EDITOR_TIP (editor) && 
-	    ianjuta_language_provider_get_boolean (provider->iprov,
+	    ianjuta_language_provider_get_boolean (iprov,
 	                              IANJUTA_LANGUAGE_PROVIDER_PREF_CALLTIP_ENABLE,
 	                              NULL))
 	{	
@@ -459,8 +465,7 @@ g_warning ("sourceview_provider_populate");
 	}
 	
 	/* Execute language-specific part */
-	start_iter = ianjuta_language_provider_populate (provider->iprov, cursor,
-	                                                 NULL);
+	start_iter = ianjuta_language_provider_populate (iprov, cursor, NULL);
 	if (start_iter)
 	{
 		if (provider->priv->start_iter)
@@ -479,7 +484,8 @@ g_warning ("sourceview_provider_populate");
 }
 
 static IAnjutaIterable*
-sourceview_provider_get_start_iter (IAnjutaProvider* iprov, GError** e)
+sourceview_provider_language_get_start_iter (IAnjutaProvider* iprov,
+                                             GError** e)
 {
 g_warning ("iprovider_get_start_iter");
 	SourceviewProvider* provider = SOURCEVIEW_PROVIDER (iprov);
@@ -488,12 +494,20 @@ g_warning ("iprovider_get_start_iter: works");
 }
 
 static const gchar*
-sourceview_provider_get_name (IAnjutaProvider* iprov, GError** e)
+sourceview_provider_language_get_name (IAnjutaProvider* iprov,
+                                       GError** e)
 {
-	SourceviewProvider* provider = SOURCEVIEW_PROVIDER (iprov);
-	return ianjuta_language_provider_get_name (provider->iprov, e);
+	return ianjuta_language_provider_get_name (iprov, e);
 }
-//------  END  --------
+
+static void
+sourceview_provider_anjuta_iface_init (IAnjutaProviderIface* provider)
+{
+	provider->activate = sourceview_provider_language_activate;
+	provider->populate = sourceview_provider_language_populate;
+	provider->get_start_iter = sourceview_provider_language_get_start_iter;
+	provider->get_name = sourceview_provider_language_get_name;
+}
 
 static void
 sourceview_provider_init (SourceviewProvider *object)
@@ -505,26 +519,27 @@ sourceview_provider_init (SourceviewProvider *object)
 static void
 sourceview_provider_finalize (GObject *obj)
 {
-	SourceviewProvider* prov = OURCEVIEW_PROVIDER (obj);
+	SourceviewProvider* prov = SOURCEVIEW_PROVIDER (obj);
 	sourceview_provider_clear_calltip_context (prov);
-	g_free (provider->priv);
+	g_free (prov->priv);
 	
 	/* Finalization codes here */
-	//TODO:
 	G_OBJECT_CLASS (parent_class)->finalize (obj);
 }
 
 static void
 sourceview_provider_dispose (GObject* obj)
 {
-
+	G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
 
 static void
 sourceview_provider_class_init (SourceviewProviderClass *klass)
 {
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
-	//TODO:
+	
+	parent_class = g_type_class_peek_parent (klass);
+	
 	object_class->finalize = sourceview_provider_finalize;
 	object_class->dispose = sourceview_provider_dispose;
 }
