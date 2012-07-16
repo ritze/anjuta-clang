@@ -55,13 +55,16 @@
 #define SCOPE_CONTEXT_CHARACTERS ".0"
 #define WORD_CHARACTER "_0"
 
-static void python_assist_iface_init(IAnjutaLanguageProviderIface* iface);
+static void iprovider_iface_init(IAnjutaProviderIface* iface);
+static void ilanguage_provider_iface_init(IAnjutaLanguageProviderIface* iface);
 
 G_DEFINE_TYPE_WITH_CODE (PythonAssist,
                          python_assist,
                          G_TYPE_OBJECT,
+                         G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_PROVIDER,
+			                                    iprovider_iface_init)
                          G_IMPLEMENT_INTERFACE (IANJUTA_TYPE_LANGUAGE_PROVIDER,
-			                                    python_assist_iface_init))
+			                                    ilanguage_provider_iface_init))
 
 struct _PythonAssistPriv {
 	GSettings* settings;
@@ -717,14 +720,19 @@ python_assist_new (IAnjutaEditor *ieditor,
 }
 
 static void
-python_assist_iface_init (IAnjutaLanguageProviderIface* iface)
+iprovider_iface_init (IAnjutaProviderIface* iface)
 {
 	iface->activate          = anjuta_language_provider_activate;
 	iface->populate          = anjuta_language_provider_populate;
 	iface->get_start_iter    = anjuta_language_provider_get_start_iter;
 	iface->get_name          = anjuta_language_provider_get_name;
+}
+
+static void
+ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
+{
 	iface->language_populate = python_assist_populate;
 	iface->clear_context     = python_assist_clear_calltip_context_interface;
 	iface->query             = python_assist_query_calltip;
 	iface->get_context       = python_assist_get_calltip_context;
-} GSettings* settings);
+}

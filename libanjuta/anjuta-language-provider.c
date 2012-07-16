@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * anjuta-provider-utils.c
+ * anjuta-language-provider.c
  * Copyright (C) Naba Kumar  <naba@gnome.org>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,6 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include <ctype.h>
 #include <string.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-utils.h>
@@ -36,7 +37,7 @@
 static void
 anjuta_language_provider_clear_calltip_context (AnjutaLanguageProvider* lang_prov);
 
-TODO: G_DEFINE_TYPE (AnjutaLanguageProvider, anjuta_language_provider, G_TYPE_OBJECT);
+G_DEFINE_TYPE (AnjutaLanguageProvider, anjuta_language_provider, G_TYPE_OBJECT);
 
 struct _AnjutaLanguageProviderPriv {
 	GSettings* settings;
@@ -108,7 +109,7 @@ anjuta_language_provider_finalize (GObject *object)
 }
 
 static void
-anjuta_language_provider_class_init (AnjutaLanguageProvider *klass)
+anjuta_language_provider_class_init (AnjutaLanguageProviderClass *klass)
 {
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
 	object_class->finalize = anjuta_language_provider_finalize;
