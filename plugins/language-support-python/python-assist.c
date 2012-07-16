@@ -67,6 +67,7 @@ struct _PythonAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
+	AnjutaLanguageProvider* lang_prov;
 	AnjutaLauncher* launcher;
 	AnjutaLauncher* calltip_launcher;	
 	AnjutaPlugin* plugin;
@@ -533,6 +534,7 @@ python_assist_clear_calltip_context_interface (IAnjutaLanguageProvider* self,
 	python_assist_clear_calltip_context (assist);
 }
 
+//TODO:
 static gchar*
 python_assist_get_calltip_context (IAnjutaLanguageProvider *self,
                                    IAnjutaIterable *iter,
@@ -540,7 +542,7 @@ python_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = anjuta_provider_util_get_calltip_context (
+	calltip_context = anjuta_language_provider_get_calltip_context (
 	                     assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
 	return calltip_context;
 }
@@ -580,7 +582,7 @@ python_assist_populate (IAnjutaLanguageProvider* self, IAnjutaIterable* cursor, 
 	gchar* pre_word;
 	gboolean completion_trigger_char;
 	
-	pre_word = anjuta_provider_util_get_pre_word (
+	pre_word = anjuta_language_provider_get_pre_word (
 	                                   IANJUTA_EDITOR (assist->priv->iassist),
 	                                   cursor, &start_iter, WORD_CHARACTER);
 
@@ -627,30 +629,6 @@ python_assist_populate (IAnjutaLanguageProvider* self, IAnjutaIterable* cursor, 
 	return NULL;
 }
 
-static gboolean
-python_assist_get_boolean (IAnjutaLanguageProvider* self,
-                           const gchar* setting,
-                           GError** e)
-{
-g_warning ("python_assist_get_boolean");
-	PythonAssist* assist = PYTHON_ASSIST (self);
-	
-	return g_settings_get_boolean (assist->priv->settings, setting);
-}
-
-static IAnjutaEditor*
-python_assist_get_editor (IAnjutaLanguageProvider* self, GError** e)
-{
-	PythonAssist* assist = PYTHON_ASSIST (self);
-	return IANJUTA_EDITOR (assist->priv->iassist);
-}
-
-static const gchar*
-python_assist_get_name (IAnjutaLanguageProvider* provider, GError** e)
-{
-	return _("Python");
-}
-
 static void 
 python_assist_install (PythonAssist *assist,
                        IAnjutaEditor *ieditor)
@@ -691,7 +669,7 @@ python_assist_uninstall (PythonAssist *assist)
 	{
 		g_signal_handlers_disconnect_by_func (assist->priv->iassist, python_assist_cancelled, assist);
 	}
-
+	
 	assist->priv->iassist = NULL;
 }
 
@@ -734,6 +712,7 @@ python_assist_new (IAnjutaEditor *ieditor,
 		
 	/* Install support */
 	python_assist_install (assist, ieditor);
+	assist->priv->lang_prov = anjuta_language_provider_new (ieditor, settings);
 	return assist;
 }
 
@@ -743,11 +722,9 @@ python_assist_iface_init (IAnjutaLanguageProviderIface* iface)
 	iface->activate          = anjuta_language_provider_activate;
 	iface->populate          = anjuta_language_provider_populate;
 	iface->get_start_iter    = anjuta_language_provider_get_start_iter;
-	iface->get_name          = python_assist_get_name;
+	iface->get_name          = anjuta_language_provider_get_name;
 	iface->language_populate = python_assist_populate;
 	iface->clear_context     = python_assist_clear_calltip_context_interface;
 	iface->query             = python_assist_query_calltip;
 	iface->get_context       = python_assist_get_calltip_context;
-	iface->get_boolean       = python_assist_get_boolean;
-	iface->get_editor        = python_assist_get_editor;
-}
+} GSettings* settings);

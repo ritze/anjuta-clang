@@ -25,12 +25,13 @@
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-iterable.h>
+#include <libanjuta/interfaces/ianjuta-provider.h>
 
 G_BEGIN_DECLS
 
 #define ANJUTA_TYPE_LANGUAGE_PROVIDER             (anjuta_language_provider_get_type ())
-#define ANJUTA_LANGUAGE_PROVIDER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), ANJUTA_TYPE_LANGUAGE_PROVIDER, AnjutaProviderUtils))
-#define ANJUTA_LANGUAGE_PROVIDER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), ANJUTA_TYPE_LANGUAGE_PROVIDER, AnjutaProviderUtilsClass))
+#define ANJUTA_LANGUAGE_PROVIDER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), ANJUTA_TYPE_LANGUAGE_PROVIDER, AnjutaLanguageProvider))
+#define ANJUTA_LANGUAGE_PROVIDER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), ANJUTA_TYPE_LANGUAGE_PROVIDER, AnjutaLanguageProviderClass))
 #define ANJUTA_IS_LANGUAGE_PROVIDER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), ANJUTA_TYPE_LANGUAGE_PROVIDER))
 #define ANJUTA_IS_LANGUAGE_PROVIDER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), ANJUTA_TYPE_LANGUAGE_PROVIDER))
 #define ANJUTA_LANGUAGE_PROVIDER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), ANJUTA_TYPE_LANGUAGE_PROVIDER, AnjutaLanguageProviderClass))
@@ -42,7 +43,7 @@ typedef struct _AnjutaLanguageProviderPriv AnjutaLanguageProviderPriv;
 struct _AnjutaLanguageProviderClass
 {
 	GObjectClass parent_class;
-}
+};
 
 struct _AnjutaLanguageProvider
 {
@@ -53,27 +54,39 @@ struct _AnjutaLanguageProvider
 
 GType anjuta_language_provider_get_type (void) G_GNUC_CONST;
 
-gchar*		anjuta_language_provider_get_pre_word			(IAnjutaEditor* editor,
-                                                             IAnjutaIterable *iter,
-                                                             IAnjutaIterable** start_iter,
-                                                             const gchar *word_characters);
+AnjutaLanguageProvider* 
+anjuta_language_provider_new					(IAnjutaEditor *ieditor,
+                                                 GSettings* settings);
 
-gchar*		anjuta_language_provider_get_calltip_context	(IAnjutaEditorTip* itip,
-                                                             IAnjutaIterable* iter,
-                                                             const gchar* scope_context_characters);
+gchar*
+anjuta_language_provider_get_pre_word			(IAnjutaEditor* editor,
+                                                 IAnjutaIterable *iter,
+                                                 IAnjutaIterable** start_iter,
+                                                 const gchar *word_characters);
 
-void	anjuta_language_provider_activate					(IAnjutaProvider* iprov,
-                                                             IAnjutaIterable* iter,
-                                                             gpointer data,
-                                                             GError** e);
+gchar*
+anjuta_language_provider_get_calltip_context	(IAnjutaEditorTip* itip,
+                                                 IAnjutaIterable* iter,
+                                                 const gchar* scope_context_ch);
 
-void	anjuta_language_provider_populate					(IAnjutaProvider* provider,
-                                                             IAnjutaIterable* cursor,
-                                                             GError** e);
+void
+anjuta_language_provider_activate				(IAnjutaProvider* iprov,
+                                                 IAnjutaIterable* iter,
+                                                 gpointer data,
+                                                 GError** e);
+
+void
+anjuta_language_provider_populate				(IAnjutaProvider* provider,
+                                                 IAnjutaIterable* cursor,
+                                                 GError** e);
 
 IAnjutaIterable*
-anjuta_language_provider_get_start_iter						(IAnjutaProvider* provider,
-                                                             GError** e);
+anjuta_language_provider_get_start_iter			(IAnjutaProvider* provider,
+                                                 GError** e);
+
+const gchar*
+anjuta_language_provider_get_name				(IAnjutaProvider* provider,
+                                                 GError** e);
 
 G_END_DECLS
 

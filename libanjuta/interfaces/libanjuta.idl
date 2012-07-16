@@ -2753,14 +2753,6 @@ interface IAnjutaProvider
 		IAnjutaIterable* language_populate(IAnjutaIterable* iter);
 		 
 		/**
-		 * ianjuta_language_provider_get_editor:
-		 * @obj: Self
-		 *
-		 * Return the editor for the provider
-		 */
-		IAnjutaEditor* get_editor();
-		 
-		/**
 		 * ianjuta_language_provider_get_context:
 		 * @obj: Self
 		 * @iter: current cursor position
@@ -2771,16 +2763,6 @@ interface IAnjutaProvider
 		 * Returns: name of the method to show a calltip for or NULL
 		 */
 		gchar* get_context (IAnjutaIterable* iter);
-		 
-		/**
-		 * ianjuta_language_provider_get_boolean:
-		 * @obj: Self
-		 * @setting: the setting
-		 * @err: Error propagation
-		 *
-		 * Returns: TRUE if the setting is set, otherwise FALSE
-		 */
-		gboolean get_boolean (const gchar* setting);
 		 
 		/**
 		 * ianjuta_language_provider_clear_context:
