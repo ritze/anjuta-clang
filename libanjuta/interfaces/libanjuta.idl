@@ -2750,7 +2750,7 @@ interface IAnjutaProvider
 		 *
 		 * Returns: the iter where the provider populated, NULL otherwise
 		 */
-		IAnjutaIterable* language_populate(IAnjutaIterable* iter);
+		IAnjutaIterable* populate_language(IAnjutaIterable* iter);
 		 
 		/**
 		 * ianjuta_language_provider_get_context:

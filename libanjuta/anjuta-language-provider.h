@@ -70,23 +70,18 @@ anjuta_language_provider_get_calltip_context	(IAnjutaEditorTip* itip,
                                                  const gchar* scope_context_ch);
 
 void
-anjuta_language_provider_activate				(IAnjutaProvider* iprov,
+anjuta_language_provider_activate				(AnjutaLanguageProvider* lang_prov,
+                                                 IAnjutaProvider* iprov,
                                                  IAnjutaIterable* iter,
-                                                 gpointer data,
-                                                 GError** e);
+                                                 gpointer data);
 
 void
-anjuta_language_provider_populate				(IAnjutaProvider* provider,
-                                                 IAnjutaIterable* cursor,
-                                                 GError** e);
+anjuta_language_provider_populate				(AnjutaLanguageProvider* lang_prov,
+                                                 IAnjutaProvider* provider,
+                                                 IAnjutaIterable* cursor);
 
 IAnjutaIterable*
-anjuta_language_provider_get_start_iter			(IAnjutaProvider* provider,
-                                                 GError** e);
-
-const gchar*
-anjuta_language_provider_get_name				(IAnjutaProvider* provider,
-                                                 GError** e);
+anjuta_language_provider_get_start_iter			(AnjutaLanguageProvider* lang_prov);
 
 G_END_DECLS
 

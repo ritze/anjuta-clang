@@ -25,7 +25,6 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
-#include <libanjuta/interfaces/ianjuta-editor-language.h>
 #include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
@@ -54,17 +53,13 @@ struct _AnjutaLanguageProviderPriv {
 };
 
 static void 
-anjuta_language_provider_install (AnjutaLanguageProvider *lang_prov, IAnjutaEditor *ieditor)
+anjuta_language_provider_install (AnjutaLanguageProvider *lang_prov,
+                                  IAnjutaEditor *ieditor)
 {
 	g_return_if_fail (lang_prov->priv->iassist == NULL);
 
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
-	{
 		lang_prov->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
-		//TODO:
-//		ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST (ieditor), IANJUTA_PROVIDER(assist), NULL);
-		//g_signal_connect (ieditor, "cancelled", G_CALLBACK (python_assist_cancelled), assist);
-	}
 	else
 		lang_prov->priv->iassist = NULL;
 
@@ -78,12 +73,6 @@ static void
 anjuta_language_provider_uninstall (AnjutaLanguageProvider *lang_prov)
 {
 	g_return_if_fail (lang_prov->priv->iassist != NULL);
-
-	if (IANJUTA_EDITOR_ASSIST (lang_prov->priv->iassist))
-	{
-		//TODO:
-		//g_signal_handlers_disconnect_by_func (assist->priv->iassist, python_assist_cancelled, assist);
-	}
 
 	lang_prov->priv->iassist = NULL;
 }
@@ -116,7 +105,8 @@ anjuta_language_provider_class_init (AnjutaLanguageProviderClass *klass)
 }
 
 AnjutaLanguageProvider* 
-anjuta_language_provider_new (IAnjutaEditor *ieditor, GSettings* settings)
+anjuta_language_provider_new (IAnjutaEditor *ieditor,
+                              GSettings* settings)
 {
 	AnjutaLanguageProvider *lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
 	lang_prov->priv->settings = settings;
@@ -475,20 +465,17 @@ static void
 anjuta_language_provider_none (AnjutaLanguageProvider* lang_prov,
                                IAnjutaProvider * provider)
 {
-g_warning ("anjuta_language_provider_none");
-	if (IANJUTA_IS_EDITOR_ASSIST (lang_prov->priv->iassist))
-		ianjuta_editor_assist_proposals (lang_prov->priv->iassist, provider,
-		                                 NULL, NULL, TRUE, NULL);
+	ianjuta_editor_assist_proposals (lang_prov->priv->iassist, provider, NULL,
+	                                 NULL, TRUE, NULL);
 }
 
 void
-anjuta_language_provider_activate (IAnjutaProvider* provider,
+anjuta_language_provider_activate (AnjutaLanguageProvider* lang_prov,
+                                   IAnjutaProvider* provider,
                                    IAnjutaIterable* iter,
-                                   gpointer data,
-                                   GError** e)
+                                   gpointer data)
 {
 g_warning ("anjuta_language_provider_activate");
-	AnjutaLanguageProvider* lang_prov = ANJUTA_LANGUAGE_PROVIDER (provider);
 	IAnjutaLanguageProviderProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *editor = IANJUTA_EDITOR (lang_prov->priv->iassist);
@@ -570,7 +557,7 @@ g_warning ("anjuta_language_provider_activate");
 	if (add_brace_after_func)
 	{
 		/* Check for calltip */
-		if (IANJUTA_IS_EDITOR_TIP (editor)
+		if (lang_prov->priv->itip
 		    && g_settings_get_boolean (lang_prov->priv->settings,
 		                        IANJUTA_LANGUAGE_PROVIDER_PREF_CALLTIP_ENABLE))
 		{
@@ -588,13 +575,8 @@ g_warning ("anjuta_language_provider_activate");
 					g_free (args);
 				}
 		    */
-		    if (IANJUTA_IS_LANGUAGE_PROVIDER (provider))
-		    {
-//TODO: work this?
-g_warning ("IANJUTA_IS_LANGUAGE_PROVIDER (provider)");
-				anjuta_language_provider_calltip (
+			anjuta_language_provider_calltip (
 				            lang_prov, IANJUTA_LANGUAGE_PROVIDER (provider));
-		    }
 		}
 
 	}
@@ -602,15 +584,12 @@ g_warning ("IANJUTA_IS_LANGUAGE_PROVIDER (provider)");
 }
 
 void
-anjuta_language_provider_populate (IAnjutaProvider* provider,
-                                   IAnjutaIterable* cursor,
-                                   GError** e)
+anjuta_language_provider_populate (AnjutaLanguageProvider* lang_prov,
+                                   IAnjutaProvider* provider,
+                                   IAnjutaIterable* cursor)
 {
 g_warning ("anjuta_language_provider_populate");
-	AnjutaLanguageProvider* lang_prov;
 	IAnjutaIterable *start_iter;
-	
-	lang_prov = ANJUTA_LANGUAGE_PROVIDER (provider);
 
 	/* Check if we actually want autocompletion at all */
 	if (!g_settings_get_boolean (lang_prov->priv->settings,
@@ -623,7 +602,7 @@ g_warning ("anjuta_language_provider_populate");
 	/* Check if this is a valid text region for completion */
 	IAnjutaEditorAttribute attrib = ianjuta_editor_cell_get_attribute (
 	                                        IANJUTA_EDITOR_CELL(cursor), NULL);
-	if (attrib == IANJUTA_EDITOR_COMMENT /*TODO: || attrib == IANJUTA_EDITOR_STRING*/)
+	if (attrib == IANJUTA_EDITOR_COMMENT || attrib == IANJUTA_EDITOR_STRING)
 	{
 		anjuta_language_provider_none (lang_prov, provider);
 		return;
@@ -638,7 +617,7 @@ g_warning ("anjuta_language_provider_populate");
 	}
 	
 	/* Execute language-specific part */
-	start_iter = ianjuta_language_provider_language_populate (
+	start_iter = ianjuta_language_provider_populate_language (
 	                     IANJUTA_LANGUAGE_PROVIDER (provider), cursor, NULL);
 	if (start_iter)
 	{
@@ -657,19 +636,8 @@ g_warning ("anjuta_language_provider_populate");
 	anjuta_language_provider_none (lang_prov, provider);
 }
 
-const gchar*
-anjuta_language_provider_get_name (IAnjutaProvider* provider, GError** e)
-{
-g_warning ("anjuta_language_provider_language_get_name");
-	AnjutaLanguageProvider* lang_prov = ANJUTA_LANGUAGE_PROVIDER (provider);
-	IAnjutaEditorLanguage* lang = IANJUTA_EDITOR_LANGUAGE (lang_prov->priv->iassist);
-	return ianjuta_editor_language_get_language (lang, NULL);
-}
-
 IAnjutaIterable*
-anjuta_language_provider_get_start_iter (IAnjutaProvider* provider, GError** e)
+anjuta_language_provider_get_start_iter (AnjutaLanguageProvider* lang_prov)
 {
-g_warning ("anjuta_language_provider_language_get_start_iter");
-	AnjutaLanguageProvider* lang_prov = ANJUTA_LANGUAGE_PROVIDER (provider);
 	return lang_prov->priv->start_iter;
 }

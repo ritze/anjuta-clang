@@ -578,7 +578,9 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 }
 
 static IAnjutaIterable*
-python_assist_populate (IAnjutaLanguageProvider* self, IAnjutaIterable* cursor, GError** e)
+python_assist_populate_language (IAnjutaLanguageProvider* self,
+                                 IAnjutaIterable* cursor,
+                                 GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
@@ -671,6 +673,7 @@ python_assist_uninstall (PythonAssist *assist)
 	if (IANJUTA_EDITOR_ASSIST (assist->priv->iassist))
 	{
 		g_signal_handlers_disconnect_by_func (assist->priv->iassist, python_assist_cancelled, assist);
+		ianjuta_editor_assist_remove (assist->priv->iassist, IANJUTA_PROVIDER(assist), NULL);
 	}
 	
 	assist->priv->iassist = NULL;
@@ -720,18 +723,53 @@ python_assist_new (IAnjutaEditor *ieditor,
 }
 
 static void
+python_assist_activate (IAnjutaProvider* self,
+                        IAnjutaIterable* iter,
+                        gpointer data,
+                        GError** e)
+{
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	anjuta_language_provider_activate (assist->priv->lang_prov, self, iter,
+	                                   data);
+}
+
+static void
+python_assist_populate (IAnjutaProvider* self,
+                        IAnjutaIterable* cursor,
+                        GError** e)
+{
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	anjuta_language_provider_populate (assist->priv->lang_prov, self, cursor);
+}
+
+static const gchar*
+python_assist_get_name (IAnjutaProvider* self,
+                        GError** e)
+{
+	return _("Python");
+}
+
+static IAnjutaIterable*
+python_assist_get_start_iter (IAnjutaProvider* self,
+                              GError** e)
+{
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	return anjuta_language_provider_get_start_iter (assist->priv->lang_prov);
+}
+
+static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->activate          = anjuta_language_provider_activate;
-	iface->populate          = anjuta_language_provider_populate;
-	iface->get_start_iter    = anjuta_language_provider_get_start_iter;
-	iface->get_name          = anjuta_language_provider_get_name;
+	iface->activate          = python_assist_activate;
+	iface->populate          = python_assist_populate;
+	iface->get_name          = python_assist_get_name;
+	iface->get_start_iter    = python_assist_get_start_iter;
 }
 
 static void
 ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
-	iface->language_populate = python_assist_populate;
+	iface->populate_language = python_assist_populate_language;
 	iface->clear_context     = python_assist_clear_calltip_context_interface;
 	iface->query             = python_assist_query_calltip;
 	iface->get_context       = python_assist_get_calltip_context;

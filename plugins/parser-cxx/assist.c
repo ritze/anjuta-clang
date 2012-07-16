@@ -477,7 +477,6 @@ static IAnjutaIterable*
 parser_cxx_assist_create_member_completion_cache (ParserCxxAssist* assist,
                                                   IAnjutaIterable* cursor)
 {
-g_warning ("parser_cxx_assist_create_member_completion_cache");
 	IAnjutaIterable* symbol = NULL;
 	IAnjutaIterable* start_iter = NULL;
 	symbol = parser_cxx_assist_parse_expression (assist, cursor, &start_iter);
@@ -555,7 +554,6 @@ static IAnjutaIterable*
 parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist,
                                                IAnjutaIterable* cursor)
 {
-g_warning ("parser_cxx_assist_create_autocompletion_cache");
 	IAnjutaIterable* start_iter;
 	gchar* pre_word = anjuta_language_provider_get_pre_word (
                                       IANJUTA_EDITOR (assist->priv->iassist),
@@ -609,7 +607,6 @@ g_warning ("parser_cxx_assist_create_autocompletion_cache");
  *
  * Returns: name of the method to show a calltip for or NULL
  */
-//TODO:
 static gchar*
 parser_cxx_assist_get_calltip_context (IAnjutaLanguageProvider *self,
                                        IAnjutaIterable *iter,
@@ -785,7 +782,6 @@ g_warning ("parser_cxx_assist_query_calltip");
 static void
 parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 {
-g_warning ("parser_cxx_assist_clear_calltip_context");
 	ianjuta_symbol_query_cancel (assist->priv->calltip_query_file, NULL);
 	ianjuta_symbol_query_cancel (assist->priv->calltip_query_project, NULL);
 	ianjuta_symbol_query_cancel (assist->priv->calltip_query_system, NULL);
@@ -793,7 +789,6 @@ g_warning ("parser_cxx_assist_clear_calltip_context");
 	assist->priv->async_calltip_file = 0;
 	assist->priv->async_calltip_project = 0;
 	assist->priv->async_calltip_system = 0;
-g_warning ("parser_cxx_assist_clear_calltip_context: works");
 }
 
 static void
@@ -819,11 +814,11 @@ parser_cxx_assist_cancelled (IAnjutaEditorAssist* iassist,
 }
 
 static IAnjutaIterable*
-parser_cxx_assist_populate (IAnjutaLanguageProvider* self,
-                            IAnjutaIterable* cursor,
-                            GError** e)
+parser_cxx_assist_populate_language (IAnjutaLanguageProvider* self,
+                                     IAnjutaIterable* cursor,
+                                     GError** e)
 {
-g_warning ("parser_cxx_populate");
+g_warning ("parser_cxx_populate_language");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
 	
@@ -878,7 +873,6 @@ static void
 parser_cxx_assist_install (ParserCxxAssist *assist,
                            IAnjutaEditor *ieditor)
 {
-g_warning ("parser_cxx_assist_install");
 	g_return_if_fail (assist->priv->iassist == NULL);
 
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
@@ -907,8 +901,6 @@ g_warning ("parser_cxx_assist_install");
 			g_object_unref (file);
 		}
 	}
-
-g_warning ("parser_cxx_assist_install: works");
 }
 
 /**
@@ -920,27 +912,23 @@ g_warning ("parser_cxx_assist_install: works");
 static void
 parser_cxx_assist_uninstall (ParserCxxAssist *assist)
 {
-g_warning ("parser_cxx_assist_uninstall");
 	g_return_if_fail (assist->priv->iassist != NULL);
 	
 	g_signal_handlers_disconnect_by_func (assist->priv->iassist,
 	                                      parser_cxx_assist_cancelled, assist);
+	ianjuta_editor_assist_remove (assist->priv->iassist, IANJUTA_PROVIDER(assist), NULL);
 	assist->priv->iassist = NULL;
-g_warning ("parser_cxx_assist_uninstall: works");
 }
 
 static void
 parser_cxx_assist_init (ParserCxxAssist *assist)
 {
-g_warning ("parser_cxx_assist_init");
 	assist->priv = g_new0 (ParserCxxAssistPriv, 1);
-g_warning ("parser_cxx_assist_init: works");
 }
 
 static void
 parser_cxx_assist_finalize (GObject *object)
 {
-g_warning ("parser_cxx_assist_finalize");
 	ParserCxxAssist *assist = PARSER_CXX_ASSIST (object);
 	ParserCxxAssistPriv* priv = assist->priv;
 	
@@ -993,17 +981,14 @@ g_warning ("parser_cxx_assist_finalize");
 	
 	g_free (assist->priv);
 	G_OBJECT_CLASS (parser_cxx_assist_parent_class)->finalize (object);
-g_warning ("parser_cxx_assist_finalize: works");
 }
 
 static void
 parser_cxx_assist_class_init (ParserCxxAssistClass *klass)
 {
-g_warning ("parser_cxx_assist_class_init");
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
 
 	object_class->finalize = parser_cxx_assist_finalize;
-g_warning ("parser_cxx_assist_class_init: works");
 }
 
 ParserCxxAssist *
@@ -1223,25 +1208,59 @@ parser_cxx_assist_new (IAnjutaEditor *ieditor,
 	/* Install support */
 	parser_cxx_assist_install (assist, ieditor);
 	assist->priv->lang_prov = anjuta_language_provider_new (ieditor, settings);
-
 	engine_parser_init (isymbol_manager);
 	
 	return assist;
 }
 
 static void
+parser_cxx_assist_activate (IAnjutaProvider* self,
+                            IAnjutaIterable* iter,
+                            gpointer data,
+                            GError** e)
+{
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	anjuta_language_provider_activate (assist->priv->lang_prov, self, iter,
+	                                   data);
+}
+
+static void
+parser_cxx_assist_populate (IAnjutaProvider* self,
+                            IAnjutaIterable* cursor,
+                            GError** e)
+{
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	anjuta_language_provider_populate (assist->priv->lang_prov, self, cursor);
+}
+
+static const gchar*
+parser_cxx_assist_get_name (IAnjutaProvider* self,
+                            GError** e)
+{
+	return _("C/C++");
+}
+
+static IAnjutaIterable*
+parser_cxx_assist_get_start_iter (IAnjutaProvider* self,
+                                  GError** e)
+{
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	return anjuta_language_provider_get_start_iter (assist->priv->lang_prov);
+}
+
+static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->activate          = anjuta_language_provider_activate;
-	iface->populate          = anjuta_language_provider_populate;
-	iface->get_start_iter    = anjuta_language_provider_get_start_iter;
-	iface->get_name          = anjuta_language_provider_get_name;
+	iface->activate          = parser_cxx_assist_activate;
+	iface->populate          = parser_cxx_assist_populate;
+	iface->get_name          = parser_cxx_assist_get_name;
+	iface->get_start_iter    = parser_cxx_assist_get_start_iter;
 }
 
 static void
 ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
-	iface->language_populate = parser_cxx_assist_populate;
+	iface->populate_language = parser_cxx_assist_populate_language;
 	iface->clear_context     = parser_cxx_assist_clear_calltip_context_interface;
 	iface->query             = parser_cxx_assist_query_calltip;
 	iface->get_context       = parser_cxx_assist_get_calltip_context;
