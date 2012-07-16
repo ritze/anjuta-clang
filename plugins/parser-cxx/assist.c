@@ -64,6 +64,7 @@ struct _ParserCxxAssistPriv {
 
 	/* Calltips */
 	GList* tips;
+	IAnjutaIterable* calltip_iter;
 	
 	gint async_calltip_file;
 	gint async_calltip_system;
@@ -722,11 +723,9 @@ g_warning ("on_calltip_search_complete");
 	if (!running && assist->priv->tips)
 	{
 		//TODO: show calltip and save tips for searching in the future
-		IAnjutaIterable *test_iter = ianjuta_editor_get_position (
-		                                 IANJUTA_EDITOR (assist->priv->iassist),
-		                                 NULL);
 		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip),
-		                         assist->priv->tips, test_iter, NULL);
+		                         assist->priv->tips, assist->priv->calltip_iter,
+		                         NULL);
 	}
 }
 
@@ -741,10 +740,12 @@ g_warning ("on_calltip_search_complete");
 static void
 parser_cxx_assist_query_calltip (IAnjutaLanguageProvider *self,
                                  const gchar *call_context,
+                                 IAnjutaIterable* calltip_iter,
                                  GError** e)
 {
 g_warning ("parser_cxx_assist_query_calltip");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	assist->priv->calltip_iter = calltip_iter;
 	
 	/* Search file */
 	if (IANJUTA_IS_FILE (assist->priv->itip))
@@ -789,6 +790,10 @@ parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 	assist->priv->async_calltip_file = 0;
 	assist->priv->async_calltip_project = 0;
 	assist->priv->async_calltip_system = 0;
+	
+	if (assist->priv->calltip_iter)
+		g_object_unref (assist->priv->calltip_iter);
+	assist->priv->calltip_iter = NULL;
 }
 
 static void
@@ -842,21 +847,28 @@ g_warning ("parser_cxx_populate_language");
 		}			
 		g_free (pre_word);
 	}
+g_warning ("parser_cxx_populate_language 1");
 	
 	parser_cxx_assist_clear_completion_cache (assist);
 	
 	/* Check for member completion */
 	start_iter = parser_cxx_assist_create_member_completion_cache (assist,
 	                                                               cursor);
+g_warning ("parser_cxx_populate_language 2");
 	if (start_iter)
+	{
+g_warning ("parser_cxx_populate_language 3");
 		assist->priv->member_completion = TRUE;
+	}
 	else
 	{
+g_warning ("parser_cxx_populate_language 4");
 		start_iter = parser_cxx_assist_create_autocompletion_cache (assist,
 		                                                            cursor);
 		if (start_iter)
 			assist->priv->autocompletion = TRUE;
 	}
+g_warning ("parser_cxx_populate_language 5");
 	
 	return start_iter;
 }
@@ -1262,6 +1274,6 @@ ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
 	iface->populate_language = parser_cxx_assist_populate_language;
 	iface->clear_context     = parser_cxx_assist_clear_calltip_context_interface;
-	iface->query             = parser_cxx_assist_query_calltip;
+	iface->query_calltip     = parser_cxx_assist_query_calltip;
 	iface->get_context       = parser_cxx_assist_get_calltip_context;
 }

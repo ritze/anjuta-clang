@@ -369,24 +369,6 @@ g_warning ("anjuta_language_provider_clear_calltip_context");
 }
 
 /**
- * anjuta_language_provider_create_calltip_context:
- * @lang_prov: self
- * @call_context: The context (method/function name)
- * @position: iter where to show calltips
- *
- * Create the calltip context
- */
-static void
-anjuta_language_provider_create_calltip_context (AnjutaLanguageProvider* lang_prov,
-                                                 const gchar* call_context,
-                                                 IAnjutaIterable* position)
-{
-g_warning ("anjuta_language_provider_create_calltip_context");
-	lang_prov->priv->calltip_context = g_strdup (call_context);
-	lang_prov->priv->calltip_iter = position;
-}
-
-/**
  * anjuta_language_provider_calltip:
  * @lang_prov: self
  * @provider: IAnjutaLanguageProvider object
@@ -436,9 +418,12 @@ g_warning ("anjuta_language_provider_calltip");
 				
 			ianjuta_language_provider_clear_context (provider, NULL);
 			anjuta_language_provider_clear_calltip_context (lang_prov);
-			anjuta_language_provider_create_calltip_context (lang_prov,
-			                                                 call_context, iter);
-			ianjuta_language_provider_query (provider, call_context, NULL);
+			lang_prov->priv->calltip_context = g_strdup (call_context);
+			lang_prov->priv->calltip_iter = iter;
+g_warning ("anjuta_language_provider_calltip 1");
+			ianjuta_language_provider_query_calltip (provider, call_context,
+			                                         iter, NULL);
+g_warning ("anjuta_language_provider_calltip 2");
 		}
 		
 		g_free (call_context);
@@ -626,7 +611,7 @@ g_warning ("anjuta_language_provider_populate");
 		lang_prov->priv->start_iter = start_iter;
 		return;
 	}
-
+	
 	/* Nothing to propose */
 	if (lang_prov->priv->start_iter)
 	{

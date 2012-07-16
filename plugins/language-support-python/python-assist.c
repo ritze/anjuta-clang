@@ -86,6 +86,7 @@ struct _PythonAssistPriv {
 	GString* rope_cache;
 
 	/* Calltips */
+	IAnjutaIterable* calltip_iter;
 	GString* calltip_cache;
 };
 
@@ -475,10 +476,13 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 static void
 python_assist_query_calltip (IAnjutaLanguageProvider *self,
                              const gchar *call_context,
+                             IAnjutaIterable* calltip_iter,
                              GError** e)
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
+	
+	assist->priv->calltip_iter = calltip_iter;
 	gint offset = python_assist_get_calltip_context_position (assist);
 	
 	gchar *interpreter_path;
@@ -527,6 +531,10 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 		g_object_unref (assist->priv->calltip_launcher);
 	}	
 	assist->priv->calltip_launcher = NULL;
+	
+	if (assist->priv->calltip_iter)
+		g_object_unref (assist->priv->calltip_iter);
+	assist->priv->calltip_iter = NULL;
 }
 
 static void
@@ -771,6 +779,6 @@ ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
 	iface->populate_language = python_assist_populate_language;
 	iface->clear_context     = python_assist_clear_calltip_context_interface;
-	iface->query             = python_assist_query_calltip;
+	iface->query_calltip     = python_assist_query_calltip;
 	iface->get_context       = python_assist_get_calltip_context;
 }

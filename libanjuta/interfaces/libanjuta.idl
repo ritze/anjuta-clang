@@ -2737,7 +2737,7 @@ interface IAnjutaProvider
 		}
 		
 		/**
-		 * ianjuta_language_provider_populate:
+		 * ianjuta_language_provider_populate_language:
 		 * @obj: Self
 		 * @iter: the text iter where the provider should be populated
 		 * @err: Error propagation and reporting.
@@ -2750,7 +2750,7 @@ interface IAnjutaProvider
 		 *
 		 * Returns: the iter where the provider populated, NULL otherwise
 		 */
-		IAnjutaIterable* populate_language(IAnjutaIterable* iter);
+		IAnjutaIterable* populate_language (IAnjutaIterable* iter);
 		 
 		/**
 		 * ianjuta_language_provider_get_context:
@@ -2774,14 +2774,15 @@ interface IAnjutaProvider
 		void clear_context ();
 		 
 		/**
-		 * ianjuta_language_provider_query:
+		 * ianjuta_language_provider_query_calltip:
 		 * @obj: self
 		 * @call_context: name of method/function
+		 * @position: iter where to show calltips
 		 * @err: Error propagation
 		 *
 		 * Starts an async query for the calltip
 		 */
-		void query (const gchar *call_context);
+		void query_calltip (const gchar *call_context, IAnjutaIterable* position);
 	}
 }
 
