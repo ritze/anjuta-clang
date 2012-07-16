@@ -27,9 +27,10 @@
 #include <unistd.h>
 #include <glib/gi18n.h>
 #include <libanjuta/anjuta-debug.h>
+#include <libanjuta/anjuta-language-provider.h>
 #include <libanjuta/anjuta-launcher.h>
+#include <libanjuta/anjuta-plugin.h>
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/anjuta-language-provider-utils.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
@@ -39,8 +40,7 @@
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol.h>
-#include <libanjuta/interfaces/ianjuta-project-manager.h> 
-#include <libanjuta/anjuta-plugin.h>
+#include <libanjuta/interfaces/ianjuta-project-manager.h>
 #include "python-assist.h"
 
 #define PREF_INTERPRETER_PATH "interpreter-path"
@@ -540,7 +540,7 @@ python_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 {
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = anjuta_language_provider_util_get_calltip_context (
+	calltip_context = anjuta_provider_util_get_calltip_context (
 	                     assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
 	return calltip_context;
 }
@@ -580,9 +580,9 @@ python_assist_populate (IAnjutaLanguageProvider* self, IAnjutaIterable* cursor, 
 	gchar* pre_word;
 	gboolean completion_trigger_char;
 	
-	pre_word = anjuta_language_provider_util_get_pre_word (
-	                               IANJUTA_EDITOR (assist->priv->iassist),
-	                               cursor, &start_iter, WORD_CHARACTER);
+	pre_word = anjuta_provider_util_get_pre_word (
+	                                   IANJUTA_EDITOR (assist->priv->iassist),
+	                                   cursor, &start_iter, WORD_CHARACTER);
 
 	DEBUG_PRINT ("Preword: %s", pre_word);
 	
@@ -740,11 +740,14 @@ python_assist_new (IAnjutaEditor *ieditor,
 static void
 python_assist_iface_init (IAnjutaLanguageProviderIface* iface)
 {
-	iface->populate       = python_assist_populate;
-	iface->clear_context  = python_assist_clear_calltip_context_interface;
-	iface->query          = python_assist_query_calltip;
-	iface->get_context    = python_assist_get_calltip_context;
-	iface->get_boolean    = python_assist_get_boolean;
-	iface->get_editor     = python_assist_get_editor;
-	iface->get_name       = python_assist_get_name;
+	iface->activate          = anjuta_language_provider_activate;
+	iface->populate          = anjuta_language_provider_populate;
+	iface->get_start_iter    = anjuta_language_provider_get_start_iter;
+	iface->get_name          = python_assist_get_name;
+	iface->language_populate = python_assist_populate;
+	iface->clear_context     = python_assist_clear_calltip_context_interface;
+	iface->query             = python_assist_query_calltip;
+	iface->get_context       = python_assist_get_calltip_context;
+	iface->get_boolean       = python_assist_get_boolean;
+	iface->get_editor        = python_assist_get_editor;
 }

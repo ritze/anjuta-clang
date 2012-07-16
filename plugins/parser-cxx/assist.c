@@ -26,8 +26,8 @@
 #include <ctype.h>
 #include <string.h>
 #include <libanjuta/anjuta-debug.h>
+#include <libanjuta/anjuta-language-provider.h>
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/anjuta-language-provider-utils.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
@@ -555,9 +555,9 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist, IAnjutaI
 {
 g_warning ("parser_cxx_assist_create_autocompletion_cache");
 	IAnjutaIterable* start_iter;
-	gchar* pre_word = anjuta_language_provider_util_get_pre_word (
-                          IANJUTA_EDITOR (assist->priv->iassist),
-	                      cursor, &start_iter, WORD_CHARACTER);
+	gchar* pre_word = anjuta_provider_util_get_pre_word (
+                                      IANJUTA_EDITOR (assist->priv->iassist),
+									  cursor, &start_iter, WORD_CHARACTER);
 	if (!pre_word || strlen (pre_word) <= 3)
 	{
 		if (start_iter)
@@ -612,7 +612,7 @@ parser_cxx_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 g_warning ("parser_cxx_assist_get_calltip_context");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = anjuta_language_provider_util_get_calltip_context (
+	calltip_context = anjuta_provider_util_get_calltip_context (
 	                      assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
 g_warning ("parser_cxx_assist_get_calltip_context: works");
 	return calltip_context;
@@ -816,9 +816,9 @@ g_warning ("parser_cxx_populate");
 	if (assist->priv->member_completion || assist->priv->autocompletion)
 	{
 		g_assert (assist->priv->completion_cache != NULL);
-		gchar* pre_word = anjuta_language_provider_util_get_pre_word (
-		                      IANJUTA_EDITOR (assist->priv->iassist),
-		                      cursor, &start_iter, WORD_CHARACTER);
+		gchar* pre_word = anjuta_provider_util_get_pre_word (
+		                              IANJUTA_EDITOR (assist->priv->iassist),
+		                              cursor, &start_iter, WORD_CHARACTER);
 		DEBUG_PRINT ("Preword: %s", pre_word);
 		if (pre_word && g_str_has_prefix (pre_word, assist->priv->pre_word))
 		{
@@ -1235,11 +1235,14 @@ g_warning ("parser_cxx_assist_new: works");
 static void
 parser_cxx_assist_iface_init (IAnjutaLanguageProviderIface* iface)
 {
-	iface->populate       = parser_cxx_assist_populate;
-	iface->clear_context  = parser_cxx_assist_clear_calltip_context_interface;
-	iface->query          = parser_cxx_assist_query_calltip;
-	iface->get_context    = parser_cxx_assist_get_calltip_context;
-	iface->get_boolean    = parser_cxx_assist_get_boolean;
-	iface->get_editor     = parser_cxx_assist_get_editor;
-	iface->get_name       = parser_cxx_assist_get_name;
+	iface->activate          = anjuta_language_provider_activate;
+	iface->populate          = anjuta_language_provider_populate;
+	iface->get_start_iter    = anjuta_language_provider_get_start_iter;
+	iface->get_name          = parser_cxx_assist_get_name;
+	iface->language_populate = parser_cxx_assist_populate;
+	iface->clear_context     = parser_cxx_assist_clear_calltip_context_interface;
+	iface->query             = parser_cxx_assist_query_calltip;
+	iface->get_context       = parser_cxx_assist_get_calltip_context;
+	iface->get_boolean       = parser_cxx_assist_get_boolean;
+	iface->get_editor        = parser_cxx_assist_get_editor;
 }

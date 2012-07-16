@@ -2683,42 +2683,42 @@ interface IAnjutaProvider
 		#include "ianjuta-editor.h"
 		#include "ianjuta-iterable.h"
 		#include "ianjuta-symbol.h"
-	
+		
 		/**
 		 * IANJUTA_LANGUAGE_PROVIDER_PREF_CALLTIP_ENABLE
 		 *
 		 * Boolean key, true is calltips has to be shown.
 		 */
 		 #define PREF_CALLTIP_ENABLE                      "calltip-enable"
-	
+		 
 		/**
 		 * IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_ENABLE
 		 *
 		 * Boolean key, true is code completion is enable.
 		 */
 		 #define PREF_AUTOCOMPLETE_ENABLE                 "completion-enable"
-	
+		 
 		/**
 		 * IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC
 		 *
 		 * Boolean key, true is adding a space after function call autocompletion
 		 */
 		 #define PREF_AUTOCOMPLETE_SPACE_AFTER_FUNC       "completion-space-after-func"
-	
+		 
 		/**
 		 * IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC
 		 *
 		 * Boolean key, true is adding '(' after function call autocompletion
 		 */
 		 #define PREF_AUTOCOMPLETE_BRACE_AFTER_FUNC       "completion-brace-after-func"
-	
+		 
 		/**
 		 * IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC
 		 *
 		 * Boolean key, true is adding ')' after function call autocompletion
 		 */
 		 #define PREF_AUTOCOMPLETE_CLOSEBRACE_AFTER_FUNC  "completion-closebrace-after-func"
-	
+		 
 		/**
 		 * IAnjutaLanguageProviderProposalData:
 		 * @name: Name of the object
@@ -2735,7 +2735,7 @@ interface IAnjutaProvider
 			gboolean has_para;
 			IAnjutaSymbolType type;
 		}
-	
+		
 		/**
 		 * ianjuta_language_provider_populate:
 		 * @obj: Self
@@ -2750,7 +2750,7 @@ interface IAnjutaProvider
 		 *
 		 * Returns: the iter where the provider populated, NULL otherwise
 		 */
-		IAnjutaIterable* populate(IAnjutaIterable* iter);
+		IAnjutaIterable* language_populate(IAnjutaIterable* iter);
 		 
 		/**
 		 * ianjuta_language_provider_get_editor:
@@ -2759,14 +2759,6 @@ interface IAnjutaProvider
 		 * Return the editor for the provider
 		 */
 		IAnjutaEditor* get_editor();
-
-		/**
-		 * ianjuta_language_provider_get_name:
-		 * @obj: Self
-		 *
-		 * Return a (translatable) name for the provider
-		 */
-		const gchar* get_name();
 		 
 		/**
 		 * ianjuta_language_provider_get_context:
