@@ -381,7 +381,6 @@ g_warning ("Searching calltip for: %s", call_context);
 			/* Continue tip */
 g_warning ("anjuta_language_provider_calltip: Continue tip");
 			if (!ianjuta_editor_tip_visible (tip, NULL))
-				//TODO: completion disable ==> calltip disable ?!?
 				ianjuta_editor_tip_show (tip, tips, iter, NULL);
 		}
 		else
@@ -573,11 +572,13 @@ g_warning ("anjuta_language_provider_populate");
 	/* Execute language-specific part */
 	start_iter = ianjuta_language_provider_populate_language (
 	                     IANJUTA_LANGUAGE_PROVIDER (provider), cursor, NULL);
+g_warning ("anjuta_language_provider_populate 1");
 	if (start_iter)
 	{
 		if (lang_prov->priv->start_iter)
 			g_object_unref (lang_prov->priv->start_iter);
 		lang_prov->priv->start_iter = start_iter;
+g_warning ("anjuta_language_provider_populate 2");
 		return;
 	}
 	
@@ -587,7 +588,9 @@ g_warning ("anjuta_language_provider_populate");
 		g_object_unref (lang_prov->priv->start_iter);
 		lang_prov->priv->start_iter = NULL;
 	}
+g_warning ("anjuta_language_provider_populate 3");
 	anjuta_language_provider_none (lang_prov, provider);
+g_warning ("anjuta_language_provider_populate 4");
 }
 
 IAnjutaIterable*

@@ -31,11 +31,9 @@
 #include <libanjuta/anjuta-launcher.h>
 #include <libanjuta/anjuta-plugin.h>
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
-#include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
@@ -444,13 +442,15 @@ on_calltip_finished (AnjutaLauncher* launcher,
 
 	if (assist->priv->calltip_cache)
 	{
-		//TODO: show calltip and save tips for searching in the future: FIXED?
-		assist->priv->tips = g_list_prepend (NULL,
-		                                     assist->priv->calltip_cache->str);
-		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip),
-		                         assist->priv->tips,
-		                         assist->priv->calltip_iter,
-		                         NULL);
+		GString* calltip_text = g_string_new (assist->priv->calltip_cache->str);
+		assist->priv->tips = g_list_prepend (NULL, calltip_text->str);
+		if (g_strncasecmp ("None", assist->priv->tips->data, 4))
+		{
+			ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip),
+				                     assist->priv->tips,
+				                     assist->priv->calltip_iter,
+				                     NULL);
+		}
 		g_string_free (assist->priv->calltip_cache, TRUE);
 		assist->priv->calltip_cache = NULL;
 	}
@@ -476,9 +476,7 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 }
 
 static void
-python_assist_query_calltip (PythonAssist* assist,
-                             const gchar *call_context,
-                             IAnjutaIterable* calltip_iter)
+python_assist_query_calltip (PythonAssist* assist, const gchar *call_context)
 {
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
 	
@@ -600,12 +598,10 @@ python_assist_get_calltip_cache (IAnjutaLanguageProvider* self,
 	if (!g_strcmp0 (call_context, assist->priv->calltip_context))
 	{
 		DEBUG_PRINT ("Calltip was found in the cache.");
-g_warning ("python_assist_get_calltip_cache: Calltip found");
 		return assist->priv->tips;
 	}
 	else
 	{
-g_warning ("python_assist_get_calltip_cache: Calltip not found");
 		DEBUG_PRINT ("Calltip is not available in the cache!");
 		return NULL;
 	}
@@ -617,11 +613,10 @@ python_assist_new_calltip (IAnjutaLanguageProvider* self,
                            IAnjutaIterable* cursor,
                            GError** e)
 {
-g_warning ("python_assist_new_calltip");
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	python_assist_clear_calltip_context (assist);
 	python_assist_create_calltip_context (assist, call_context, cursor);
-	python_assist_query_calltip (assist, call_context, cursor);
+	python_assist_query_calltip (assist, call_context);
 }
 
 static IAnjutaIterable*
@@ -666,8 +661,8 @@ python_assist_populate_language (IAnjutaLanguageProvider* self,
 	completion_trigger_char = python_assist_completion_trigger_char (
 	                                  IANJUTA_EDITOR (assist->priv->iassist),
 	                                  cursor);
-	if ( (( (pre_word && strlen (pre_word) >= 3) || completion_trigger_char ) && 
-	    python_assist_create_word_completion_cache (assist, cursor)) )
+	if (( (pre_word && strlen (pre_word) >= 3) || completion_trigger_char )
+		&& python_assist_create_word_completion_cache (assist, cursor))
 	{
 		DEBUG_PRINT ("New autocomplete for %s", pre_word);
 		if (!start_iter)
