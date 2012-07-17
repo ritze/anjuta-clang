@@ -28,10 +28,8 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-language-provider.h>
 #include <libanjuta/anjuta-utils.h>
-#include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
-#include <libanjuta/interfaces/ianjuta-editor-selection.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
@@ -109,7 +107,6 @@ struct _ParserCxxAssistPriv {
 static IAnjutaEditorAssistProposal*
 parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 {
-g_warning ("parser_cxx_assist_proposal_new");
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
 	IAnjutaLanguageProviderProposalData* data = g_new0 (IAnjutaLanguageProviderProposalData, 1);
 	
@@ -457,7 +454,6 @@ parser_cxx_assist_clear_completion_cache (ParserCxxAssist* assist)
 static void
 parser_cxx_assist_populate_real (ParserCxxAssist* assist, gboolean finished)
 {
-g_warning ("parser_cxx_assist_populate_real");
 	g_assert (assist->priv->pre_word != NULL);
 	GList* proposals = g_completion_complete (assist->priv->completion_cache,
 	                                          assist->priv->pre_word,
@@ -523,7 +519,6 @@ static void
 on_symbol_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 						   ParserCxxAssist* assist)
 {
-g_warning ("on_symbol_search_complete");
 	GList* proposals;
 	proposals = parser_cxx_assist_create_completion_from_symbols (symbols);
 
@@ -635,7 +630,6 @@ parser_cxx_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 static GList*
 parser_cxx_assist_create_calltips (IAnjutaIterable* iter, GList* merge)
 {
-g_warning ("parser_cxx_assist_create_calltips");
 	GList* tips = merge;
 	if (iter)
 	{
@@ -705,7 +699,6 @@ static void
 on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 							ParserCxxAssist* assist)
 {
-g_warning ("on_calltip_search_complete");
 	assist->priv->tips = parser_cxx_assist_create_calltips (symbols,
 	                                                        assist->priv->tips);
 	if (query == assist->priv->calltip_query_file)
@@ -725,7 +718,6 @@ g_warning ("on_calltip_search_complete");
 	
 	if (!running && assist->priv->tips)
 	{
-		//TODO: show calltip and save tips for searching in the future: FIXED?
 		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip),
 		                         assist->priv->tips, assist->priv->calltip_iter,
 		                         NULL);
@@ -745,7 +737,6 @@ parser_cxx_assist_query_calltip (ParserCxxAssist* assist,
                                  const gchar *call_context,
                                  IAnjutaIterable* calltip_iter)
 {
-g_warning ("parser_cxx_assist_query_calltip");
 	/* Search file */
 	if (IANJUTA_IS_FILE (assist->priv->itip))
 	{
@@ -815,11 +806,7 @@ parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 	assist->priv->calltip_context = NULL;
 	
 	if (assist->priv->calltip_iter)
-	{
-g_warning ("parser_cxx_assist_clear_calltip_context 1");
 		g_object_unref (assist->priv->calltip_iter);
-	}
-g_warning ("parser_cxx_assist_clear_calltip_context 2");
 	assist->priv->calltip_iter = NULL;
 }
 
@@ -846,12 +833,10 @@ parser_cxx_assist_get_calltip_cache (IAnjutaLanguageProvider* self,
 	if (!g_strcmp0 (call_context, assist->priv->calltip_context))
 	{
 		DEBUG_PRINT ("Calltip was found in the cache.");
-g_warning ("parser_cxx_assist_get_calltip_cache: Calltip found");
 		return assist->priv->tips;
 	}
 	else
 	{
-g_warning ("parser_cxx_assist_get_calltip_cache: Calltip not found");
 		DEBUG_PRINT ("Calltip is not available in the cache!");
 		return NULL;
 	}
@@ -863,7 +848,6 @@ parser_cxx_assist_new_calltip (IAnjutaLanguageProvider* self,
                                IAnjutaIterable* cursor,
                                GError** e)
 {
-g_warning ("parser_cxx_assist_new_calltip");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	parser_cxx_assist_clear_calltip_context (assist);
 	parser_cxx_assist_create_calltip_context (assist, call_context, cursor);
@@ -875,7 +859,6 @@ parser_cxx_assist_populate_language (IAnjutaLanguageProvider* self,
                                      IAnjutaIterable* cursor,
                                      GError** e)
 {
-g_warning ("parser_cxx_populate_language");
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	IAnjutaIterable* start_iter = NULL;
 	
@@ -899,7 +882,6 @@ g_warning ("parser_cxx_populate_language");
 		}			
 		g_free (pre_word);
 	}
-g_warning ("parser_cxx_populate_language 1");
 	
 	parser_cxx_assist_clear_completion_cache (assist);
 	
