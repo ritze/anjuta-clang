@@ -63,8 +63,9 @@ struct _ParserCxxAssistPriv {
 	const gchar* editor_filename;
 
 	/* Calltips */
-	GList* tips;
+	gchar* calltip_context;
 	IAnjutaIterable* calltip_iter;
+	GList* tips;
 	
 	gint async_calltip_file;
 	gint async_calltip_system;
@@ -108,6 +109,7 @@ struct _ParserCxxAssistPriv {
 static IAnjutaEditorAssistProposal*
 parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 {
+g_warning ("parser_cxx_assist_proposal_new");
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
 	IAnjutaLanguageProviderProposalData* data = g_new0 (IAnjutaLanguageProviderProposalData, 1);
 	
@@ -129,12 +131,12 @@ parser_cxx_assist_proposal_new (IAnjutaSymbol* symbol)
 	data->has_para = FALSE;
 	if (data->is_func)
 	{
-//TODO: libanjuta-symbol-db-WARNING **: Symbol field '5' is not present in the query. Make sure to include it during query creation.
 		const gchar* signature = ianjuta_symbol_get_string (symbol,
 		                                                    IANJUTA_SYMBOL_FIELD_SIGNATURE,
 		                                                    NULL);
-		if (!g_strcmp0 (signature, "(void)") || !g_strcmp0 (signature, "()"))
+		if (g_strcmp0 (signature, "(void)") || g_strcmp0 (signature, "()"))
 			data->has_para = TRUE;
+			
 	}
 	
 	proposal->data = data;
@@ -521,6 +523,7 @@ static void
 on_symbol_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
 						   ParserCxxAssist* assist)
 {
+g_warning ("on_symbol_search_complete");
 	GList* proposals;
 	proposals = parser_cxx_assist_create_completion_from_symbols (symbols);
 
@@ -722,7 +725,7 @@ g_warning ("on_calltip_search_complete");
 	
 	if (!running && assist->priv->tips)
 	{
-		//TODO: show calltip and save tips for searching in the future
+		//TODO: show calltip and save tips for searching in the future: FIXED?
 		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip),
 		                         assist->priv->tips, assist->priv->calltip_iter,
 		                         NULL);
@@ -738,15 +741,11 @@ g_warning ("on_calltip_search_complete");
  * Starts an async query for the calltip
  */
 static void
-parser_cxx_assist_query_calltip (IAnjutaLanguageProvider *self,
+parser_cxx_assist_query_calltip (ParserCxxAssist* assist,
                                  const gchar *call_context,
-                                 IAnjutaIterable* calltip_iter,
-                                 GError** e)
+                                 IAnjutaIterable* calltip_iter)
 {
 g_warning ("parser_cxx_assist_query_calltip");
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
-	assist->priv->calltip_iter = calltip_iter;
-	
 	/* Search file */
 	if (IANJUTA_IS_FILE (assist->priv->itip))
 	{
@@ -774,6 +773,23 @@ g_warning ("parser_cxx_assist_query_calltip");
 }
 
 /**
+ * parser_cxx_assist_create_calltip_context:
+ * @assist: self
+ * @call_context: The context (method/function name)
+ * @position: iter where to show calltips
+ *
+ * Create the calltip context
+ */
+static void
+parser_cxx_assist_create_calltip_context (ParserCxxAssist* assist,
+                                          const gchar* call_context,
+                                          IAnjutaIterable* position)
+{
+	assist->priv->calltip_context = g_strdup (call_context);
+	assist->priv->calltip_iter = position;
+}
+
+/**
  * parser_cxx_assist_clear_calltip_context:
  * @self: Self
  * @e: Error propagation
@@ -791,17 +807,20 @@ parser_cxx_assist_clear_calltip_context (ParserCxxAssist* assist)
 	assist->priv->async_calltip_project = 0;
 	assist->priv->async_calltip_system = 0;
 	
+	g_list_foreach (assist->priv->tips, (GFunc) g_free, NULL);
+	g_list_free (assist->priv->tips);
+	assist->priv->tips = NULL;
+	
+	g_free (assist->priv->calltip_context);
+	assist->priv->calltip_context = NULL;
+	
 	if (assist->priv->calltip_iter)
+	{
+g_warning ("parser_cxx_assist_clear_calltip_context 1");
 		g_object_unref (assist->priv->calltip_iter);
+	}
+g_warning ("parser_cxx_assist_clear_calltip_context 2");
 	assist->priv->calltip_iter = NULL;
-}
-
-static void
-parser_cxx_assist_clear_calltip_context_interface (IAnjutaLanguageProvider* self,
-                                                   GError** e)
-{
-	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
-	parser_cxx_assist_clear_calltip_context (assist);
 }
 
 /**
@@ -816,6 +835,39 @@ parser_cxx_assist_cancelled (IAnjutaEditorAssist* iassist,
                              ParserCxxAssist* assist)
 {
 	parser_cxx_assist_cancel_queries (assist);
+}
+
+static GList*
+parser_cxx_assist_get_calltip_cache (IAnjutaLanguageProvider* self,
+                                     gchar* call_context,
+                                     GError** e)
+{
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	if (!g_strcmp0 (call_context, assist->priv->calltip_context))
+	{
+		DEBUG_PRINT ("Calltip was found in the cache.");
+g_warning ("parser_cxx_assist_get_calltip_cache: Calltip found");
+		return assist->priv->tips;
+	}
+	else
+	{
+g_warning ("parser_cxx_assist_get_calltip_cache: Calltip not found");
+		DEBUG_PRINT ("Calltip is not available in the cache!");
+		return NULL;
+	}
+}
+
+static void
+parser_cxx_assist_new_calltip (IAnjutaLanguageProvider* self,
+                               gchar* call_context,
+                               IAnjutaIterable* cursor,
+                               GError** e)
+{
+g_warning ("parser_cxx_assist_new_calltip");
+	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
+	parser_cxx_assist_clear_calltip_context (assist);
+	parser_cxx_assist_create_calltip_context (assist, call_context, cursor);
+	parser_cxx_assist_query_calltip (assist, call_context, cursor);
 }
 
 static IAnjutaIterable*
@@ -854,21 +906,15 @@ g_warning ("parser_cxx_populate_language 1");
 	/* Check for member completion */
 	start_iter = parser_cxx_assist_create_member_completion_cache (assist,
 	                                                               cursor);
-g_warning ("parser_cxx_populate_language 2");
 	if (start_iter)
-	{
-g_warning ("parser_cxx_populate_language 3");
 		assist->priv->member_completion = TRUE;
-	}
 	else
 	{
-g_warning ("parser_cxx_populate_language 4");
 		start_iter = parser_cxx_assist_create_autocompletion_cache (assist,
 		                                                            cursor);
 		if (start_iter)
 			assist->priv->autocompletion = TRUE;
 	}
-g_warning ("parser_cxx_populate_language 5");
 	
 	return start_iter;
 }
@@ -1020,7 +1066,8 @@ parser_cxx_assist_new (IAnjutaEditor *ieditor,
 		IANJUTA_SYMBOL_FIELD_NAME,
 		IANJUTA_SYMBOL_FIELD_KIND,
 		IANJUTA_SYMBOL_FIELD_TYPE,
-		IANJUTA_SYMBOL_FIELD_ACCESS
+		IANJUTA_SYMBOL_FIELD_ACCESS,
+		IANJUTA_SYMBOL_FIELD_SIGNATURE
 	};
 
 	if (!IANJUTA_IS_EDITOR_ASSIST (ieditor) && !IANJUTA_IS_EDITOR_TIP (ieditor))
@@ -1263,17 +1310,17 @@ parser_cxx_assist_get_start_iter (IAnjutaProvider* self,
 static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->activate          = parser_cxx_assist_activate;
-	iface->populate          = parser_cxx_assist_populate;
-	iface->get_name          = parser_cxx_assist_get_name;
-	iface->get_start_iter    = parser_cxx_assist_get_start_iter;
+	iface->activate            = parser_cxx_assist_activate;
+	iface->populate            = parser_cxx_assist_populate;
+	iface->get_name            = parser_cxx_assist_get_name;
+	iface->get_start_iter      = parser_cxx_assist_get_start_iter;
 }
 
 static void
 ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
-	iface->populate_language = parser_cxx_assist_populate_language;
-	iface->clear_context     = parser_cxx_assist_clear_calltip_context_interface;
-	iface->query_calltip     = parser_cxx_assist_query_calltip;
-	iface->get_context       = parser_cxx_assist_get_calltip_context;
+	iface->get_calltip_cache   = parser_cxx_assist_get_calltip_cache;
+	iface->get_calltip_context = parser_cxx_assist_get_calltip_context;
+	iface->new_calltip         = parser_cxx_assist_new_calltip;
+	iface->populate_language   = parser_cxx_assist_populate_language;
 }

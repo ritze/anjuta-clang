@@ -86,7 +86,9 @@ struct _PythonAssistPriv {
 	GString* rope_cache;
 
 	/* Calltips */
+	gchar* calltip_context;
 	IAnjutaIterable* calltip_iter;
+	GList* tips;
 	GString* calltip_cache;
 };
 
@@ -442,13 +444,13 @@ on_calltip_finished (AnjutaLauncher* launcher,
 
 	if (assist->priv->calltip_cache)
 	{
-		//TODO: show calltip and save tips for searching in the future
-		IAnjutaIterable *test_iter = ianjuta_editor_get_position (IANJUTA_EDITOR (assist->priv->iassist), NULL);
-		GList* tips = g_list_prepend (NULL, assist->priv->calltip_cache->str);
-		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip), tips,
-		                         test_iter, 
+		//TODO: show calltip and save tips for searching in the future: FIXED?
+		assist->priv->tips = g_list_prepend (NULL,
+		                                     assist->priv->calltip_cache->str);
+		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(assist->priv->itip),
+		                         assist->priv->tips,
+		                         assist->priv->calltip_iter,
 		                         NULL);
-		g_list_free (tips);
 		g_string_free (assist->priv->calltip_cache, TRUE);
 		assist->priv->calltip_cache = NULL;
 	}
@@ -474,15 +476,12 @@ python_assist_get_calltip_context_position (PythonAssist *assist)
 }
 
 static void
-python_assist_query_calltip (IAnjutaLanguageProvider *self,
+python_assist_query_calltip (PythonAssist* assist,
                              const gchar *call_context,
-                             IAnjutaIterable* calltip_iter,
-                             GError** e)
+                             IAnjutaIterable* calltip_iter)
 {
-	PythonAssist* assist = PYTHON_ASSIST (self);
 	IAnjutaEditor *editor = IANJUTA_EDITOR (assist->priv->iassist);
 	
-	assist->priv->calltip_iter = calltip_iter;
 	gint offset = python_assist_get_calltip_context_position (assist);
 	
 	gchar *interpreter_path;
@@ -524,6 +523,15 @@ python_assist_query_calltip (IAnjutaLanguageProvider *self,
 }
 
 static void
+python_assist_create_calltip_context (PythonAssist* assist,
+                                      const gchar* call_context,
+                                      IAnjutaIterable* position)
+{
+	assist->priv->calltip_context = g_strdup (call_context);
+	assist->priv->calltip_iter = position;
+}
+
+static void
 python_assist_clear_calltip_context (PythonAssist* assist)
 {
 	if (assist->priv->calltip_launcher)
@@ -532,20 +540,18 @@ python_assist_clear_calltip_context (PythonAssist* assist)
 	}	
 	assist->priv->calltip_launcher = NULL;
 	
+	g_list_foreach (assist->priv->tips, (GFunc) g_free, NULL);
+	g_list_free (assist->priv->tips);
+	assist->priv->tips = NULL;
+	
+	g_free (assist->priv->calltip_context);
+	assist->priv->calltip_context = NULL;
+	
 	if (assist->priv->calltip_iter)
 		g_object_unref (assist->priv->calltip_iter);
 	assist->priv->calltip_iter = NULL;
 }
 
-static void
-python_assist_clear_calltip_context_interface (IAnjutaLanguageProvider* self,
-                                               GError** e)
-{
-	PythonAssist* assist = PYTHON_ASSIST (self);
-	python_assist_clear_calltip_context (assist);
-}
-
-//TODO:
 static gchar*
 python_assist_get_calltip_context (IAnjutaLanguageProvider *self,
                                    IAnjutaIterable *iter,
@@ -583,6 +589,39 @@ python_assist_completion_trigger_char (IAnjutaEditor* editor,
 	}
 	g_object_unref (iter);
 	return retval;
+}
+
+static GList*
+python_assist_get_calltip_cache (IAnjutaLanguageProvider* self,
+                                 gchar* call_context,
+                                 GError** e)
+{
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	if (!g_strcmp0 (call_context, assist->priv->calltip_context))
+	{
+		DEBUG_PRINT ("Calltip was found in the cache.");
+g_warning ("python_assist_get_calltip_cache: Calltip found");
+		return assist->priv->tips;
+	}
+	else
+	{
+g_warning ("python_assist_get_calltip_cache: Calltip not found");
+		DEBUG_PRINT ("Calltip is not available in the cache!");
+		return NULL;
+	}
+}
+
+static void
+python_assist_new_calltip (IAnjutaLanguageProvider* self,
+                           gchar* call_context,
+                           IAnjutaIterable* cursor,
+                           GError** e)
+{
+g_warning ("python_assist_new_calltip");
+	PythonAssist* assist = PYTHON_ASSIST (self);
+	python_assist_clear_calltip_context (assist);
+	python_assist_create_calltip_context (assist, call_context, cursor);
+	python_assist_query_calltip (assist, call_context, cursor);
 }
 
 static IAnjutaIterable*
@@ -768,17 +807,17 @@ python_assist_get_start_iter (IAnjutaProvider* self,
 static void
 iprovider_iface_init (IAnjutaProviderIface* iface)
 {
-	iface->activate          = python_assist_activate;
-	iface->populate          = python_assist_populate;
-	iface->get_name          = python_assist_get_name;
-	iface->get_start_iter    = python_assist_get_start_iter;
+	iface->activate            = python_assist_activate;
+	iface->populate            = python_assist_populate;
+	iface->get_name            = python_assist_get_name;
+	iface->get_start_iter      = python_assist_get_start_iter;
 }
 
 static void
 ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
-	iface->populate_language = python_assist_populate_language;
-	iface->clear_context     = python_assist_clear_calltip_context_interface;
-	iface->query_calltip     = python_assist_query_calltip;
-	iface->get_context       = python_assist_get_calltip_context;
+	iface->get_calltip_cache   = python_assist_get_calltip_cache;
+	iface->get_calltip_context = python_assist_get_calltip_context;
+	iface->new_calltip         = python_assist_new_calltip;
+	iface->populate_language   = python_assist_populate_language;
 }

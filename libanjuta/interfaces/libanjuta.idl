@@ -2735,7 +2735,43 @@ interface IAnjutaProvider
 			gboolean has_para;
 			IAnjutaSymbolType type;
 		}
-		
+
+		/**
+		 * ianjuta_language_provider_get_calltip_cache:
+		 * @obj: Self
+		 * @call_context: name of the method to show a calltip
+		 * @err: Error propagation
+		 *
+		 * Searches for a calltip in the cache
+		 *
+		 * Returns: tips for the searched name of the method from the cache,
+		 *          NULL if nothing found
+		 */
+		GList* get_calltip_cache (gchar* call_context);
+		 
+		/**
+		 * ianjuta_language_provider_get_calltip_context:
+		 * @obj: Self
+		 * @iter: current cursor position
+		 * @err: Error propagation
+		 *
+		 * Searches for a calltip context
+		 *
+		 * Returns: name of the method to show a calltip for or NULL
+		 */
+		gchar* get_calltip_context (IAnjutaIterable* iter);
+		 
+		/**
+		 * ianjuta_language_provider_get_calltip_context:
+		 * @obj: Self
+		 * @call_context: name of the method to create a new calltip
+		 * @iter: current cursor position
+		 * @err: Error propagation
+		 *
+		 * Creates a new calltip
+		 */
+		void new_calltip (gchar* call_context, IAnjutaIterable* iter);
+		 
 		/**
 		 * ianjuta_language_provider_populate_language:
 		 * @obj: Self
@@ -2751,38 +2787,6 @@ interface IAnjutaProvider
 		 * Returns: the iter where the provider populated, NULL otherwise
 		 */
 		IAnjutaIterable* populate_language (IAnjutaIterable* iter);
-		 
-		/**
-		 * ianjuta_language_provider_get_context:
-		 * @obj: Self
-		 * @iter: current cursor position
-		 * @err: Error propagation
-		 *
-		 * Searches for a calltip context
-		 *
-		 * Returns: name of the method to show a calltip for or NULL
-		 */
-		gchar* get_context (IAnjutaIterable* iter);
-		 
-		/**
-		 * ianjuta_language_provider_clear_context:
-		 * @obj: Self
-		 * @err: Error propagation
-		 *
-		 * Clears the calltip context and brings it back into a save state
-		 */
-		void clear_context ();
-		 
-		/**
-		 * ianjuta_language_provider_query_calltip:
-		 * @obj: self
-		 * @call_context: name of method/function
-		 * @position: iter where to show calltips
-		 * @err: Error propagation
-		 *
-		 * Starts an async query for the calltip
-		 */
-		void query_calltip (const gchar *call_context, IAnjutaIterable* position);
 	}
 }
 
