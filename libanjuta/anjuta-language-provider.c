@@ -173,9 +173,7 @@ anjuta_language_provider_is_character (gchar ch, const gchar* characters)
 	for (i = 0; characters[i] != '0'; i++)
 	{
 		if (ch == characters[i])
-		{
 			return TRUE;
-		}
 	}
 	
 	return FALSE;
