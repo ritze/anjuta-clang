@@ -3,7 +3,7 @@ Location=js-support-plugin:JSLang
 Icon=js_support_plugin.png
 _Name=JS Support Plugin
 _Description=JavaScript Support Plugin
-Interfaces=IAnjutaLanguageSupport,IAnjutaProvider,IAnjutaLanguageProvider
+Interfaces=IAnjutaLanguageSupport
 UserActivatable=no
 
 [Language Support]

@@ -514,22 +514,9 @@ g_warning ("anjuta_language_provider_activate");
 		{
 		    //TODO: adapt
 		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
-		    //TODO: JS  doesn't support calltip yet. I only found this:
-		    /*
-		    	GList *t = NULL;
-				gchar *args = code_completion_get_func_tooltip (plugin, sym);
-				t = g_list_append (t, args);
-				if (args)
-				{
-					ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(plugin->current_editor), t,
-							 position, NULL);
-					g_free (args);
-				}
-		    */
 			anjuta_language_provider_calltip (
 				            lang_prov, IANJUTA_LANGUAGE_PROVIDER (provider));
 		}
-
 	}
 	g_string_free (assistance, TRUE);
 }

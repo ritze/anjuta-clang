@@ -64,18 +64,16 @@ on_jsdirs_add_button_clicked (GtkButton *button, gpointer user_data);
 static gboolean
 js_support_plugin_activate (AnjutaPlugin *plugin)
 {
-g_warning ("js_support_plugin_activate");
 	JSLang *js_support_plugin;
 
 	DEBUG_PRINT ("%s", "JSLang: Activating JSLang plugin ...");
 	js_support_plugin = (JSLang*) plugin;
+	js_support_plugin->prefs = g_settings_new (JS_SUPPORT_SCHEMA);
 	js_support_plugin->editor_watch_id =
 		anjuta_plugin_add_watch (plugin, IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
 					 on_value_added_current_editor,
 					 on_value_removed_current_editor,
 					 plugin);
-
-	js_support_plugin->prefs = g_settings_new (JS_SUPPORT_SCHEMA);
 	return TRUE;
 }
 
@@ -138,7 +136,6 @@ js_support_plugin_class_init (GObjectClass *klass)
 static void
 install_support (JSLang *plugin)
 {
-g_warning ("install_support");
 	const gchar *lang;
 	IAnjutaLanguage* lang_manager;
 
@@ -159,6 +156,9 @@ g_warning ("install_support");
 	                                                  plugin->prefs);
 
 	DEBUG_PRINT ("%s", "JSLang: Install support");
+	
+	ianjuta_editor_assist_add (IANJUTA_EDITOR_ASSIST(plugin->current_editor),
+	                           IANJUTA_PROVIDER(plugin), NULL);
 }
 
 static void
@@ -171,6 +171,10 @@ uninstall_support (JSLang *plugin)
     }
     
 	DEBUG_PRINT ("%s", "JSLang: Uninstall support");
+	
+	ianjuta_editor_assist_remove (IANJUTA_EDITOR_ASSIST(plugin->current_editor),
+	                              IANJUTA_PROVIDER(plugin), NULL);
+
 }
 
 static void
@@ -359,7 +363,6 @@ iprovider_activate (IAnjutaProvider* self,
                     gpointer data,
                     GError** e)
 {
-g_warning ("iprovider_activate");
 	JSLang *plugin = (JSLang*) self;
 	anjuta_language_provider_activate (plugin->lang_prov, self, iter, data);
 }
@@ -369,7 +372,6 @@ iprovider_populate (IAnjutaProvider* self,
                     IAnjutaIterable* cursor,
                     GError** e)
 {
-g_warning ("iprovider_populate");
 	JSLang *plugin = (JSLang*) self;
 	anjuta_language_provider_populate (plugin->lang_prov, self, cursor);
 }
@@ -385,7 +387,6 @@ static IAnjutaIterable*
 iprovider_get_start_iter (IAnjutaProvider* self,
                           GError** e)
 {
-g_warning ("iprovider_get_start_iter");
 	JSLang *plugin = (JSLang*) self;
 	return anjuta_language_provider_get_start_iter (plugin->lang_prov);
 }
@@ -404,7 +405,6 @@ ilanguage_provider_get_calltip_cache (IAnjutaLanguageProvider *obj,
                                       gchar* call_context,
                                       GError** err)
 {
-g_warning ("ilanguage_provider_get_calltip_cache");
 	//TODO: Not implemented yet
 	return NULL;
 }
@@ -414,8 +414,17 @@ ilanguage_provider_get_calltip_context (IAnjutaLanguageProvider *obj,
                                         IAnjutaIterable *iter,
                                         GError** err)
 {
-g_warning ("ilanguage_provider_get_calltip_context");
-	//TODO: Not implemented yet
+/*	TODO: Not implemented yet
+	GList *t = NULL;
+	gchar *args = code_completion_get_func_tooltip (plugin, sym);
+	t = g_list_append (t, args);
+	if (args)
+	{
+		ianjuta_editor_tip_show (IANJUTA_EDITOR_TIP(plugin->current_editor), t,
+		                         position, NULL);
+		g_free (args);
+	}
+*/
 	return NULL;
 }
 
@@ -425,7 +434,6 @@ ilanguage_provider_new_calltip (IAnjutaLanguageProvider* obj,
                                 IAnjutaIterable* cursor,
                                 GError** err)
 {
-g_warning ("ilanguage_provider_new_calltip");
 	//TODO: Not implemented yet
 	return;
 }
@@ -435,7 +443,6 @@ ilanguage_provider_populate (IAnjutaLanguageProvider* obj,
                              IAnjutaIterable* iter,
                              GError **err)
 {
-g_warning ("ilanguage_provider_populate");
 	JSLang *plugin = (JSLang*)obj;
 	IAnjutaIterable* start_iter;
 	GList *suggestions;
@@ -451,24 +458,25 @@ g_warning ("ilanguage_provider_populate");
 		return start_iter;
 
 	g_assert (plugin->prefs);
+	gchar *file = file_completion (IANJUTA_EDITOR (plugin->current_editor), &depth);
 
 	if (strlen (str) < g_settings_get_int (plugin->prefs, MIN_CODECOMPLETE))
 	{
 		ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (plugin->current_editor),
 										 IANJUTA_PROVIDER(obj), NULL, NULL, TRUE, NULL);
+		/* Highlight missed semicolon */
+		code_completion_get_list (plugin, file, NULL, depth);
 		return start_iter;
 	}
 
-	gchar *file = file_completion (IANJUTA_EDITOR (plugin->current_editor), &depth);
 	gint i;
-g_warning ("JSLang: Auto complete for %s (TMFILE=%s)", str, file);
 	DEBUG_PRINT ("JSLang: Auto complete for %s (TMFILE=%s)", str, file);
 	for (i = strlen (str) - 1; i; i--)
 	{
 		if (str[i] == '.')
 			break;
 	}
-	//TODO: Use anjuta_language_provider_get_pre_word?
+	//TODO: Use anjuta_language_provider_get_pre_word in the future
 	if (i > 0)
 		suggestions = code_completion_get_list (plugin, file, g_strndup (str, i), depth);
 	else
@@ -500,19 +508,13 @@ g_warning ("JSLang: Auto complete for %s (TMFILE=%s)", str, file);
 			if (!i->data)
 				continue;
 
-			//proposal->label = i->data;
-			//proposal->data = i->data;
-			//TODO: Or "prop_data->name = i->data;" ?
-			//prop_data->name = i->data->name;
-//			prop_data->is_func = code_completion_is_symbol_func (plugin, i->data);
-			//TODO: Not implemented yet
-//			prop_data->has_para = TRUE;
-			//TODO: Is this the right way?
-//			prop_data->info = i->data;
-			
 			proposal->label = i->data;
-//			proposal->data = i->data;
-			proposal->data = NULL;
+			prop_data->name = i->data;
+			prop_data->is_func = code_completion_is_symbol_func (plugin, str);
+			//TODO: Not implemented yet
+			prop_data->has_para = TRUE;
+			prop_data->info = i->data;
+			proposal->data = prop_data;
 			nsuggest = g_list_prepend (nsuggest, proposal);
 		}
 		ianjuta_editor_assist_proposals (IANJUTA_EDITOR_ASSIST (plugin->current_editor),

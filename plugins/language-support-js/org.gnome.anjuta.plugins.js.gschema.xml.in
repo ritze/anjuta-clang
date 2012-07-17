@@ -13,7 +13,7 @@
 			<default>true</default>
 		</key>
 		<key name="completion-enable" type="b">
-			<default>false</default>
+			<default>true</default>
 		</key>
 		<key name="completion-space-after-func" type="b">
 			<default>false</default>
