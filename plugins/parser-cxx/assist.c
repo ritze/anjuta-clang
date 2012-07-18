@@ -35,7 +35,7 @@
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "assist.h"
-#include "engine-parser.h"
+#include "cxxparser/engine-parser.h"
 
 #define BRACE_SEARCH_LIMIT 500
 #define SCOPE_CONTEXT_CHARACTERS "_.:>-0"

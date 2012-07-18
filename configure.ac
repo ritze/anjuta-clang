@@ -888,6 +888,7 @@ plugins/language-support-js/Makefile
 plugins/language-support-vala/Makefile
 plugins/language-support-python/Makefile
 plugins/parser-cxx/Makefile
+plugins/parser-cxx/cxxparser/Makefile
 plugins/python-loader/Makefile
 anjuta.desktop.in
 manuals/Makefile

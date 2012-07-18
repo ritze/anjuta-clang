@@ -1,3 +1,5 @@
+SUBDIRS = cxxparser
+
 # Plugin glade file
 parser_cxx_gladedir = $(anjuta_glade_dir)
 parser_cxx_glade_DATA = anjuta-parser-cxx.ui
@@ -5,7 +7,7 @@ parser_cxx_glade_DATA = anjuta-parser-cxx.ui
 # Plugin Icon file
 parser_cxx_pixmapsdir = $(anjuta_image_dir)
 parser_cxx_pixmaps_DATA = \
-  anjuta-parser-cxx-plugin.png
+	anjuta-parser-cxx-plugin.png
 
 # Plugin description file
 plugin_in_files = anjuta-parser-cxx.plugin.in
@@ -24,9 +26,7 @@ parser_cxx_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # Include paths
 AM_CPPFLAGS = \
-	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
-	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
-  $(WARN_CFLAGS) \
+	$(WARN_CFLAGS) \
 	$(DEPRECATED_FLAGS) \
 	$(LIBANJUTA_CFLAGS) \
 	$(EXTRA_CFLAGS) \
@@ -42,33 +42,8 @@ plugin_LTLIBRARIES = libanjuta-parser-cxx.la
 libanjuta_parser_cxx_la_SOURCES = \
 	assist.h \
 	assist.c \
-	plugin.c \
 	plugin.h \
-	expression-lexer.cpp \
-	expression-parser.cpp \
-	expression-result.cpp \
-	expression-result.h \
-	flex-lexer-klass.cpp \
-	flex-lexer-klass.h \
-	flex-lexer-klass-tab.h \
-	flex-lexer-plain.cpp \
-	flex-lexer-plain-tab.h \
-	variable-parser.cpp \
-	variable-result.cpp \
-	variable-result.h \
-	scope-parser.cpp \
-	function-result.cpp \
-	function-result.h \
-	function-parser.cpp \
-	cpp-flex-tokenizer.cpp \
-	cpp-flex-tokenizer.h \
-	expression-parser.h \
-	engine-parser.cpp \
-	engine-parser-priv.h \
-	engine-parser.h \
-	scope-parser.h \
-	variable-parser.h \
-	function-parser.h
+	plugin.c
 
 libanjuta_parser_cxx_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
@@ -76,8 +51,9 @@ libanjuta_parser_cxx_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 nodist_EXTRA_libanjuta_parser_cxx_la_SOURCES = dummy.cxx
 
 # Plugin dependencies
-libanjuta_parser_cxx_la_LIBADD = $(LIBANJUTA_LIBS) \
-	$(GTHREAD_LIBS)
+libanjuta_parser_cxx_la_LIBADD = \
+	$(LIBANJUTA_LIBS) \
+	cxxparser/libcxxparser.la
 
 gsettings_in_file = org.gnome.anjuta.plugins.parser-cxx.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
@@ -85,13 +61,13 @@ gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @GSETTINGS_RULES@
 
 EXTRA_DIST = \
-  $(plugin_in_files) \
-  $(parser_cxx_plugin_DATA) \
-  $(parser_cxx_pixmaps_DATA) \
+	$(plugin_in_files) \
+	$(parser_cxx_plugin_DATA) \
+	$(parser_cxx_pixmaps_DATA) \
 	$(parser_cxx_glade_DATA) \
 	$(gsettings_in_file)
 
 CLEANFILES = \
-  $(gsettings_SCHEMAS)
+	$(gsettings_SCHEMAS)
 
 -include $(top_srcdir)/git.mk
