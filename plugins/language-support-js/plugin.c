@@ -257,6 +257,7 @@ on_jsdirs_rm_button_clicked (GtkButton *button, gpointer user_data)
 G_MODULE_EXPORT void
 on_jsdirs_add_button_clicked (GtkButton *button, gpointer user_data)
 {
+g_warning ("on_jsdirs_add_button_clicked");
 	GtkWidget *dialog;
 
 	g_assert (user_data != NULL);
@@ -289,15 +290,16 @@ on_jsdirs_add_button_clicked (GtkButton *button, gpointer user_data)
 }
 
 static void
-jsdirs_init_treeview (GtkBuilder* bxml)
+jsdirs_init_treeview (JSLang* plugin)
 {
 	const gchar *project_root = NULL;
 	GtkTreeIter iter;
-	GtkListStore *list_store = GTK_LIST_STORE (gtk_builder_get_object (bxml, JSDIRS_LISTSTORE));
+	GtkListStore *list_store = GTK_LIST_STORE (gtk_builder_get_object (
+	                                               plugin->bxml, JSDIRS_LISTSTORE));
 	if (!list_store)
 		return;
 
-	anjuta_shell_get (ANJUTA_PLUGIN (getPlugin ())->shell,
+	anjuta_shell_get (ANJUTA_PLUGIN (plugin)->shell,
 					  IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
 					  G_TYPE_STRING, &project_root, NULL);
 
@@ -320,34 +322,65 @@ jsdirs_init_treeview (GtkBuilder* bxml)
 	}
 }
 
+#define PREF_WIDGET_SPACE "preferences:completion-space-after-func"
+#define PREF_WIDGET_BRACE "preferences:completion-brace-after-func"
+#define PREF_WIDGET_CLOSEBRACE "preferences:completion-closebrace-after-func"
+#define PREF_WIDGET_AUTO "preferences:completion-enable"
+
+static void
+on_autocompletion_toggled (GtkToggleButton* button,
+                           JSLang* plugin)
+{
+    GtkWidget* widget;
+    gboolean sensitive = gtk_toggle_button_get_active (button);
+
+    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_SPACE));
+    gtk_widget_set_sensitive (widget, sensitive);
+    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_BRACE));
+    gtk_widget_set_sensitive (widget, sensitive);
+    widget = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_CLOSEBRACE));
+    gtk_widget_set_sensitive (widget, sensitive);
+}
+
 static void
 ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
 					GError** e)
 {
-	GError* error = NULL;
-	GtkBuilder* bxml = gtk_builder_new ();
-
 	/* Add preferences */
-	if (!gtk_builder_add_from_file (bxml, PREFS_BUILDER, &error))
+	GError* error = NULL;
+	JSLang* plugin = (JSLang*) ipref;
+	plugin->bxml = gtk_builder_new ();
+    GtkWidget* toggle;
+    
+	if (!gtk_builder_add_from_file (plugin->bxml, PREFS_BUILDER, &error))
 	{
-		g_warning ("Couldn't load builder file: %s", error->message);
-		g_error_free (error);
+        g_warning ("Couldn't load builder file: %s", error->message);
+        g_error_free (error);
 	}
-	GtkTreeView *tree = GTK_TREE_VIEW (gtk_builder_get_object (bxml, JSDIRS_TREEVIEW));
+	
+	GtkTreeView *tree = GTK_TREE_VIEW (gtk_builder_get_object (plugin->bxml, JSDIRS_TREEVIEW));
 
-	gtk_builder_connect_signals (bxml, tree);
-	jsdirs_init_treeview (bxml);
+	gtk_builder_connect_signals (plugin->bxml, tree);
+	jsdirs_init_treeview (plugin);
+	
 	anjuta_preferences_add_from_builder (prefs,
-								 bxml, NULL, "vbox1", _("JavaScript"),
-								 ICON_FILE);
-	g_object_unref (bxml);
+	                                     plugin->bxml,
+	                                     plugin->prefs,
+	                                     "preferences", _("JavaScript"),
+	                                     ICON_FILE);
+    toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_AUTO));
+    g_signal_connect (toggle, "toggled", G_CALLBACK (on_autocompletion_toggled),
+                      plugin);
+    on_autocompletion_toggled (GTK_TOGGLE_BUTTON (toggle), plugin);
 }
 
 static void
 ipreferences_unmerge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
 					  GError** e)
 {
+	JSLang* plugin = (JSLang*) ipref;
 	anjuta_preferences_remove_page(prefs, _("JavaScript"));
+	g_object_unref (plugin->bxml);
 }
 
 static void

@@ -35,10 +35,13 @@ struct _JSLang{
 //	gchar *current;
 //	GList *complition_cache;
 //	gint uiid;
-	GSettings *prefs;
 	DatabaseSymbol* symbol;
 	AnjutaLanguageProvider *lang_prov;
 //	GtkActionGroup *action_group;
+
+	/* Preferences */
+	GtkBuilder* bxml;
+	GSettings* prefs;
 };
 
 struct _JSLangClass{
