@@ -47,25 +47,27 @@ struct _AnjutaLanguageProviderClass
 
 struct _AnjutaLanguageProvider
 {
-	GObject parent_instance;
-	
+	GObject parent;
 	AnjutaLanguageProviderPriv *priv;
 };
 
 GType anjuta_language_provider_get_type (void) G_GNUC_CONST;
 
-AnjutaLanguageProvider* 
-anjuta_language_provider_new					(IAnjutaEditor *ieditor,
+void
+anjuta_language_provider_install				(AnjutaLanguageProvider* lang_prov,
+                                                 IAnjutaEditor *ieditor,
                                                  GSettings* settings);
 
 gchar*
-anjuta_language_provider_get_pre_word			(IAnjutaEditor* editor,
+anjuta_language_provider_get_pre_word			(AnjutaLanguageProvider* lang_prov,
+                                                 IAnjutaEditor* editor,
                                                  IAnjutaIterable *iter,
                                                  IAnjutaIterable** start_iter,
                                                  const gchar *word_characters);
 
 gchar*
-anjuta_language_provider_get_calltip_context	(IAnjutaEditorTip* itip,
+anjuta_language_provider_get_calltip_context	(AnjutaLanguageProvider* lang_prov,
+                                                 IAnjutaEditorTip* itip,
                                                  IAnjutaIterable* iter,
                                                  const gchar* scope_context_ch);
 
@@ -77,7 +79,7 @@ anjuta_language_provider_activate				(AnjutaLanguageProvider* lang_prov,
 
 void
 anjuta_language_provider_populate				(AnjutaLanguageProvider* lang_prov,
-                                                 IAnjutaProvider* provider,
+                                                 IAnjutaProvider* iprov,
                                                  IAnjutaIterable* cursor);
 
 IAnjutaIterable*

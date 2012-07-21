@@ -152,8 +152,10 @@ install_support (JSLang *plugin)
 	if (!lang || !g_str_equal (lang, "JavaScript"))
 		return;
 		
-	plugin->lang_prov = anjuta_language_provider_new (IANJUTA_EDITOR (plugin->current_editor),
-	                                                  plugin->prefs);
+	plugin->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
+	anjuta_language_provider_install (plugin->lang_prov,
+	                                  IANJUTA_EDITOR (plugin->current_editor),
+	                                  plugin->prefs);
 
 	DEBUG_PRINT ("%s", "JSLang: Install support");
 	

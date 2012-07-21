@@ -555,6 +555,7 @@ parser_cxx_assist_create_autocompletion_cache (ParserCxxAssist* assist,
 {
 	IAnjutaIterable* start_iter;
 	gchar* pre_word = anjuta_language_provider_get_pre_word (
+	                                  assist->priv->lang_prov,
                                       IANJUTA_EDITOR (assist->priv->iassist),
 									  cursor, &start_iter, WORD_CHARACTER);
 	if (!pre_word || strlen (pre_word) <= 3)
@@ -614,7 +615,8 @@ parser_cxx_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 	ParserCxxAssist* assist = PARSER_CXX_ASSIST (self);
 	gchar* calltip_context;
 	calltip_context = anjuta_language_provider_get_calltip_context (
-	                      assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
+	                          assist->priv->lang_prov, assist->priv->itip, iter,
+	                          SCOPE_CONTEXT_CHARACTERS);
 	return calltip_context;
 }
 
@@ -867,6 +869,7 @@ parser_cxx_assist_populate_language (IAnjutaLanguageProvider* self,
 	{
 		g_assert (assist->priv->completion_cache != NULL);
 		gchar* pre_word = anjuta_language_provider_get_pre_word (
+		                              assist->priv->lang_prov,
 		                              IANJUTA_EDITOR (assist->priv->iassist),
 		                              cursor, &start_iter, WORD_CHARACTER);
 		DEBUG_PRINT ("Preword: %s", pre_word);
@@ -1248,7 +1251,8 @@ parser_cxx_assist_new (IAnjutaEditor *ieditor,
 
 	/* Install support */
 	parser_cxx_assist_install (assist, ieditor);
-	assist->priv->lang_prov = anjuta_language_provider_new (ieditor, settings);
+	assist->priv->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
+	anjuta_language_provider_install (assist->priv->lang_prov, ieditor, settings);
 	engine_parser_init (isymbol_manager);
 	
 	return assist;

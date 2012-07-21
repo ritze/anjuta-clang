@@ -558,7 +558,8 @@ python_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 	PythonAssist* assist = PYTHON_ASSIST (self);
 	gchar* calltip_context;
 	calltip_context = anjuta_language_provider_get_calltip_context (
-	                     assist->priv->itip, iter, SCOPE_CONTEXT_CHARACTERS);
+	                     assist->priv->lang_prov, assist->priv->itip, iter,
+	                     SCOPE_CONTEXT_CHARACTERS);
 	return calltip_context;
 }
 
@@ -630,6 +631,7 @@ python_assist_populate_language (IAnjutaLanguageProvider* self,
 	gboolean completion_trigger_char;
 	
 	pre_word = anjuta_language_provider_get_pre_word (
+	                                   assist->priv->lang_prov, 
 	                                   IANJUTA_EDITOR (assist->priv->iassist),
 	                                   cursor, &start_iter, WORD_CHARACTER);
 
@@ -754,13 +756,14 @@ python_assist_new (IAnjutaEditor *ieditor,
                    const gchar *project_root)
 {
 	PythonAssist *assist = g_object_new (TYPE_PYTHON_ASSIST, NULL);
+	assist->priv->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
 	assist->priv->settings = settings;
 	assist->priv->plugin = plugin;
 	assist->priv->project_root = project_root;
 		
 	/* Install support */
 	python_assist_install (assist, ieditor);
-	assist->priv->lang_prov = anjuta_language_provider_new (ieditor, settings);
+	anjuta_language_provider_install (assist->priv->lang_prov, ieditor, settings);
 	return assist;
 }
 

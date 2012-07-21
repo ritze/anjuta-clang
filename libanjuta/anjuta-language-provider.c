@@ -44,9 +44,18 @@ struct _AnjutaLanguageProviderPriv {
 	IAnjutaIterable* start_iter;
 };
 
-static void 
+/**
+ * anjuta_language_provider_install:
+ * @lang_prov: Self
+ * @ieditor: IAnjutaEditor object
+ * @settings: the settings
+ *
+ * Install the settings for AnjutaLanguageProvider
+ */
+void 
 anjuta_language_provider_install (AnjutaLanguageProvider *lang_prov,
-                                  IAnjutaEditor *ieditor)
+                                  IAnjutaEditor *ieditor,
+                                  GSettings* settings)
 {
 	g_return_if_fail (lang_prov->priv->iassist == NULL);
 
@@ -59,6 +68,8 @@ anjuta_language_provider_install (AnjutaLanguageProvider *lang_prov,
 		lang_prov->priv->itip = IANJUTA_EDITOR_TIP (ieditor);
 	else
 		lang_prov->priv->itip = NULL;
+	
+	lang_prov->priv->settings = settings;
 }
 
 static void
@@ -93,18 +104,6 @@ anjuta_language_provider_class_init (AnjutaLanguageProviderClass *klass)
 {
 	GObjectClass* object_class = G_OBJECT_CLASS (klass);
 	object_class->finalize = anjuta_language_provider_finalize;
-}
-
-AnjutaLanguageProvider* 
-anjuta_language_provider_new (IAnjutaEditor *ieditor,
-                              GSettings* settings)
-{
-	AnjutaLanguageProvider *lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
-	lang_prov->priv->settings = settings;
-		
-	/* Install support */
-	anjuta_language_provider_install (lang_prov, ieditor);
-	return lang_prov;
 }
 
 /**
@@ -250,7 +249,8 @@ anjuta_language_provider_get_scope_context (IAnjutaEditor* editor,
  * Returns: name of the method to show a calltip for or NULL
  */
 gchar*
-anjuta_language_provider_get_calltip_context (IAnjutaEditorTip* itip,
+anjuta_language_provider_get_calltip_context (AnjutaLanguageProvider* lang_prov,
+                                              IAnjutaEditorTip* itip,
 		                                      IAnjutaIterable* iter,
                                               const gchar* scope_context_ch)
 {
@@ -288,7 +288,8 @@ anjuta_language_provider_get_calltip_context (IAnjutaEditorTip* itip,
 
 /**
  * anjuta_language_provider_get_pre_word:
- * @editor: Editor object
+ * @lang_prov: Self
+ * @editor: IAnjutaEditor object
  * @iter: current cursor position
  * @start_iter: return location for the start_iter (if a preword was found)
  *
@@ -297,10 +298,11 @@ anjuta_language_provider_get_calltip_context (IAnjutaEditorTip* itip,
  * Returns: The current word (needs to be freed) or NULL if no word was found
  */
 gchar*
-anjuta_language_provider_get_pre_word (IAnjutaEditor* editor,
-                                       IAnjutaIterable *iter,
+anjuta_language_provider_get_pre_word (AnjutaLanguageProvider* lang_prov,
+                                       IAnjutaEditor* editor,
+                                       IAnjutaIterable* iter,
                                        IAnjutaIterable** start_iter,
-                                       const gchar *word_characters)
+                                       const gchar* word_characters)
 {
 	IAnjutaIterable *end = ianjuta_iterable_clone (iter, NULL);
 	IAnjutaIterable *begin = ianjuta_iterable_clone (iter, NULL);
@@ -343,7 +345,7 @@ anjuta_language_provider_get_pre_word (IAnjutaEditor* editor,
 
 /**
  * anjuta_language_provider_calltip:
- * @lang_prov: self
+ * @lang_prov: Self
  * @provider: IAnjutaLanguageProvider object
  * 
  * Creates a calltip if there is something to show a tip for
@@ -408,6 +410,7 @@ g_warning ("anjuta_language_provider_calltip: New tip");
 
 /**
  * anjuta_language_provider_none:
+ * @lang_prov: Self
  * @provider: IAnjutaLanguageProvider object
  *
  * Indicate that there is nothing to autocomplete
@@ -420,9 +423,18 @@ anjuta_language_provider_none (AnjutaLanguageProvider* lang_prov,
 	                                 NULL, TRUE, NULL);
 }
 
+/**
+ * anjuta_language_provider_activate:
+ * @lang_prov: Self
+ * @iprov: IAnjutaProvider object
+ * @iter: the cursor
+ * @data: the ProposalData
+ *
+ * Complete the function name
+ */
 void
 anjuta_language_provider_activate (AnjutaLanguageProvider* lang_prov,
-                                   IAnjutaProvider* provider,
+                                   IAnjutaProvider* iprov,
                                    IAnjutaIterable* iter,
                                    gpointer data)
 {
@@ -515,15 +527,24 @@ g_warning ("anjuta_language_provider_activate");
 		    //TODO: adapt
 		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
 			anjuta_language_provider_calltip (
-				            lang_prov, IANJUTA_LANGUAGE_PROVIDER (provider));
+				            lang_prov, IANJUTA_LANGUAGE_PROVIDER (iprov));
 		}
 	}
 	g_string_free (assistance, TRUE);
 }
 
+/**
+ * anjuta_language_provider_populate:
+ * @lang_prov: Self
+ * @iprov: IAnjutaProvider object
+ * @cursor: the text iter where the provider should be populated
+ *
+ * Show completion for the context at position @iter. The provider should
+ * call ianjuta_editor_assist_proposals here to add proposals to the list.
+ */
 void
 anjuta_language_provider_populate (AnjutaLanguageProvider* lang_prov,
-                                   IAnjutaProvider* provider,
+                                   IAnjutaProvider* iprov,
                                    IAnjutaIterable* cursor)
 {
 g_warning ("anjuta_language_provider_populate");
@@ -534,7 +555,7 @@ g_warning ("anjuta_language_provider_populate");
 	                                        IANJUTA_EDITOR_CELL(cursor), NULL);
 	if (attrib == IANJUTA_EDITOR_COMMENT || attrib == IANJUTA_EDITOR_STRING)
 	{
-		anjuta_language_provider_none (lang_prov, provider);
+		anjuta_language_provider_none (lang_prov, iprov);
 		return;
 	}
 
@@ -543,20 +564,20 @@ g_warning ("anjuta_language_provider_populate");
 	                            IANJUTA_LANGUAGE_PROVIDER_PREF_CALLTIP_ENABLE))
 	{
 		anjuta_language_provider_calltip (lang_prov,
-		                                  IANJUTA_LANGUAGE_PROVIDER (provider));
+		                                  IANJUTA_LANGUAGE_PROVIDER (iprov));
 	}
 
 	/* Check if we actually want autocompletion at all */
 	if (!g_settings_get_boolean (lang_prov->priv->settings,
 		            IANJUTA_LANGUAGE_PROVIDER_PREF_AUTOCOMPLETE_ENABLE))
 	{
-		anjuta_language_provider_none (lang_prov, provider);
+		anjuta_language_provider_none (lang_prov, iprov);
 		return;
 	}
 	
 	/* Execute language-specific part */
 	start_iter = ianjuta_language_provider_populate_language (
-	                     IANJUTA_LANGUAGE_PROVIDER (provider), cursor, NULL);
+	                     IANJUTA_LANGUAGE_PROVIDER (iprov), cursor, NULL);
 g_warning ("anjuta_language_provider_populate 1");
 	if (start_iter)
 	{
@@ -574,10 +595,16 @@ g_warning ("anjuta_language_provider_populate 2");
 		lang_prov->priv->start_iter = NULL;
 	}
 g_warning ("anjuta_language_provider_populate 3");
-	anjuta_language_provider_none (lang_prov, provider);
+	anjuta_language_provider_none (lang_prov, iprov);
 g_warning ("anjuta_language_provider_populate 4");
 }
 
+/**
+ * anjuta_language_provider_get_start_iter:
+ * @lang_prov: Self
+ *
+ * Returns: the start iter
+ */
 IAnjutaIterable*
 anjuta_language_provider_get_start_iter (AnjutaLanguageProvider* lang_prov)
 {

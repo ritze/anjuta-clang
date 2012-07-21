@@ -563,7 +563,7 @@ ipreferences_merge (IAnjutaPreferences* ipref, AnjutaPreferences* prefs,
     toggle = GTK_WIDGET (gtk_builder_get_object (plugin->bxml, PREF_WIDGET_AUTO));
     g_signal_connect (toggle, "toggled", G_CALLBACK (on_autocompletion_toggled),
                       plugin);
-    on_autocompletion_toggled (GTK_TOGGLE_BUTTON (toggle), plugin);                               
+    on_autocompletion_toggled (GTK_TOGGLE_BUTTON (toggle), plugin);
 }
 
 static void

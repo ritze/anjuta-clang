@@ -2744,10 +2744,11 @@ interface IAnjutaProvider
 		 *
 		 * Searches for a calltip in the cache
 		 *
-		 * Returns: tips for the searched name of the method from the cache,
+		 * Returns: (element-type utf8) (transfer container): tips for the
+		 *          searched name of the method from the cache,
 		 *          NULL if nothing found
 		 */
-		GList* get_calltip_cache (gchar* call_context);
+		List<gchar*> get_calltip_cache (gchar* call_context);
 		 
 		/**
 		 * ianjuta_language_provider_get_calltip_context:
@@ -2784,7 +2785,7 @@ interface IAnjutaProvider
 		 * Note that this is called after every character typed and the list of proposals
 		 * has to be completely renewed.
 		 *
-		 * Returns: the iter where the provider populated, NULL otherwise
+		 * Returns: (transfer full): the iter where the provider populated, NULL otherwise
 		 */
 		IAnjutaIterable* populate_language (IAnjutaIterable* iter);
 	}
