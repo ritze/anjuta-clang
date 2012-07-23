@@ -40,8 +40,8 @@ plugin_LTLIBRARIES = libanjuta-parser-cxx.la
 
 # Plugin sources
 libanjuta_parser_cxx_la_SOURCES = \
-	assist.h \
-	assist.c \
+	parser-cxx-assist.h \
+	parser-cxx-assist.c \
 	plugin.h \
 	plugin.c
 

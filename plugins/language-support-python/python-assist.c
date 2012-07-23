@@ -297,7 +297,7 @@ on_autocomplete_finished (AnjutaLauncher* launcher,
 				{
 					tag->type = IANJUTA_SYMBOL_TYPE_FUNCTION;
 					tag->is_func = TRUE;
-					//TODO: not implemented yet
+					/* TODO: not implemented yet */
 					tag->has_para = TRUE;
 				}
 				else if (g_str_equal(type, "builder_object"))

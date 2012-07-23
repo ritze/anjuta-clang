@@ -440,7 +440,7 @@ ilanguage_provider_get_calltip_cache (IAnjutaLanguageProvider *obj,
                                       gchar* call_context,
                                       GError** err)
 {
-	//TODO: Not implemented yet
+	/* TODO: Not implemented yet */
 	return NULL;
 }
 
@@ -469,7 +469,7 @@ ilanguage_provider_new_calltip (IAnjutaLanguageProvider* obj,
                                 IAnjutaIterable* cursor,
                                 GError** err)
 {
-	//TODO: Not implemented yet
+	/* TODO: Not implemented yet */
 	return;
 }
 
@@ -511,7 +511,7 @@ ilanguage_provider_populate (IAnjutaLanguageProvider* obj,
 		if (str[i] == '.')
 			break;
 	}
-	//TODO: Use anjuta_language_provider_get_pre_word in the future
+	/* TODO: Use anjuta_language_provider_get_pre_word in the future */
 	if (i > 0)
 		suggestions = code_completion_get_list (plugin, file, g_strndup (str, i), depth);
 	else
@@ -546,7 +546,7 @@ ilanguage_provider_populate (IAnjutaLanguageProvider* obj,
 			proposal->label = i->data;
 			prop_data->name = i->data;
 			prop_data->is_func = code_completion_is_symbol_func (plugin, str);
-			//TODO: Not implemented yet
+			/* TODO: Not implemented yet */
 			prop_data->has_para = TRUE;
 			prop_data->info = i->data;
 			proposal->data = prop_data;

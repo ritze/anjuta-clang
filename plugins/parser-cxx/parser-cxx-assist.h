@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * anjuta
+ * parser-cxx-anjuta
  * Copyright (C)  2007 Naba Kumar  <naba@gnome.org>
  * 
  * anjuta is free software.

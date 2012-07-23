@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * assist.c
+ * parser-cxx-assist.c
  * Copyright (C)  2007 Naba Kumar  <naba@gnome.org>
  *                     Johannes Schmid  <jhs@gnome.org>
  * 
@@ -34,7 +34,7 @@
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
-#include "assist.h"
+#include "parser-cxx-assist.h"
 #include "cxxparser/engine-parser.h"
 
 #define BRACE_SEARCH_LIMIT 500

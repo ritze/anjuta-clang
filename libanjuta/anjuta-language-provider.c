@@ -357,7 +357,6 @@ static gboolean
 anjuta_language_provider_calltip (AnjutaLanguageProvider* lang_prov,
                                   IAnjutaLanguageProvider* provider)
 {
-g_warning ("anjuta_language_provider_calltip");
 	IAnjutaIterable *iter;
 	IAnjutaEditorTip *tip;
 	gchar *call_context;
@@ -372,27 +371,22 @@ g_warning ("anjuta_language_provider_calltip");
 	if (call_context)
 	{
 		DEBUG_PRINT ("Searching calltip for: %s", call_context);
-g_warning ("Searching calltip for: %s", call_context);
 		GList *tips = ianjuta_language_provider_get_calltip_cache (provider,
 		                                                           call_context,
 		                                                           NULL);
 		if (tips)
 		{
 			/* Continue tip */
-g_warning ("anjuta_language_provider_calltip: Continue tip");
 			if (!ianjuta_editor_tip_visible (tip, NULL))
 				ianjuta_editor_tip_show (tip, tips, iter, NULL);
 		}
 		else
 		{
 			/* New tip */
-g_warning ("anjuta_language_provider_calltip: New tip");
 			if (ianjuta_editor_tip_visible (tip, NULL))
 				ianjuta_editor_tip_cancel (tip, NULL);
-			{
-				ianjuta_language_provider_new_calltip (provider, call_context,
-				                                       iter, NULL);
-			}
+			ianjuta_language_provider_new_calltip (provider, call_context, iter,
+			                                       NULL);
 		}
 		
 		g_free (call_context);
@@ -438,7 +432,6 @@ anjuta_language_provider_activate (AnjutaLanguageProvider* lang_prov,
                                    IAnjutaIterable* iter,
                                    gpointer data)
 {
-g_warning ("anjuta_language_provider_activate");
 	IAnjutaLanguageProviderProposalData *prop_data;
 	GString *assistance;
 	IAnjutaEditor *editor = IANJUTA_EDITOR (lang_prov->priv->iassist);
@@ -524,10 +517,8 @@ g_warning ("anjuta_language_provider_activate");
 		    && g_settings_get_boolean (lang_prov->priv->settings,
 		                        IANJUTA_LANGUAGE_PROVIDER_PREF_CALLTIP_ENABLE))
 		{
-		    //TODO: adapt
-		    //Vala: show_call_tip (IAnjuta.EditorTip editor)
 			anjuta_language_provider_calltip (
-				            lang_prov, IANJUTA_LANGUAGE_PROVIDER (iprov));
+				                lang_prov, IANJUTA_LANGUAGE_PROVIDER (iprov));
 		}
 	}
 	g_string_free (assistance, TRUE);
@@ -547,7 +538,6 @@ anjuta_language_provider_populate (AnjutaLanguageProvider* lang_prov,
                                    IAnjutaProvider* iprov,
                                    IAnjutaIterable* cursor)
 {
-g_warning ("anjuta_language_provider_populate");
 	IAnjutaIterable *start_iter;
 	
 	/* Check if this is a valid text region for completion */
@@ -578,13 +568,11 @@ g_warning ("anjuta_language_provider_populate");
 	/* Execute language-specific part */
 	start_iter = ianjuta_language_provider_populate_language (
 	                     IANJUTA_LANGUAGE_PROVIDER (iprov), cursor, NULL);
-g_warning ("anjuta_language_provider_populate 1");
 	if (start_iter)
 	{
 		if (lang_prov->priv->start_iter)
 			g_object_unref (lang_prov->priv->start_iter);
 		lang_prov->priv->start_iter = start_iter;
-g_warning ("anjuta_language_provider_populate 2");
 		return;
 	}
 	
@@ -594,9 +582,7 @@ g_warning ("anjuta_language_provider_populate 2");
 		g_object_unref (lang_prov->priv->start_iter);
 		lang_prov->priv->start_iter = NULL;
 	}
-g_warning ("anjuta_language_provider_populate 3");
 	anjuta_language_provider_none (lang_prov, iprov);
-g_warning ("anjuta_language_provider_populate 4");
 }
 
 /**

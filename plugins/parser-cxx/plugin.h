@@ -22,7 +22,7 @@
 #define _PLUGIN_H_
 
 #include <libanjuta/anjuta-plugin.h>
-#include "assist.h"
+#include "parser-cxx-assist.h"
 
 extern GType parser_cxx_plugin_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_PARSER_CXX         (parser_cxx_plugin_get_type (NULL))
