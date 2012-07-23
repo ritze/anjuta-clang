@@ -2763,7 +2763,7 @@ interface IAnjutaProvider
 		gchar* get_calltip_context (IAnjutaIterable* iter);
 		 
 		/**
-		 * ianjuta_language_provider_get_calltip_context:
+		 * ianjuta_language_provider_new_calltip:
 		 * @obj: Self
 		 * @call_context: name of the method to create a new calltip
 		 * @iter: current cursor position

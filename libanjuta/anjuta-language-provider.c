@@ -603,7 +603,7 @@ g_warning ("anjuta_language_provider_populate 4");
  * anjuta_language_provider_get_start_iter:
  * @lang_prov: Self
  *
- * Returns: the start iter
+ * Returns: (transfer full): the start iter
  */
 IAnjutaIterable*
 anjuta_language_provider_get_start_iter (AnjutaLanguageProvider* lang_prov)
