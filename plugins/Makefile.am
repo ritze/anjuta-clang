@@ -27,6 +27,7 @@ SUBDIRS = . \
 	message-view \
 	mk-project \
 	patch \
+	parser-clang \
 	parser-cxx \
 	project-import \
 	project-manager \
