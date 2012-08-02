@@ -7,7 +7,7 @@ parser_clang_glade_DATA = anjuta-parser-clang.ui
 # Plugin Icon file
 parser_clang_pixmapsdir = $(anjuta_image_dir)
 parser_clang_pixmaps_DATA = \
-  anjuta-parser-clang-plugin.png
+	anjuta-parser-clang-plugin.png
 
 # Plugin description file
 plugin_in_files = anjuta-parser-clang.plugin.in
@@ -26,8 +26,6 @@ parser_clang_plugin_DATA = $(plugin_in_files:.plugin.in=.plugin)
 
 # Include paths
 AM_CPPFLAGS = \
-	-DPACKAGE_LOCALE_DIR=\""$(prefix)/$(DATADIRNAME)/locale"\" \
-	-DPACKAGE_SRC_DIR=\""$(srcdir)"\" \
 	$(WARN_CFLAGS) \
 	$(DEPRECATED_FLAGS) \
 	$(LIBANJUTA_CFLAGS) \
@@ -43,12 +41,10 @@ plugin_LTLIBRARIES = libanjuta-parser-clang.la
 
 # Plugin sources
 libanjuta_parser_clang_la_SOURCES = \
-	assist.h \
-	assist.c \
-	parser.h \
-	parser.c \
-	plugin.c \
-	plugin.h
+	parser-clang-assist.h \
+	parser-clang-assist.c \
+	plugin.h \
+	plugin.c
 
 libanjuta_parser_clang_la_LDFLAGS = $(ANJUTA_PLUGIN_LDFLAGS)
 
@@ -63,11 +59,6 @@ gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
 
-CLEANFILES = \
-	$(gsettings_SCHEMAS)
-
-endif # ENABLE_LLVM
-
 EXTRA_DIST = \
 	$(plugin_in_files) \
 	$(parser_clang_plugin_DATA) \
@@ -75,4 +66,9 @@ EXTRA_DIST = \
 	$(parser_clang_glade_DATA) \
 	$(gsettings_in_file)
 
+CLEANFILES = \
+	$(gsettings_SCHEMAS)
+
 -include $(top_srcdir)/git.mk
+
+endif # ENABLE_LLVM

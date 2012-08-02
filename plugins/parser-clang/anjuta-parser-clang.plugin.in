@@ -1,8 +1,8 @@
 [Anjuta Plugin]
 Location=anjuta-parser-clang:ParserClangPlugin
 Icon=anjuta-parser-clang-plugin.png
-_Name=C and C++ parser Plugin (clang)
-_Description=C and C++ parser plugin for code completion
+_Name=C and C++ clang parser Plugin
+_Description=C and C++ clang parser plugin for code completion
 Interfaces=IAnjutaLanguageSupport
 UserActivatable=no
 

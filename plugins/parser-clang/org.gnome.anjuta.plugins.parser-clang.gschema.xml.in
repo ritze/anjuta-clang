@@ -1,5 +1,5 @@
 <schemalist>
-	<schema id="org.gnome.anjuta.plugins.parser-cxx" path="/org/gnome/anjuta/plugins/parser-cxx/">
+	<schema id="org.gnome.anjuta.plugins.parser-clang" path="/org/gnome/anjuta/plugins/parser-clang/">
 		<key name="user-packages" type="s">
 			<default>""</default>
 		</key>

@@ -1,6 +1,6 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 4; tab-width: 4 -*- */
 /*
- * anjuta
+ * parser-clang-anjuta
  * Copyright (C)  2007 Naba Kumar  <naba@gnome.org>
  * 
  * anjuta is free software.
@@ -62,10 +62,11 @@ struct _ParserClangAssist
 };
 
 GType parser_clang_assist_get_type (void) G_GNUC_CONST;
-ParserClangAssist *parser_clang_assist_new (IAnjutaEditor *editor,
-                                            IAnjutaSymbolManager *isymbol_manager,
-                                            GSettings* settings,
-                                            const gchar *editor_filename);
+
+ParserClangAssist*
+parser_clang_assist_new		(IAnjutaEditor *ieditor,
+                             IAnjutaSymbolManager *isymbol_manager,
+                             GSettings* settings);
 
 G_END_DECLS
 

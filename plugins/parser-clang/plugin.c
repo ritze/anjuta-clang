@@ -26,7 +26,6 @@
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
-#include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 
@@ -37,7 +36,7 @@
 
 /* Preferences keys */
 #define ANJUTA_PREF_SCHEMA_PREFIX "org.gnome.anjuta."
-#define PREF_SCHEMA "org.gnome.anjuta.plugins.parser-cxx"
+#define PREF_SCHEMA "org.gnome.anjuta.plugins.parser-clang"
 
 static gpointer parent_class;
 
@@ -69,17 +68,13 @@ install_support (ParserClangPlugin *parser_plugin)
 		ParserClangAssist *assist;
 	
 		g_assert (parser_plugin->assist == NULL);
-
-		gchar *filename = ANJUTA_PLUGIN_PARSER_CLANG(parser_plugin)->current_editor_filename;
-		
+	
 		assist = parser_clang_assist_new (IANJUTA_EDITOR (parser_plugin->current_editor),
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
 				    		IAnjutaSymbolManager, NULL),
-		            parser_plugin->settings,
-		            filename);
+		            parser_plugin->settings);
 		
-		//TODO: only load assist, if it's available for c/c++
 		if (!assist)
 			return;
 	
@@ -132,22 +127,11 @@ on_value_added_current_editor (AnjutaPlugin *plugin, const gchar *name,
     }
 	
     if (IANJUTA_IS_EDITOR(parser_plugin->current_editor))
-	{
-		IAnjutaEditor* editor = IANJUTA_EDITOR (parser_plugin->current_editor);
-		GFile* current_editor_file = ianjuta_file_get_file (IANJUTA_FILE (editor),
-		                                                    NULL);
-
-		if (current_editor_file)
-		{
-			parser_plugin->current_editor_filename = g_file_get_path (current_editor_file);
-			g_object_unref (current_editor_file);
-		}
-
         install_support (parser_plugin);
-		g_signal_connect (parser_plugin->current_editor, "language-changed",
-		                  G_CALLBACK (on_editor_language_changed),
-		                  plugin);
-	}
+	
+    g_signal_connect (parser_plugin->current_editor, "language-changed",
+                      G_CALLBACK (on_editor_language_changed),
+                      plugin);
 }
 
 static void
@@ -166,7 +150,6 @@ on_value_removed_current_editor (AnjutaPlugin *plugin, const gchar *name,
         uninstall_support (parser_plugin);
 	
     parser_plugin->current_editor = NULL;
-	parser_plugin->current_editor_filename = NULL;
 }
 
 static gboolean
@@ -213,8 +196,8 @@ static void
 parser_clang_plugin_dispose (GObject *obj)
 {
     ParserClangPlugin* plugin = ANJUTA_PLUGIN_PARSER_CLANG (obj);
+    
     /* Disposition codes */
-
     g_object_unref (plugin->settings);
     g_object_unref (plugin->editor_settings);
 	
@@ -226,7 +209,6 @@ parser_clang_plugin_instance_init (GObject *obj)
 {
     ParserClangPlugin *plugin = ANJUTA_PLUGIN_PARSER_CLANG (obj);
     plugin->current_editor = NULL;
-	plugin->current_editor_filename = NULL;
     plugin->current_language = NULL;
     plugin->editor_watch_id = 0;
     plugin->assist = NULL;

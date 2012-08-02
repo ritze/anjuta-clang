@@ -22,7 +22,7 @@
 #define _PLUGIN_H_
 
 #include <libanjuta/anjuta-plugin.h>
-#include "assist.h"
+#include "parser-clang-assist.h"
 
 extern GType parser_clang_plugin_get_type (GTypeModule *module);
 #define ANJUTA_TYPE_PLUGIN_PARSER_CLANG         (parser_clang_plugin_get_type (NULL))
@@ -43,7 +43,6 @@ struct _ParserClangPlugin {
 	gint editor_watch_id;
 	gboolean support_installed;
 	GObject *current_editor;
-	gchar *current_editor_filename;
 	const gchar *current_language;
 
 	/* Assist */
