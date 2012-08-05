@@ -54,7 +54,7 @@ libanjuta_parser_clang_la_LIBADD = \
 	$(GTHREAD_LIBS) \
 	$(LLVM_LIBS)
 
-gsettings_in_file = org.gnome.anjuta.plugins.parser-cxx.gschema.xml.in
+gsettings_in_file = org.gnome.anjuta.plugins.parser-clang.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_in_file:.xml.in=.xml)
 @INTLTOOL_XML_NOMERGE_RULE@
 @GSETTINGS_RULES@
