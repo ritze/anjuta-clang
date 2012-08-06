@@ -28,6 +28,7 @@
 #include <clang-c/Index.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-language-provider.h>
+#include <libanjuta/anjuta-launcher.h>
 #include <libanjuta/anjuta-utils.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
@@ -40,6 +41,7 @@
 #define BRACE_SEARCH_LIMIT 500
 #define SCOPE_CONTEXT_CHARACTERS "_.:>-0"
 #define WORD_CHARACTER "_0"
+#define MIN_CODECOMPLETE 4
 
 static void iprovider_iface_init(IAnjutaProviderIface* iface);
 static void ilanguage_provider_iface_init(IAnjutaLanguageProviderIface* iface);
@@ -57,6 +59,8 @@ struct _ParserClangAssistPriv {
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
 	AnjutaLanguageProvider* lang_prov;
+	AnjutaLauncher* autocomplete_launcher;
+	AnjutaLauncher* calltip_launcher;
 	
 	const gchar* editor_filename;
 
@@ -255,6 +259,7 @@ const char *args[] =
 	"-I/usr/local/include",
 	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
 	"-I/usr/include"
+	//TODO: Add project root path
 };
 
 	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
@@ -272,25 +277,17 @@ const char *args[] =
 	
 	//TODO: even more test code
 	parser_clang_assist_parse (assist, NULL);
-	
-/*	g_warning ("get_definition:  83, 20");
-	parser_clang_assist_get_definition (assist, 83, 20);
-	g_warning ("get_definition: 109, 24");
-	parser_clang_assist_get_definition (assist, 109, 24);
-	g_warning ("get_definition: 271,  1");
-	parser_clang_assist_get_definition (assist, 271, 1);
-	g_warning ("get_definition: 271,  20");
-	parser_clang_assist_get_definition (assist, 271, 20);
-	g_warning ("get_definition: 271,  26");
-	parser_clang_assist_get_definition (assist, 271, 26);
-	g_warning ("get_definition: 271,  30");
-	parser_clang_assist_get_definition (assist, 271, 30);
-*/	g_warning ("get_definition: 9, 2");
-	parser_clang_assist_get_definition (assist, 9, 2);
-	g_warning ("get_definition: 9, 18");
-	parser_clang_assist_get_definition (assist, 9, 18);
-	g_warning ("get_definition: 10, 12");
-	parser_clang_assist_get_definition (assist, 10, 12);
+
+	g_warning ("get_definition:  4, 17");
+	parser_clang_assist_get_definition (assist, 4, 17);
+	g_warning ("get_definition: 13,  2");
+	parser_clang_assist_get_definition (assist, 13, 2);
+	g_warning ("get_definition: 13, 18");
+	parser_clang_assist_get_definition (assist, 13, 18);
+	g_warning ("get_definition: 14, 12");
+	parser_clang_assist_get_definition (assist, 14, 12);
+	g_warning ("get_definition: 15,  8");
+	parser_clang_assist_get_definition (assist, 15, 8);
 }
 
 static void
@@ -311,46 +308,53 @@ g_warning ("Deinitiate translation unit instance for %s",
 
 /**
  * parser_clang_assist_proposal_new:
- * @symbol: IAnjutaSymbol to create the proposal for
+ * @cursor: CXCursor to create the proposal for
  *
  * Creates a new IAnjutaEditorAssistProposal for symbol
  *
  * Returns: a newly allocated IAnjutaEditorAssistProposal
  */
 static IAnjutaEditorAssistProposal*
-parser_clang_assist_proposal_new (IAnjutaSymbol* symbol)
+parser_clang_assist_proposal_new (CXCursor cursor)
 {
+	CXString cursorSpelling = clang_getCursorSpelling (cursor);
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
 	AnjutaLanguageProposalData* data = 
-		anjuta_language_proposal_data_new (g_strdup (ianjuta_symbol_get_string (symbol, IANJUTA_SYMBOL_FIELD_NAME, NULL)));
-	data->type = ianjuta_symbol_get_sym_type (symbol, NULL);
-	switch (data->type)
+		anjuta_language_proposal_data_new (clang_getCString (cursorSpelling));
+
+	data->info = NULL;
+	switch (clang_getCursorKind (cursor))
 	{
-		case IANJUTA_SYMBOL_TYPE_PROTOTYPE:
-		case IANJUTA_SYMBOL_TYPE_FUNCTION:
-		case IANJUTA_SYMBOL_TYPE_METHOD:
-		case IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG:
+		case CXCursor_FunctionDecl:
+g_warning ("IANJUTA_SYMBOL_TYPE_FUNCTION");
+			data->type = IANJUTA_SYMBOL_TYPE_FUNCTION;
+		case CXCursor_MacroInstantiation:
+			//TODO: Check parameters
+			//data->type = IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG
 			proposal->label = g_strdup_printf ("%s()", data->name);
 			data->is_func = TRUE;
 			break;
+		case CXCursor_VarDecl:
+g_warning ("IANJUTA_SYMBOL_TYPE_VARIABLE");
+			data->type = IANJUTA_SYMBOL_TYPE_VARIABLE;
+			break;
 		default:
+g_warning ("IANJUTA_SYMBOL_TYPE ==> DEFAULT");
 			proposal->label = g_strdup (data->name);
 			data->is_func = FALSE;
 	}
+	
 	data->has_para = FALSE;
 	if (data->is_func)
 	{
-		const gchar* signature = ianjuta_symbol_get_string (symbol,
-		                                                    IANJUTA_SYMBOL_FIELD_SIGNATURE,
-		                                                    NULL);
-		if (g_strcmp0 (signature, "(void)") || g_strcmp0 (signature, "()"))
+		if (clang_Cursor_getNumArguments (cursor) > 0)
 			data->has_para = TRUE;
-			
 	}
-	
+
 	proposal->data = data;
-	/* Icons are lifetime object of the symbol-db so we can cast here */
-	proposal->icon = (GdkPixbuf*) ianjuta_symbol_get_icon (symbol, NULL);
+
+	clang_disposeString (cursorSpelling);
+	
 	return proposal;
 }
 
@@ -770,7 +774,7 @@ parser_clang_assist_create_autocompletion_cache (ParserClangAssist* assist,
 	                                  assist->priv->lang_prov,
                                       IANJUTA_EDITOR (assist->priv->iassist),
 									  cursor, &start_iter, WORD_CHARACTER);
-	if (!pre_word || strlen (pre_word) <= 3)
+	if (!pre_word || strlen (pre_word) < MIN_CODECOMPLETE)
 	{
 		if (start_iter)
 			g_object_unref (start_iter);
