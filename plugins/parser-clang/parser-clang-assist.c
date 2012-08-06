@@ -217,9 +217,10 @@ parser_clang_assist_get_definition (ParserClangAssist* assist, gint line, gint c
 	                                &definitionColumn,
 	                                &definitionOffset);
 	
-	definitionString = g_strjoin ("Definition: Cursor location: ",
-	                              clang_getFileName(definitionFile),
-								  definitionLine, definitionColumn, NULL);
+	definitionString = g_strdup_printf ("Definition: Cursor location: %u, %u",
+//	                                    clang_getFileName(definitionFile),
+								        definitionLine,
+	                                    definitionColumn);
 
 	g_warning ("%s", definitionString);
 	
@@ -244,12 +245,20 @@ g_warning ("Initiate new translation unit instance for %s", path);
 	// symbols from 'IndexTest.pch'.
 //	const char *args[] = { "-Xpreprocessor -I/usr/include/linux/ -F/home/ritze/.workspaces/anjuta" };
 //const char *args[] = { "-I/usr/include/linux" }; 
-const char *args[] = { "-I/usr/include" };
+const char *args[] =
+{
+	"-I/usr/include/linux",
+	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1",
+	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/x86_64-unknown-linux-gnu",
+	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/backward",
+	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include",
+	"-I/usr/local/include",
+	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
+	"-I/usr/include"
+};
 
 	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
-	                                             index, path, 1, args, 0, NULL);
-//	clang_visitChildren(clang_getTranslationUnitCursor(assist->priv->clang_tu),
-//	                    TranslationUnitVisitor, 0);
+	                                             index, path, 8, args, 0, NULL);
 // END OF TEST
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 	
@@ -264,20 +273,24 @@ const char *args[] = { "-I/usr/include" };
 	//TODO: even more test code
 	parser_clang_assist_parse (assist, NULL);
 	
-	g_warning ("get_definition:  83, 20");
+/*	g_warning ("get_definition:  83, 20");
 	parser_clang_assist_get_definition (assist, 83, 20);
-	g_warning ("get_definition: 263, 30");
-	parser_clang_assist_get_definition (assist, 263, 30);
-	g_warning ("get_definition: 263,  0");
-	parser_clang_assist_get_definition (assist, 263, 0);
-	g_warning ("get_definition: 263,  1");
-	parser_clang_assist_get_definition (assist, 263, 1);
-	g_warning ("get_definition: 263,  2");
-	parser_clang_assist_get_definition (assist, 263, 2);
-	g_warning ("get_definition: 263, 26");
-	parser_clang_assist_get_definition (assist, 263, 26);
-	g_warning ("get_definition: 263, 41");
-	parser_clang_assist_get_definition (assist, 263, 41);
+	g_warning ("get_definition: 109, 24");
+	parser_clang_assist_get_definition (assist, 109, 24);
+	g_warning ("get_definition: 271,  1");
+	parser_clang_assist_get_definition (assist, 271, 1);
+	g_warning ("get_definition: 271,  20");
+	parser_clang_assist_get_definition (assist, 271, 20);
+	g_warning ("get_definition: 271,  26");
+	parser_clang_assist_get_definition (assist, 271, 26);
+	g_warning ("get_definition: 271,  30");
+	parser_clang_assist_get_definition (assist, 271, 30);
+*/	g_warning ("get_definition: 9, 2");
+	parser_clang_assist_get_definition (assist, 9, 2);
+	g_warning ("get_definition: 9, 18");
+	parser_clang_assist_get_definition (assist, 9, 18);
+	g_warning ("get_definition: 10, 12");
+	parser_clang_assist_get_definition (assist, 10, 12);
 }
 
 static void
