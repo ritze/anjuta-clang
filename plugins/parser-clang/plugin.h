@@ -40,10 +40,14 @@ struct _ParserClangPlugin {
 	
 	GSettings* settings;
 	GSettings* editor_settings;
-	gint editor_watch_id;
 	gboolean support_installed;
 	GObject *current_editor;
 	const gchar *current_language;
+	gchar *project_root_directory;
+	
+	/* Watches */
+	gint project_root_watch_id;
+	gint editor_watch_id;
 
 	/* Assist */
 	ParserClangAssist *assist;

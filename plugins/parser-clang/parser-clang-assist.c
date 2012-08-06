@@ -63,6 +63,7 @@ struct _ParserClangAssistPriv {
 	AnjutaLauncher* calltip_launcher;
 	
 	const gchar* editor_filename;
+	const gchar* project_root;
 
 	/* Clang */
 	CXTranslationUnit clang_tu;
@@ -407,9 +408,10 @@ parser_clang_assist_create_completion_from_symbols (IAnjutaIterable* symbols)
 	do
 	{
 		IAnjutaSymbol* symbol = IANJUTA_SYMBOL (symbols);
-		IAnjutaEditorAssistProposal* proposal = parser_clang_assist_proposal_new (symbol);	
+		//TODO:
+		//IAnjutaEditorAssistProposal* proposal = parser_clang_assist_proposal_new (symbol);	
 
-		list = g_list_append (list, proposal);
+		//list = g_list_append (list, proposal);
 	}
 	while (ianjuta_iterable_next (symbols, NULL));
 
@@ -1130,9 +1132,11 @@ parser_clang_assist_populate_completions (IAnjutaLanguageProvider* self,
  */
 static void
 parser_clang_assist_install (ParserClangAssist *assist,
-                             IAnjutaEditor *ieditor)
+                             IAnjutaEditor *ieditor,
+                             const gchar *project_root)
 {
 	g_return_if_fail (assist->priv->iassist == NULL);
+	assist->priv->project_root = project_root;
 
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
 	{
@@ -1255,7 +1259,8 @@ parser_clang_assist_class_init (ParserClangAssistClass *klass)
 ParserClangAssist *
 parser_clang_assist_new (IAnjutaEditor *ieditor,
                          IAnjutaSymbolManager *isymbol_manager,
-                         GSettings* settings)
+                         GSettings* settings,
+                         const gchar *project_root)
 {
 	ParserClangAssist *assist;
 	static IAnjutaSymbolField calltip_fields[] = {
@@ -1468,7 +1473,7 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                     NULL);
 
 	/* Install support */
-	parser_clang_assist_install (assist, ieditor);
+	parser_clang_assist_install (assist, ieditor, project_root);
 	assist->priv->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
 	anjuta_language_provider_install (assist->priv->lang_prov, ieditor, settings);
 	parser_clang_assist_clang_init (assist);

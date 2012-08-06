@@ -27,6 +27,7 @@
 #include <libanjuta/interfaces/ianjuta-document.h>
 #include <libanjuta/interfaces/ianjuta-document-manager.h>
 #include <libanjuta/interfaces/ianjuta-preferences.h>
+#include <libanjuta/interfaces/ianjuta-project-manager.h>
 #include <libanjuta/interfaces/ianjuta-language.h>
 
 #include "plugin.h"
@@ -73,7 +74,8 @@ install_support (ParserClangPlugin *parser_plugin)
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
 				    		IAnjutaSymbolManager, NULL),
-		            parser_plugin->settings);
+		            parser_plugin->settings,
+		            parser_plugin->project_root_directory);
 		
 		if (!assist)
 			return;
@@ -152,6 +154,36 @@ on_value_removed_current_editor (AnjutaPlugin *plugin, const gchar *name,
     parser_plugin->current_editor = NULL;
 }
 
+static void
+on_value_added_project_root (AnjutaPlugin *plugin, const gchar *name,
+                             const GValue *value, gpointer user_data)
+{
+	ParserClangPlugin *parser_plugin;
+	gchar *project_root_uri;
+	GFile *file;
+
+	parser_plugin = ANJUTA_PLUGIN_PARSER_CLANG (plugin);
+
+	g_free (parser_plugin->project_root_directory);
+	project_root_uri = g_value_dup_string (value);
+	file = g_file_new_for_uri (project_root_uri);
+	parser_plugin->project_root_directory = g_file_get_path (file);
+	g_object_unref (file);
+	g_free (project_root_uri);
+}
+
+static void
+on_value_removed_root_removed (AnjutaPlugin *plugin, const gchar *name,
+                               gpointer user_data)
+{
+	ParserClangPlugin *parser_plugin;
+
+	parser_plugin = ANJUTA_PLUGIN_PARSER_CLANG (plugin);
+
+	g_free (parser_plugin->project_root_directory);
+	parser_plugin->project_root_directory = NULL;
+}
+
 static gboolean
 parser_clang_plugin_activate_plugin (AnjutaPlugin *plugin)
 {
@@ -160,13 +192,18 @@ parser_clang_plugin_activate_plugin (AnjutaPlugin *plugin)
     parser_plugin = ANJUTA_PLUGIN_PARSER_CLANG (plugin);
 
     DEBUG_PRINT ("%s", "AnjutaParserClangPlugin: Activating plugin ...");
-	
-    parser_plugin->editor_watch_id =
-        anjuta_plugin_add_watch (plugin,
-                                 IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
-                                 on_value_added_current_editor,
-                                 on_value_removed_current_editor,
-                                 plugin);
+
+	/* Add watches */
+	parser_plugin->project_root_watch_id = anjuta_plugin_add_watch (plugin,
+									IANJUTA_PROJECT_MANAGER_PROJECT_ROOT_URI,
+									on_value_added_project_root,
+									on_value_removed_root_removed,
+									NULL);
+    parser_plugin->editor_watch_id = anjuta_plugin_add_watch (plugin,
+									IANJUTA_DOCUMENT_MANAGER_CURRENT_DOCUMENT,
+									on_value_added_current_editor,
+									on_value_removed_current_editor,
+									plugin);
 
     return TRUE;
 }
@@ -180,6 +217,9 @@ parser_clang_plugin_deactivate_plugin (AnjutaPlugin *plugin)
     anjuta_plugin_remove_watch (plugin,
                                 parser_plugin->editor_watch_id,
                                 TRUE);
+	anjuta_plugin_remove_watch (plugin,
+								parser_plugin->project_root_watch_id,
+								TRUE);
 
     DEBUG_PRINT ("%s", "AnjutaParserClangPlugin: Deactivated plugin.");
     return TRUE;
