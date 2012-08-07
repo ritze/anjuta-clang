@@ -68,6 +68,12 @@ struct _ParserClangAssistPriv {
 	/* Clang */
 	CXTranslationUnit clang_tu;
 	CXFile clang_file;
+
+	/* Cache */
+	//TODO:
+	gchar* cache_context;
+	//TODO:
+	CXCursor cache_cursor;
 	
 	/* Calltips */
 	gchar* calltip_context;
@@ -105,6 +111,55 @@ struct _ParserClangAssistPriv {
 	IAnjutaSymbolQuery *sync_query_project;
 };
 
+
+static void
+parser_clang_assist_clang_init (ParserClangAssist* assist,
+                                gint numUnsaved,
+                                struct CXUnsavedFile *unsaved)
+{
+	const gchar* path = assist->priv->editor_filename;
+	
+	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
+g_warning ("Initiate new translation unit instance for %s", path);
+	
+	const char *args[] =
+	{
+		//TODO: Get this strings with "gcc -v -x c++ /dev/null -fsyntax-only"
+		"-I/usr/include/linux",
+		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1",
+		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/x86_64-unknown-linux-gnu",
+		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/backward",
+		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include",
+		"-I/usr/local/include",
+		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
+		"-I/usr/include"
+		//TODO: Add project root path: assist->priv->project_root
+	};
+	
+	CXIndex index = clang_createIndex (0, 0);
+	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
+	                               index, path, 8, args, numUnsaved, unsaved);
+	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
+	
+	clang_disposeIndex (index);
+}
+
+static void
+parser_clang_assist_clang_deinit (ParserClangAssist* assist)
+{
+	DEBUG_PRINT ("Deinitiate translation unit instance for %s",
+	             assist->priv->editor_filename);
+g_warning ("Deinitiate translation unit instance for %s",
+           assist->priv->editor_filename);
+	
+	if (assist->priv->clang_tu) {
+		clang_disposeTranslationUnit (assist->priv->clang_tu);
+		assist->priv->clang_tu = NULL;
+	}
+	
+	assist->priv->clang_file = NULL;
+}
+
 /* Test code */
 static GList*
 parser_clang_assist_get_diagnostics (ParserClangAssist* assist)
@@ -129,43 +184,61 @@ g_warning ("parser_clang_assist_diag");
 	clang_disposeString (string);
 }
 
+//TODO: Do this async...
 static void
 parser_clang_assist_parse (ParserClangAssist* assist, const gchar *unsavedContent)
 {
-	//some test code
-	if (unsavedContent) {
-		g_warning ("reparse...");
-		
-		struct CXUnsavedFile *unsaved = NULL;	
+	int numUnsaved = 0;
+	gint error = 0;
+	struct CXUnsavedFile *unsaved = NULL;
+	
+	if (unsavedContent)
+	{
+		g_warning ("Reparse code with unsaved content.");
+		numUnsaved = 1;
 		unsaved = g_malloc (2 * sizeof (struct CXUnsavedFile));
 		unsaved[0].Filename = assist->priv->editor_filename;
 		unsaved[0].Contents = unsavedContent;
-		//TODO: works this really?
-		unsaved[0].Length = g_strv_length ((gchar**) unsavedContent);
+g_warning ("Length (g_strv_length): %u", g_strv_length ((gchar**) &unsavedContent));
+//		unsaved[0].Length = g_strv_length ((gchar**) &unsavedContent);
+g_warning ("Length (strlen): %zu", g_utf8_strlen (unsavedContent, -1));
+		unsaved[0].Length = g_utf8_strlen (unsavedContent, -1);
 		unsaved[1].Filename = NULL;
 		unsaved[1].Contents = NULL;
 		unsaved[1].Length = 0;
+	}
 
-		gint error = clang_reparseTranslationUnit (assist->priv->clang_tu, 1,
-						unsaved, clang_defaultReparseOptions (assist->priv->clang_tu));
-
-		//TODO: act accordingly...
-		if (error)
-		{
-			g_warning ("Could not reparse! abort here...");
-			return;
-		}
-
-		g_free (unsaved);
+	if (assist->priv->clang_tu)
+	{
+		error = clang_reparseTranslationUnit (assist->priv->clang_tu,
+		                                      numUnsaved, unsaved,
+		                                      clang_defaultReparseOptions (
+		                                               assist->priv->clang_tu));
+	}
+	else
+	{
+		parser_clang_assist_clang_init (assist, numUnsaved, unsaved);
+		if (!assist->priv->clang_tu)
+			error = 1;
+	}
+	g_free (unsaved);
+	
+	//TODO: act accordingly...
+	if (error)
+	{
+		g_warning ("Could not reparse! Abort here...");
+		parser_clang_assist_clang_deinit (assist);
+		return;
 	}
 	
 	GList *diags = parser_clang_assist_get_diagnostics (assist);
-
 	g_list_foreach (diags, (GFunc) parser_clang_assist_diag, NULL);
 }
 
 static gchar*
-parser_clang_assist_get_definition (ParserClangAssist* assist, gint line, gint column)
+parser_clang_assist_get_definition (ParserClangAssist* assist,
+                                    gint line,
+                                    gint column)
 {
 	gchar* locationString;
 	gchar* definitionString;
@@ -234,78 +307,6 @@ parser_clang_assist_get_definition (ParserClangAssist* assist, gint line, gint c
 }
 
 /* End of test code */
-static void
-parser_clang_assist_clang_init (ParserClangAssist* assist)
-{
-	const gchar* path = assist->priv->editor_filename;
-	
-	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
-g_warning ("Initiate new translation unit instance for %s", path);
-	
-	CXIndex index = clang_createIndex (0, 0);
-//	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
-//	                                             index, path, 0, NULL, 0, NULL);
-// TEST
-	// TODO: This will load all the symbols from 'IndexTest.c', excluding
-	// symbols from 'IndexTest.pch'.
-//	const char *args[] = { "-Xpreprocessor -I/usr/include/linux/ -F/home/ritze/.workspaces/anjuta" };
-//const char *args[] = { "-I/usr/include/linux" }; 
-const char *args[] =
-{
-	"-I/usr/include/linux",
-	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1",
-	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/x86_64-unknown-linux-gnu",
-	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/backward",
-	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include",
-	"-I/usr/local/include",
-	"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
-	"-I/usr/include"
-	//TODO: Add project root path
-};
-
-	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
-	                                             index, path, 8, args, 0, NULL);
-// END OF TEST
-	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
-	
-	clang_disposeIndex (index);
-	
-	if (!assist->priv->clang_tu)
-	{
-		g_warning ("Could not parse %s", path);
-		return;
-	}
-	
-	//TODO: even more test code
-	parser_clang_assist_parse (assist, NULL);
-
-	g_warning ("get_definition:  4, 17");
-	parser_clang_assist_get_definition (assist, 4, 17);
-	g_warning ("get_definition: 13,  2");
-	parser_clang_assist_get_definition (assist, 13, 2);
-	g_warning ("get_definition: 13, 18");
-	parser_clang_assist_get_definition (assist, 13, 18);
-	g_warning ("get_definition: 14, 12");
-	parser_clang_assist_get_definition (assist, 14, 12);
-	g_warning ("get_definition: 15,  8");
-	parser_clang_assist_get_definition (assist, 15, 8);
-}
-
-static void
-parser_clang_assist_clang_deinit (ParserClangAssist* assist)
-{
-	DEBUG_PRINT ("Deinitiate translation unit instance for %s",
-	             assist->priv->editor_filename);
-g_warning ("Deinitiate translation unit instance for %s",
-           assist->priv->editor_filename);
-	
-	if (assist->priv->clang_tu) {
-		clang_disposeTranslationUnit (assist->priv->clang_tu);
-		assist->priv->clang_tu = NULL;
-	}
-	
-	assist->priv->clang_file = NULL;
-}
 
 /**
  * parser_clang_assist_proposal_new:
@@ -321,7 +322,7 @@ parser_clang_assist_proposal_new (CXCursor cursor)
 	CXString cursorSpelling = clang_getCursorSpelling (cursor);
 	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
 	AnjutaLanguageProposalData* data = 
-		anjuta_language_proposal_data_new (clang_getCString (cursorSpelling));
+		anjuta_language_proposal_data_new ((gchar*) clang_getCString (cursorSpelling));
 
 	data->info = NULL;
 	switch (clang_getCursorKind (cursor))
@@ -579,7 +580,7 @@ parser_clang_assist_parse_expression (ParserClangAssist* assist, IAnjutaIterable
 
 	if (stmt)
 	{
-		gint lineno;
+		//gint lineno;
 		gchar *above_text;
 		IAnjutaIterable* start;
 		
@@ -593,7 +594,7 @@ parser_clang_assist_parse_expression (ParserClangAssist* assist, IAnjutaIterable
 		above_text = ianjuta_editor_get_text (editor, start, iter, NULL);
 		g_object_unref (start);
 		
-		lineno = ianjuta_editor_get_lineno (editor, NULL);
+		//lineno = ianjuta_editor_get_lineno (editor, NULL);
 
 		/* the parser works even for the "Gtk::" like expressions, so it 
 		 * shouldn't be created a specific case to handle this.
@@ -832,10 +833,29 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 {
 	ParserClangAssist* assist = PARSER_CLANG_ASSIST (self);
 	gchar* calltip_context;
-	calltip_context = anjuta_language_provider_get_calltip_context (
-	                          assist->priv->lang_prov, assist->priv->itip, iter,
-	                          SCOPE_CONTEXT_CHARACTERS);
-	return calltip_context;
+	gint offset = ianjuta_iterable_get_position (iter, NULL);
+
+	//TODO: Check, if document is dirty
+	const gchar* unsavedContent = ianjuta_editor_get_text_all (
+	                              IANJUTA_EDITOR (assist->priv->iassist), NULL);
+	parser_clang_assist_parse (assist, unsavedContent);
+	
+g_warning ("get_calltip_context offset: %d", offset);
+	CXSourceLocation location = clang_getLocationForOffset (
+	               assist->priv->clang_tu, assist->priv->clang_file, offset);
+g_warning ("get_calltip_context 2");
+	CXCursor cursor = clang_getCursor (assist->priv->clang_tu, location);
+	
+	CXString cursorSpelling = clang_getCursorSpelling (cursor);
+	calltip_context = g_strdup_printf ("%s", clang_getCString (cursorSpelling));
+	
+	//TODO: Cache part
+	//assist->priv->cache_calltip_cursor = cursor;
+	//assist->priv->cache_calltip_context = calltip_context;
+	
+	clang_disposeString (cursorSpelling);
+g_warning ("get_calltip_context calltip_context: %s", calltip_context);	
+	return calltip_context;2123412üp9jdiklsjoup892v 
 }
 
 /**
@@ -1240,9 +1260,6 @@ parser_clang_assist_finalize (GObject *object)
 	if (priv->sync_query_project)
 		g_object_unref (priv->sync_query_project);
 	priv->sync_query_project = NULL;
-
-	//TODO:
-	//engine_parser_deinit ();
 	
 	g_free (assist->priv);
 	G_OBJECT_CLASS (parser_clang_assist_parent_class)->finalize (object);
@@ -1476,7 +1493,19 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	parser_clang_assist_install (assist, ieditor, project_root);
 	assist->priv->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
 	anjuta_language_provider_install (assist->priv->lang_prov, ieditor, settings);
-	parser_clang_assist_clang_init (assist);
+	parser_clang_assist_parse (assist,  NULL);
+
+	//TODO: Some test code
+	g_warning ("get_definition:  4, 17");
+	parser_clang_assist_get_definition (assist, 4, 17);
+	g_warning ("get_definition: 13,  2");
+	parser_clang_assist_get_definition (assist, 13, 2);
+	g_warning ("get_definition: 13, 18");
+	parser_clang_assist_get_definition (assist, 13, 18);
+	g_warning ("get_definition: 14, 12");
+	parser_clang_assist_get_definition (assist, 14, 12);
+	g_warning ("get_definition: 15,  8");
+	parser_clang_assist_get_definition (assist, 15, 8);
 	
 	return assist;
 }
