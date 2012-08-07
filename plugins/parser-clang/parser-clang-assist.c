@@ -855,7 +855,7 @@ g_warning ("get_calltip_context 2");
 	
 	clang_disposeString (cursorSpelling);
 g_warning ("get_calltip_context calltip_context: %s", calltip_context);	
-	return calltip_context;2123412üp9jdiklsjoup892v 
+	return calltip_context; 
 }
 
 /**
