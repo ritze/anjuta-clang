@@ -66,6 +66,7 @@ struct _ParserClangAssistPriv {
 	const gchar* project_root;
 
 	/* Clang */
+	CXIndex clang_index;
 	CXTranslationUnit clang_tu;
 	CXFile clang_file;
 
@@ -111,6 +112,11 @@ struct _ParserClangAssistPriv {
 	IAnjutaSymbolQuery *sync_query_project;
 };
 
+static enum CXChildVisitResult
+TranslationUnitVisitor (CXCursor cursor, CXCursor parent, CXClientData data)
+{
+	return CXChildVisit_Recurse;
+}
 
 static void
 parser_clang_assist_clang_init (ParserClangAssist* assist,
@@ -122,7 +128,7 @@ parser_clang_assist_clang_init (ParserClangAssist* assist,
 	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
 g_warning ("Initiate new translation unit instance for %s", path);
 	
-	const char *args[] =
+	const gchar *args[] =
 	{
 		//TODO: Get this strings with "gcc -v -x c++ /dev/null -fsyntax-only"
 		"-I/usr/include/linux",
@@ -136,12 +142,14 @@ g_warning ("Initiate new translation unit instance for %s", path);
 		//TODO: Add project root path: assist->priv->project_root
 	};
 	
-	CXIndex index = clang_createIndex (0, 0);
+	assist->priv->clang_index = clang_createIndex (0, 0);
 	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
-	                               index, path, 8, args, numUnsaved, unsaved);
+	            assist->priv->clang_index, path, 8, args, numUnsaved, unsaved);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 	
-	clang_disposeIndex (index);
+	//TODO: new
+	clang_visitChildren (clang_getTranslationUnitCursor(assist->priv->clang_tu),
+                         TranslationUnitVisitor, 0);
 }
 
 static void
@@ -155,6 +163,11 @@ g_warning ("Deinitiate translation unit instance for %s",
 	if (assist->priv->clang_tu) {
 		clang_disposeTranslationUnit (assist->priv->clang_tu);
 		assist->priv->clang_tu = NULL;
+	}
+	
+	if (assist->priv->clang_index) {
+		clang_disposeIndex (assist->priv->clang_index);
+		assist->priv->clang_index = NULL;
 	}
 	
 	assist->priv->clang_file = NULL;
@@ -836,11 +849,13 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 	gint offset = ianjuta_iterable_get_position (iter, NULL);
 
 	//TODO: Check, if document is dirty
-	const gchar* unsavedContent = ianjuta_editor_get_text_all (
-	                              IANJUTA_EDITOR (assist->priv->iassist), NULL);
+	const gchar* unsavedContent =
+		ianjuta_editor_get_text_all (IANJUTA_EDITOR (assist->priv->iassist),
+		                             NULL);
 	parser_clang_assist_parse (assist, unsavedContent);
 	
 g_warning ("get_calltip_context offset: %d", offset);
+	//TODO: memory fault
 	CXSourceLocation location = clang_getLocationForOffset (
 	               assist->priv->clang_tu, assist->priv->clang_file, offset);
 g_warning ("get_calltip_context 2");
