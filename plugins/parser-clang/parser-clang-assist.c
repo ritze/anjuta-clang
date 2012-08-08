@@ -25,6 +25,7 @@
 
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 #include <clang-c/Index.h>
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-language-provider.h>
@@ -42,6 +43,13 @@
 #define SCOPE_CONTEXT_CHARACTERS "_.:>-0"
 #define WORD_CHARACTER "_0"
 #define MIN_CODECOMPLETE 4
+
+#ifdef DEBUG
+	#define DISPLAY_DIAGNOSTICS 1
+#else
+	//TODO:
+	#define DISPLAY_DIAGNOSTICS 1
+#endif
 
 static void iprovider_iface_init(IAnjutaProviderIface* iface);
 static void ilanguage_provider_iface_init(IAnjutaLanguageProviderIface* iface);
@@ -71,10 +79,8 @@ struct _ParserClangAssistPriv {
 	CXFile clang_file;
 
 	/* Cache */
-	//TODO:
-	gchar* cache_context;
-	//TODO:
-	CXCursor cache_cursor;
+	//TODO: gchar* cache_context;
+	//TODO: CXCursor cache_cursor;
 	
 	/* Calltips */
 	gchar* calltip_context;
@@ -123,56 +129,33 @@ parser_clang_assist_clang_tu_visitor (CXCursor cursor,
 }
 */
 
-//TODO:
-//#ifdef DEBUG
-static GList*
-parser_clang_assist_get_diagnostics (ParserClangAssist* assist)
-{
-	GList *list = NULL;
-	
-	guint numDiagnostics = clang_getNumDiagnostics (assist->priv->clang_tu);
-	guint i;
-	
-	for (i = 0; i != numDiagnostics; ++i)
-	{
-		CXDiagnostic *diag = clang_getDiagnostic (assist->priv->clang_tu, i);
-		CXString string = clang_formatDiagnostic (diag, clang_defaultDiagnosticDisplayOptions());
-		DEBUG_PRINT ("Clang diagnostic: %s", clang_getCString (string));
-g_warning ("Clang diagnostic: %s", clang_getCString (string));
-		clang_disposeString (string);
-	}
-	
-	return list;
-}
-//#endif
-
 static void
 parser_clang_assist_clang_init (ParserClangAssist* assist,
                                 gint numUnsaved,
                                 struct CXUnsavedFile *unsaved)
 {
 	const gchar* path = assist->priv->editor_filename;
-	
-	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
-g_warning ("Initiate new translation unit instance for %s", path);
-	
 	const gchar *args[] =
 	{
 		//TODO: Get this strings with "gcc -v -x c++ /dev/null -fsyntax-only"
-		"-I/usr/include/linux",
 		"-I/usr/include/c++/4.7.1",
 		"-I/usr/include/c++/4.7.1/x86_64-unknown-linux-gnu",
 		"-I/usr/include/c++/4.7.1/backward",
 		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include",
 		"-I/usr/local/include",
 		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
-		"-I/usr/include"
+		"-I/usr/include",
+		"-I/usr/include/linux",
+		"-I/usr/include/glib-2.0",
+		"-I/lib/glib-2.0/include",
+		"-I/home/ritze/.workspaces/anjuta"
 		//TODO: Add project root path: assist->priv->project_root
 	};
 	
-	assist->priv->clang_index = clang_createIndex (0, 0);
+	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
+	assist->priv->clang_index = clang_createIndex (0, DISPLAY_DIAGNOSTICS);
 	assist->priv->clang_tu = clang_parseTranslationUnit (
-	            assist->priv->clang_index, path, args, 8, unsaved, numUnsaved,
+	            assist->priv->clang_index, path, args, 11, unsaved, numUnsaved,
 	            CXTranslationUnit_None);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 	
@@ -246,11 +229,6 @@ g_warning ("Length (strlen): %zu", g_utf8_strlen (unsavedContent, -1));
 		parser_clang_assist_clang_deinit (assist);
 		return;
 	}
-	
-//TODO:
-//#ifdef DEBUG
-	GList *diags = parser_clang_assist_get_diagnostics (assist);
-//#endif
 }
 
 /* TODO: Test code */
