@@ -112,11 +112,39 @@ struct _ParserClangAssistPriv {
 	IAnjutaSymbolQuery *sync_query_project;
 };
 
+/* TODO:
 static enum CXChildVisitResult
-TranslationUnitVisitor (CXCursor cursor, CXCursor parent, CXClientData data)
+parser_clang_assist_clang_tu_visitor (CXCursor cursor,
+                                      CXCursor parent,
+                                      CXClientData data)
 {
+	// Visit recursivly
 	return CXChildVisit_Recurse;
 }
+*/
+
+//TODO:
+//#ifdef DEBUG
+static GList*
+parser_clang_assist_get_diagnostics (ParserClangAssist* assist)
+{
+	GList *list = NULL;
+	
+	guint numDiagnostics = clang_getNumDiagnostics (assist->priv->clang_tu);
+	guint i;
+	
+	for (i = 0; i != numDiagnostics; ++i)
+	{
+		CXDiagnostic *diag = clang_getDiagnostic (assist->priv->clang_tu, i);
+		CXString string = clang_formatDiagnostic (diag, clang_defaultDiagnosticDisplayOptions());
+		DEBUG_PRINT ("Clang diagnostic: %s", clang_getCString (string));
+g_warning ("Clang diagnostic: %s", clang_getCString (string));
+		clang_disposeString (string);
+	}
+	
+	return list;
+}
+//#endif
 
 static void
 parser_clang_assist_clang_init (ParserClangAssist* assist,
@@ -132,9 +160,9 @@ g_warning ("Initiate new translation unit instance for %s", path);
 	{
 		//TODO: Get this strings with "gcc -v -x c++ /dev/null -fsyntax-only"
 		"-I/usr/include/linux",
-		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1",
-		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/x86_64-unknown-linux-gnu",
-		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/../../../../include/c++/4.7.1/backward",
+		"-I/usr/include/c++/4.7.1",
+		"-I/usr/include/c++/4.7.1/x86_64-unknown-linux-gnu",
+		"-I/usr/include/c++/4.7.1/backward",
 		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include",
 		"-I/usr/local/include",
 		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
@@ -143,13 +171,13 @@ g_warning ("Initiate new translation unit instance for %s", path);
 	};
 	
 	assist->priv->clang_index = clang_createIndex (0, 0);
-	assist->priv->clang_tu = clang_createTranslationUnitFromSourceFile (
-	            assist->priv->clang_index, path, 8, args, numUnsaved, unsaved);
+	assist->priv->clang_tu = clang_parseTranslationUnit (
+	            assist->priv->clang_index, path, args, 8, unsaved, numUnsaved,
+	            CXTranslationUnit_None);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 	
-	//TODO: new
-	clang_visitChildren (clang_getTranslationUnitCursor(assist->priv->clang_tu),
-                         TranslationUnitVisitor, 0);
+//	clang_visitChildren (clang_getTranslationUnitCursor(assist->priv->clang_tu),
+//                         parser_clang_assist_clang_tu_visitor, 0);
 }
 
 static void
@@ -157,8 +185,7 @@ parser_clang_assist_clang_deinit (ParserClangAssist* assist)
 {
 	DEBUG_PRINT ("Deinitiate translation unit instance for %s",
 	             assist->priv->editor_filename);
-g_warning ("Deinitiate translation unit instance for %s",
-           assist->priv->editor_filename);
+g_warning ("Deinitiate translation unit instance for %s", assist->priv->editor_filename);
 	
 	if (assist->priv->clang_tu) {
 		clang_disposeTranslationUnit (assist->priv->clang_tu);
@@ -171,30 +198,6 @@ g_warning ("Deinitiate translation unit instance for %s",
 	}
 	
 	assist->priv->clang_file = NULL;
-}
-
-/* Test code */
-static GList*
-parser_clang_assist_get_diagnostics (ParserClangAssist* assist)
-{
-	GList *list = NULL;
-	
-	guint numDiagnostics = clang_getNumDiagnostics (assist->priv->clang_tu);
-	guint i;
-	
-	for (i = 0; i != numDiagnostics; ++i)
-		list = g_list_append (list, clang_getDiagnostic (assist->priv->clang_tu, i));
-	
-	return list;
-}
-
-static void
-parser_clang_assist_diag (CXDiagnostic *diag)
-{
-g_warning ("parser_clang_assist_diag");
-	CXString string = clang_formatDiagnostic (diag,clang_defaultDiagnosticDisplayOptions());
-	g_warning ("%s", clang_getCString (string));
-	clang_disposeString (string);
 }
 
 //TODO: Do this async...
@@ -244,10 +247,13 @@ g_warning ("Length (strlen): %zu", g_utf8_strlen (unsavedContent, -1));
 		return;
 	}
 	
+//TODO:
+//#ifdef DEBUG
 	GList *diags = parser_clang_assist_get_diagnostics (assist);
-	g_list_foreach (diags, (GFunc) parser_clang_assist_diag, NULL);
+//#endif
 }
 
+/* TODO: Test code */
 static gchar*
 parser_clang_assist_get_definition (ParserClangAssist* assist,
                                     gint line,
