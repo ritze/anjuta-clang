@@ -80,6 +80,8 @@ struct _ParserClangAssistPriv {
 	CXIndex clang_index;
 	CXTranslationUnit clang_tu;
 	CXFile clang_file;
+//	guint clang_argc;
+//	gchar* clang_argv[];
 
 	/* Cache */
 	//TODO: gchar* cache_context;
@@ -135,9 +137,42 @@ parser_clang_assist_clang_tu_visitor (CXCursor cursor,
 static GList*
 parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 {
+	gchar *cmd;
+	gchar *out;
 	GList* include_dirs = NULL;
 	GList* pkgs = ianjuta_project_manager_get_packages (assist->priv->imanager,
 	                                                    NULL);
+	
+	/* Add system include dirs */
+	cmd = g_strdup_printf ("gcc -v -x c++ /dev/null -fsyntax-only");
+	
+	if (g_spawn_command_line_sync (cmd, NULL, &out, NULL, NULL))
+	{
+		gchar **flags;
+		flags = g_strsplit (out, "\n", -1);
+		
+		if (flags != NULL)
+		{
+			gchar **flag;
+			for (flag = flags; *flag != NULL; flag++)
+			{
+				          //TODO: Backup: "\\ /\.*include"
+				if (g_regex_match_simple ("\\ /\.*include",
+				                          *flag, 0, G_REGEX_MATCH_ANCHORED))
+				{
+g_warning ("%s", *flag);
+					include_dirs = g_list_append (include_dirs, g_strdup (*flag + 1));
+				}
+			}
+			g_strfreev (flags);
+		}
+		else
+			DEBUG_PRINT ("Couldn't find include folders for the C++ compiler");
+		g_free (out);
+	}
+	g_free (cmd);
+	
+	/* Add project specific include dirs */
 	if (pkgs)
 	{
 		GList* pkg;
@@ -147,9 +182,13 @@ parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 			                                                 NULL);
 			//TODO: Exclude duplicity?
 			include_dirs = g_list_concat (include_dirs, dirs);
-//			anjuta_util_glist_strings_free (dirs);
 		}
 	}
+	
+	/* Add project root path */
+	include_dirs = g_list_append (include_dirs,
+	                              (gpointer) assist->priv->project_root);
+	
 	return include_dirs;
 }
 
@@ -159,50 +198,46 @@ parser_clang_assist_clang_init (ParserClangAssist* assist,
                                 struct CXUnsavedFile *unsaved)
 {
 	const gchar* path = assist->priv->editor_filename;
-/*	
-	GList* deps = anjuta_pkg_config_list_dependencies (path, NULL);
-	if (!deps) g_warning ("Deps = NULL");
-	for (; deps != NULL; deps = g_list_next (deps))
-	{
-		gchar **data = deps->data;
-		g_warning ("Dep: %s", *data);
-		
-	}
-*/	
-	GList* include_dirs = parser_clang_assist_get_include_dirs (assist);
-	guint size = g_list_length (include_dirs);
-	const gchar *args[size];
+//	gchar** argv = assist->priv->clang_argv;
+//	guint argc = assist->priv->clang_argc;
 	
-	guint i;
-	for (i = 0; i < size; i++, include_dirs = g_list_next (include_dirs))
-		args[i] = (gchar*) include_dirs->data;
-	
-	for (i = 0; i < size; i++)
-		g_warning ("Include folders: %s", args[i]);
-		
-	anjuta_util_glist_strings_free (include_dirs);
-	//TODO: add -I in every line of args
-/*	
-	const gchar *args[] =
-	{
-		//TODO: Get this strings with "gcc -v -x c++ /dev/null -fsyntax-only"
-		"-I/usr/include/c++/4.7.1",
-		"-I/usr/include/c++/4.7.1/x86_64-unknown-linux-gnu",
-		"-I/usr/include/c++/4.7.1/backward",
-		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include",
-		"-I/usr/local/include",
-		"-I/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.1/include-fixed",
-		"-I/usr/include",
-		"-I/usr/include/linux",
-		"-I/usr/include/glib-2.0",
-		"-I/home/ritze/.workspaces/anjuta"
-		//TODO: Add project root path: assist->priv->project_root
-	};
-*/	
 	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
+//	if (!argc)
+//	{
+/*		GList* deps = anjuta_pkg_config_list_dependencies (path, NULL);
+		if (!deps) g_warning ("Deps = NULL");
+		for (; deps != NULL; deps = g_list_next (deps))
+		{
+			gchar **data = deps->data;
+			g_warning ("Dep: %s", *data);
+		
+		}
+*/	
+		GList* include_dirs = parser_clang_assist_get_include_dirs (assist);
+		guint argc = g_list_length (include_dirs);
+		const gchar* argv[argc];
+	
+		guint i;
+		for (i = 0; i < argc; i++, include_dirs = g_list_next (include_dirs))
+			argv[i] = g_strdup_printf ("-I%s", (gchar*) include_dirs->data);
+	
+		//TODO: Free the strings (argv...)!
+		//TODO: Cache argv and argc
+		anjuta_util_glist_strings_free (include_dirs);
+		
+//#ifdef DEBUG
+		gchar *clang_cmd = "clang";
+		for (i = 0; i < argc; i++)
+			clang_cmd = g_strdup_printf ("%s %s", clang_cmd, argv[i]);
+		clang_cmd = g_strdup_printf ("%s %s", clang_cmd, path);
+		DEBUG_PRINT (clang_cmd);
+g_warning (clang_cmd);
+//#endif
+//	}
+	
 	assist->priv->clang_index = clang_createIndex (0, DISPLAY_DIAGNOSTICS);
 	assist->priv->clang_tu = clang_parseTranslationUnit (
-	            assist->priv->clang_index, path, args, size, unsaved, numUnsaved,
+	            assist->priv->clang_index, path, argv, argc, unsaved, numUnsaved,
 	            CXTranslationUnit_None);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 	
@@ -346,6 +381,7 @@ parser_clang_assist_get_definition (ParserClangAssist* assist,
 
 	g_warning ("%s", definitionString);
 	
+	//TODO: String should be freed with g_free () 
 	return g_strjoin (locationString, "\n", definitionString, NULL);
 	//return definitionOffset;
 }
