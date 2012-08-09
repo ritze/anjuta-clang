@@ -73,6 +73,9 @@ install_support (ParserClangPlugin *parser_plugin)
 		assist = parser_clang_assist_new (IANJUTA_EDITOR (parser_plugin->current_editor),
 					anjuta_shell_get_interface (
 							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
+				    		IAnjutaProjectManager, NULL),
+					anjuta_shell_get_interface (
+							anjuta_plugin_get_shell (ANJUTA_PLUGIN (parser_plugin)),
 				    		IAnjutaSymbolManager, NULL),
 		            parser_plugin->settings,
 		            parser_plugin->project_root_directory);

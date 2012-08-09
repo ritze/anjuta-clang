@@ -30,12 +30,14 @@
 #include <libanjuta/anjuta-debug.h>
 #include <libanjuta/anjuta-language-provider.h>
 #include <libanjuta/anjuta-launcher.h>
+#include <libanjuta/anjuta-pkg-config.h>
 #include <libanjuta/anjuta-utils.h>
 #include <libanjuta/interfaces/ianjuta-file.h>
 #include <libanjuta/interfaces/ianjuta-editor-cell.h>
 #include <libanjuta/interfaces/ianjuta-editor-assist.h>
 #include <libanjuta/interfaces/ianjuta-editor-tip.h>
 #include <libanjuta/interfaces/ianjuta-language-provider.h>
+#include <libanjuta/interfaces/ianjuta-project-manager.h>
 #include <libanjuta/interfaces/ianjuta-symbol-manager.h>
 #include "parser-clang-assist.h"
 
@@ -66,6 +68,7 @@ struct _ParserClangAssistPriv {
 	GSettings* settings;
 	IAnjutaEditorAssist* iassist;
 	IAnjutaEditorTip* itip;
+	IAnjutaProjectManager* imanager;
 	AnjutaLanguageProvider* lang_prov;
 	AnjutaLauncher* autocomplete_launcher;
 	AnjutaLauncher* calltip_launcher;
@@ -129,12 +132,57 @@ parser_clang_assist_clang_tu_visitor (CXCursor cursor,
 }
 */
 
+static GList*
+parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
+{
+	GList* include_dirs = NULL;
+	GList* pkgs = ianjuta_project_manager_get_packages (assist->priv->imanager,
+	                                                    NULL);
+	if (pkgs)
+	{
+		GList* pkg;
+		for (pkg = pkgs; pkg != NULL; pkg = g_list_next (pkg))
+		{
+			GList* dirs = anjuta_pkg_config_get_directories (pkg->data, TRUE,
+			                                                 NULL);
+			//TODO: Exclude duplicity?
+			include_dirs = g_list_concat (include_dirs, dirs);
+//			anjuta_util_glist_strings_free (dirs);
+		}
+	}
+	return include_dirs;
+}
+
 static void
 parser_clang_assist_clang_init (ParserClangAssist* assist,
                                 gint numUnsaved,
                                 struct CXUnsavedFile *unsaved)
 {
 	const gchar* path = assist->priv->editor_filename;
+/*	
+	GList* deps = anjuta_pkg_config_list_dependencies (path, NULL);
+	if (!deps) g_warning ("Deps = NULL");
+	for (; deps != NULL; deps = g_list_next (deps))
+	{
+		gchar **data = deps->data;
+		g_warning ("Dep: %s", *data);
+		
+	}
+*/	
+	GList* include_dirs = parser_clang_assist_get_include_dirs (assist);
+	guint size = g_list_length (include_dirs);
+	const gchar *args[size];
+	
+	guint i;
+	for (i = 0; i < size; i++, include_dirs = g_list_next (include_dirs))
+		args[i] = (gchar*) include_dirs->data;
+	
+	for (i = 0; i < size; i++)
+		g_warning ("Include folders: %s", args[i]);
+		
+	anjuta_util_glist_strings_free (include_dirs);
+	//TODO: add -I in every line of args
+/*	
 	const gchar *args[] =
 	{
 		//TODO: Get this strings with "gcc -v -x c++ /dev/null -fsyntax-only"
@@ -147,15 +195,14 @@ parser_clang_assist_clang_init (ParserClangAssist* assist,
 		"-I/usr/include",
 		"-I/usr/include/linux",
 		"-I/usr/include/glib-2.0",
-		"-I/lib/glib-2.0/include",
 		"-I/home/ritze/.workspaces/anjuta"
 		//TODO: Add project root path: assist->priv->project_root
 	};
-	
+*/	
 	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
 	assist->priv->clang_index = clang_createIndex (0, DISPLAY_DIAGNOSTICS);
 	assist->priv->clang_tu = clang_parseTranslationUnit (
-	            assist->priv->clang_index, path, args, 11, unsaved, numUnsaved,
+	            assist->priv->clang_index, path, args, size, unsaved, numUnsaved,
 	            CXTranslationUnit_None);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 	
@@ -1144,19 +1191,27 @@ parser_clang_assist_populate_completions (IAnjutaLanguageProvider* self,
 /**
  * parser_clang_assist_install:
  * @assist: ParserClangAssist object
+ * @imanager: Project manager to install support for
  * @ieditor: Editor to install support for
  * @iparser: Parser to install support for
+ * @project_root: Path to the project root
  *
  * Returns: Registers provider for editor
  */
 static void
 parser_clang_assist_install (ParserClangAssist *assist,
+                             IAnjutaProjectManager *imanager,
                              IAnjutaEditor *ieditor,
                              const gchar *project_root)
 {
 	g_return_if_fail (assist->priv->iassist == NULL);
 	assist->priv->project_root = project_root;
-
+	
+	if (IANJUTA_IS_PROJECT_MANAGER (imanager))
+		assist->priv->imanager = IANJUTA_PROJECT_MANAGER (imanager);
+	else
+		assist->priv->imanager = NULL;
+	
 	if (IANJUTA_IS_EDITOR_ASSIST (ieditor))
 	{
 		assist->priv->iassist = IANJUTA_EDITOR_ASSIST (ieditor);
@@ -1272,8 +1327,10 @@ parser_clang_assist_class_init (ParserClangAssistClass *klass)
 	object_class->finalize = parser_clang_assist_finalize;
 }
 
+//TODO: Remove isymbol_manager parameter
 ParserClangAssist *
 parser_clang_assist_new (IAnjutaEditor *ieditor,
+                         IAnjutaProjectManager *imanager,
                          IAnjutaSymbolManager *isymbol_manager,
                          GSettings* settings,
                          const gchar *project_root)
@@ -1489,7 +1546,7 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                     NULL);
 
 	/* Install support */
-	parser_clang_assist_install (assist, ieditor, project_root);
+	parser_clang_assist_install (assist, imanager, ieditor, project_root);
 	assist->priv->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
 	anjuta_language_provider_install (assist->priv->lang_prov, ieditor, settings);
 	parser_clang_assist_parse (assist,  NULL);
