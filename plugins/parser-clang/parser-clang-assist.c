@@ -49,7 +49,7 @@
 #ifdef DEBUG
 	#define DISPLAY_DIAGNOSTICS 1
 #else
-	//TODO:
+	//TODO: Set to 0
 	#define DISPLAY_DIAGNOSTICS 1
 #endif
 
@@ -167,9 +167,8 @@ parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 		GList* pkg;
 		for (pkg = pkgs; pkg != NULL; pkg = g_list_next (pkg))
 		{
-			GList* dirs = anjuta_pkg_config_get_directories (pkg->data, TRUE,
+			GList* dirs = anjuta_pkg_config_get_directories (pkg->data, FALSE,
 			                                                 NULL);
-			//TODO: Exclude duplicity?
 			include_dirs = g_list_concat (include_dirs, dirs);
 		}
 	}
@@ -178,6 +177,7 @@ parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 	include_dirs = g_list_append (include_dirs, g_strdup_printf ("%s",
 	                                               assist->priv->project_root));
 	
+	include_dirs = g_list_append (include_dirs, g_strdup_printf ("/usr/lib/glib-2.0/include"));
 	return include_dirs;
 }
 
