@@ -80,8 +80,7 @@ struct _ParserClangAssistPriv {
 	CXIndex clang_index;
 	CXTranslationUnit clang_tu;
 	CXFile clang_file;
-//	guint clang_argc;
-//	gchar* clang_argv[];
+	GList* clang_include_dirs;
 
 	/* Cache */
 	//TODO: gchar* cache_context;
@@ -121,18 +120,8 @@ struct _ParserClangAssistPriv {
 	IAnjutaSymbolQuery *sync_query_file;
 	IAnjutaSymbolQuery *sync_query_system;
 	IAnjutaSymbolQuery *sync_query_project;
+	
 };
-
-/* TODO:
-static enum CXChildVisitResult
-parser_clang_assist_clang_tu_visitor (CXCursor cursor,
-                                      CXCursor parent,
-                                      CXClientData data)
-{
-	// Visit recursivly
-	return CXChildVisit_Recurse;
-}
-*/
 
 static GList*
 parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
@@ -157,11 +146,11 @@ parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 			for (flag = flags; *flag != NULL; flag++)
 			{
 				          //TODO: Backup: "\\ /\.*include"
-				if (g_regex_match_simple ("\\ /\.*include",
-				                          *flag, 0, G_REGEX_MATCH_ANCHORED))
+				if (g_regex_match_simple ("\\ /\.*include", *flag, 0,
+				                          G_REGEX_MATCH_ANCHORED))
 				{
-g_warning ("%s", *flag);
-					include_dirs = g_list_append (include_dirs, g_strdup (*flag + 1));
+					include_dirs = g_list_append (include_dirs,
+					                              g_strdup (*flag + 1));
 				}
 			}
 			g_strfreev (flags);
@@ -186,8 +175,8 @@ g_warning ("%s", *flag);
 	}
 	
 	/* Add project root path */
-	include_dirs = g_list_append (include_dirs,
-	                              (gpointer) assist->priv->project_root);
+	include_dirs = g_list_append (include_dirs, g_strdup_printf ("%s",
+	                                               assist->priv->project_root));
 	
 	return include_dirs;
 }
@@ -198,51 +187,36 @@ parser_clang_assist_clang_init (ParserClangAssist* assist,
                                 struct CXUnsavedFile *unsaved)
 {
 	const gchar* path = assist->priv->editor_filename;
-//	gchar** argv = assist->priv->clang_argv;
-//	guint argc = assist->priv->clang_argc;
 	
 	DEBUG_PRINT ("Initiate new translation unit instance for %s", path);
-//	if (!argc)
-//	{
-/*		GList* deps = anjuta_pkg_config_list_dependencies (path, NULL);
-		if (!deps) g_warning ("Deps = NULL");
-		for (; deps != NULL; deps = g_list_next (deps))
-		{
-			gchar **data = deps->data;
-			g_warning ("Dep: %s", *data);
-		
-		}
-*/	
-		GList* include_dirs = parser_clang_assist_get_include_dirs (assist);
-		guint argc = g_list_length (include_dirs);
-		const gchar* argv[argc];
 	
-		guint i;
-		for (i = 0; i < argc; i++, include_dirs = g_list_next (include_dirs))
-			argv[i] = g_strdup_printf ("-I%s", (gchar*) include_dirs->data);
-	
-		//TODO: Free the strings (argv...)!
-		//TODO: Cache argv and argc
-		anjuta_util_glist_strings_free (include_dirs);
+	if (!assist->priv->clang_include_dirs)
+		assist->priv->clang_include_dirs =
+		                        parser_clang_assist_get_include_dirs (assist);
+	GList *include_dirs = assist->priv->clang_include_dirs;
 		
+	guint argc = g_list_length (include_dirs);
+	const gchar* argv[argc];
+
+	guint i;
+	for (i = 0; i < argc; i++, include_dirs = g_list_next (include_dirs))
+		argv[i] = g_strdup_printf ("-I%s", (gchar*) include_dirs->data);
+
 //#ifdef DEBUG
-		gchar *clang_cmd = "clang";
-		for (i = 0; i < argc; i++)
-			clang_cmd = g_strdup_printf ("%s %s", clang_cmd, argv[i]);
-		clang_cmd = g_strdup_printf ("%s %s", clang_cmd, path);
-		DEBUG_PRINT (clang_cmd);
-g_warning (clang_cmd);
+	include_dirs = assist->priv->clang_include_dirs;
+	gchar *debug_text = "Include folders:\n";
+	for (; include_dirs != NULL; include_dirs = g_list_next (include_dirs))
+		debug_text = g_strdup_printf ("%s  %s\n", debug_text,
+		                              (gchar*) include_dirs->data);
+	DEBUG_PRINT (debug_text);
+g_warning (debug_text);
 //#endif
-//	}
 	
 	assist->priv->clang_index = clang_createIndex (0, DISPLAY_DIAGNOSTICS);
 	assist->priv->clang_tu = clang_parseTranslationUnit (
 	            assist->priv->clang_index, path, argv, argc, unsaved, numUnsaved,
 	            CXTranslationUnit_None);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
-	
-//	clang_visitChildren (clang_getTranslationUnitCursor(assist->priv->clang_tu),
-//                         parser_clang_assist_clang_tu_visitor, 0);
 }
 
 static void
@@ -252,15 +226,13 @@ parser_clang_assist_clang_deinit (ParserClangAssist* assist)
 	             assist->priv->editor_filename);
 g_warning ("Deinitiate translation unit instance for %s", assist->priv->editor_filename);
 	
-	if (assist->priv->clang_tu) {
+	if (assist->priv->clang_tu)
 		clang_disposeTranslationUnit (assist->priv->clang_tu);
-		assist->priv->clang_tu = NULL;
-	}
+	assist->priv->clang_tu = NULL;
 	
-	if (assist->priv->clang_index) {
+	if (assist->priv->clang_index)
 		clang_disposeIndex (assist->priv->clang_index);
-		assist->priv->clang_index = NULL;
-	}
+	assist->priv->clang_index = NULL;
 	
 	assist->priv->clang_file = NULL;
 }
@@ -1309,8 +1281,11 @@ parser_clang_assist_finalize (GObject *object)
 	parser_clang_assist_uninstall (assist);
 	parser_clang_assist_clear_completion_cache (assist);
 	parser_clang_assist_clear_calltip_context (assist);
-
-
+	
+	if (priv->clang_include_dirs)
+		anjuta_util_glist_strings_free (priv->clang_include_dirs);
+	priv->clang_include_dirs = NULL;
+	
 	if (priv->calltip_query_file)
 		g_object_unref (priv->calltip_query_file);
 	priv->calltip_query_file = NULL;
