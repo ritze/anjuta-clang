@@ -279,7 +279,7 @@ parser_clang_assist_parse (ParserClangAssist* assist, const gchar *unsavedConten
 	}
 }
 
-/* TODO: Test code */
+//TODO: Delete this function
 static gchar*
 parser_clang_assist_get_definition (ParserClangAssist* assist,
                                     gint line,
@@ -309,33 +309,18 @@ parser_clang_assist_get_definition (ParserClangAssist* assist,
 	cursor = clang_getCursorReferenced (cursor);
 	//END OF TEST
 	
-	
-	//TODO: Why is definition mostly null?
-//	if (!clang_isCursorDefinition (cursor))
-//		cursor = clang_getCursorDefinition (cursor);
-
 	if (clang_Cursor_isNull (cursor))
 	{
 		g_warning ("Cursor to the definition is null!");
 		return NULL;
 	}
-
-
-
 	
 	CXSourceLocation definitionLocation = clang_getCursorLocation (cursor);
-
-	//get definition
-//	CXTranslationUnit tu = clang_Cursor_getTranslationUnit (cursor);
-//	CXCursor definitionCursor = clang_getCursor (tu, definitionLocation);
 	CXCursor definitionCursor = clang_getCursor (assist->priv->clang_tu, definitionLocation);
-	CXString definitionCursorSpelling = clang_getCursorDisplayName (definitionCursor);
+	CXString definitionCursorSpelling = clang_getCursorSpelling (definitionCursor);
 	g_warning ("Definition Cursor: %s", clang_getCString (definitionCursorSpelling));
 	clang_disposeString (definitionCursorSpelling);
 
-
-
-	
 	CXFile definitionFile;
 	guint definitionLine;
 	guint definitionColumn;
@@ -354,13 +339,8 @@ parser_clang_assist_get_definition (ParserClangAssist* assist,
 
 	g_warning ("%s", definitionString);
 	
-	//TODO: String should be freed with g_free () 
-//	clang_disposeTranslationUnit (tu);
 	return g_strjoin (locationString, "\n", definitionString, NULL);
-	//return definitionOffset;
 }
-
-/* End of test code */
 
 /**
  * parser_clang_assist_proposal_new:
@@ -374,21 +354,31 @@ static IAnjutaEditorAssistProposal*
 parser_clang_assist_proposal_new (CXCursor cursor)
 {
 	CXString cursorSpelling = clang_getCursorSpelling (cursor);
-	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal, 1);
-	AnjutaLanguageProposalData* data = 
-		anjuta_language_proposal_data_new ((gchar*) clang_getCString (cursorSpelling));
+	IAnjutaEditorAssistProposal* proposal = g_new0 (IAnjutaEditorAssistProposal,
+	                                                1);
+	AnjutaLanguageProposalData* data = anjuta_language_proposal_data_new (
+	                                (gchar*) clang_getCString (cursorSpelling));
 
 	data->info = NULL;
+	data->is_func = FALSE;
+	data->has_para = FALSE;
+	
+	if (clang_Cursor_getNumArguments (cursor) > -1)
+		data->is_func = TRUE;
+	
+	if (clang_Cursor_getNumArguments (cursor) > 0)
+		data->has_para = TRUE;
+	
 	switch (clang_getCursorKind (cursor))
 	{
 		case CXCursor_FunctionDecl:
 g_warning ("IANJUTA_SYMBOL_TYPE_FUNCTION");
 			data->type = IANJUTA_SYMBOL_TYPE_FUNCTION;
+			break;
 		case CXCursor_MacroInstantiation:
-			//TODO: Check parameters
-			//data->type = IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG
-			proposal->label = g_strdup_printf ("%s()", data->name);
-			data->is_func = TRUE;
+g_warning ("IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG");
+			if (data->has_para)
+				data->type = IANJUTA_SYMBOL_TYPE_MACRO_WITH_ARG;
 			break;
 		case CXCursor_VarDecl:
 g_warning ("IANJUTA_SYMBOL_TYPE_VARIABLE");
@@ -396,19 +386,14 @@ g_warning ("IANJUTA_SYMBOL_TYPE_VARIABLE");
 			break;
 		default:
 g_warning ("IANJUTA_SYMBOL_TYPE ==> DEFAULT");
-			proposal->label = g_strdup (data->name);
-			data->is_func = FALSE;
 	}
 	
-	data->has_para = FALSE;
 	if (data->is_func)
-	{
-		if (clang_Cursor_getNumArguments (cursor) > 0)
-			data->has_para = TRUE;
-	}
-
+		proposal->label = g_strdup_printf ("%s()", data->name);
+	else
+		proposal->label = g_strdup (data->name);
 	proposal->data = data;
-
+	
 	clang_disposeString (cursorSpelling);
 	
 	return proposal;
@@ -911,7 +896,7 @@ g_warning ("Offset: %d", offset);
 	//assist->priv->cache_calltip_context = calltip_context;
 	
 	clang_disposeString (cursorSpelling);
-g_warning ("get_calltip_context calltip_context: %s", calltip_context);	
+g_warning ("calltip_context: %s", calltip_context);	
 	return calltip_context; 
 }
 
@@ -1564,20 +1549,6 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	assist->priv->lang_prov = g_object_new (ANJUTA_TYPE_LANGUAGE_PROVIDER, NULL);
 	anjuta_language_provider_install (assist->priv->lang_prov, ieditor, settings);
 	parser_clang_assist_parse (assist,  NULL);
-
-	//TODO: Some test code
-	g_warning ("#########################################");
-	g_warning ("get_definition:  4, 17");
-	parser_clang_assist_get_definition (assist, 4, 17);
-	g_warning ("get_definition: 13,  2");
-	parser_clang_assist_get_definition (assist, 13, 2);
-	g_warning ("get_definition: 13, 18");
-	parser_clang_assist_get_definition (assist, 13, 18);
-	g_warning ("get_definition: 14, 12");
-	parser_clang_assist_get_definition (assist, 14, 12);
-	g_warning ("get_definition: 15,  8");
-	parser_clang_assist_get_definition (assist, 15, 8);
-	g_warning ("#########################################");
 	
 	return assist;
 }
