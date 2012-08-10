@@ -162,21 +162,19 @@ parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 	g_free (cmd);
 	
 	/* Add project specific include dirs */
-	if (pkgs)
+	GList* pkg;
+	for (pkg = pkgs; pkg != NULL; pkg = g_list_next (pkg))
 	{
-		GList* pkg;
-		for (pkg = pkgs; pkg != NULL; pkg = g_list_next (pkg))
-		{
-			GList* dirs = anjuta_pkg_config_get_directories (pkg->data, FALSE,
-			                                                 NULL);
-			include_dirs = g_list_concat (include_dirs, dirs);
-		}
+		GList* dirs = anjuta_pkg_config_get_directories (pkg->data, FALSE,
+		                                                 NULL);
+		include_dirs = g_list_concat (include_dirs, dirs);
 	}
 	
 	/* Add project root path */
 	include_dirs = g_list_append (include_dirs, g_strdup_printf ("%s",
 	                                               assist->priv->project_root));
 	
+	//TODO: Delete me
 	include_dirs = g_list_append (include_dirs, g_strdup_printf ("/usr/lib/glib-2.0/include"));
 	return include_dirs;
 }
