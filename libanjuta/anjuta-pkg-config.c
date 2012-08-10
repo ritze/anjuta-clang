@@ -85,15 +85,22 @@ anjuta_pkg_config_list_dependencies (const gchar* package, GError** error)
 }
 
 GList*
-anjuta_pkg_config_get_directories (const gchar* pkg_name, gboolean no_deps, GError** error)
+anjuta_pkg_config_get_directories (const gchar* pkg_name, gboolean no_libs,
+                                   gboolean no_deps, GError** error)
 {
 	gchar *cmd;
 	gchar *err;
 	gchar *out;
 	gint status;
+	gchar *mask;
 	GList *dirs = NULL;
 
 	cmd = g_strdup_printf ("pkg-config --cflags-only-I %s", pkg_name);
+
+	if (no_libs)
+		mask = g_strdup_printf ("\\.*/include/\\w+");
+	else
+		mask = g_strdup_printf ("\\.*/include");
 
 	if (g_spawn_command_line_sync (cmd, &out, &err, &status, error))
 	{
@@ -107,7 +114,7 @@ anjuta_pkg_config_get_directories (const gchar* pkg_name, gboolean no_deps, GErr
 
 			for (flag = flags; *flag != NULL; flag++)
 			{
-				if (g_regex_match_simple ("\\.*/include/\\w+", *flag, 0, 0) == TRUE)
+				if (g_regex_match_simple (mask, *flag, 0, 0) == TRUE)
 				{
 					dirs = g_list_prepend (dirs, g_strdup (*flag + 2));
 				}
@@ -124,7 +131,7 @@ anjuta_pkg_config_get_directories (const gchar* pkg_name, gboolean no_deps, GErr
 		GList* pkg;
 		for (pkg = pkgs; pkg != NULL; pkg = g_list_next (pkg))
 		{
-			GList* dep_dirs = anjuta_pkg_config_get_directories (pkg->data, FALSE, NULL);
+			GList* dep_dirs = anjuta_pkg_config_get_directories (pkg->data, TRUE, FALSE, NULL);
 			dirs = remove_includes (dirs, dep_dirs);
 			anjuta_util_glist_strings_free (dep_dirs);
 		}

@@ -161,7 +161,7 @@ static guint
 anjuta_pkg_scanner_run (AnjutaCommand* command)
 {
 	AnjutaPkgScanner* scanner = ANJUTA_PKG_SCANNER (command);
-	GList* dirs = anjuta_pkg_config_get_directories (scanner->priv->package, TRUE, NULL);
+	GList* dirs = anjuta_pkg_config_get_directories (scanner->priv->package, TRUE, TRUE, NULL);
 	GList* dir;
 	
 	for (dir = dirs; dir != NULL; dir = g_list_next (dir))

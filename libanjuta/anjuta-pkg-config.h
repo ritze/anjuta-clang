@@ -25,7 +25,8 @@
 GList* 		anjuta_pkg_config_list_dependencies (const gchar* package, 
                                             	 	GError** error);
 
-GList* 		anjuta_pkg_config_get_directories 	(const gchar* pkg_name, 
+GList* 		anjuta_pkg_config_get_directories 	(const gchar* pkg_name,
+                                          			gboolean no_libs,
                                           			gboolean no_deps, 
                                           			GError** error);
 

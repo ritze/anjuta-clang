@@ -143,7 +143,7 @@ amp_package_node_load (AmpNode *node, AmpNode *parent, AmpProject *project, GErr
 	}
 
 	if ((include_dirs = anjuta_pkg_config_get_directories (anjuta_project_node_get_name (ANJUTA_PROJECT_NODE (node)),
-	                                                       TRUE, error)))
+	                                                       TRUE, TRUE, error)))
 	{
 		GList* include_dir;
 
