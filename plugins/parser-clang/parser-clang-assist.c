@@ -46,11 +46,14 @@
 #define WORD_CHARACTER "_0"
 #define MIN_CODECOMPLETE 4
 
+//TODO: Delete the following two lines
+#define DEBUG 1
+//#define DEBUG_PRINT g_warning
+
 #ifdef DEBUG
 	#define DISPLAY_DIAGNOSTICS 1
 #else
-	//TODO: Set to 0
-	#define DISPLAY_DIAGNOSTICS 1
+	#define DISPLAY_DIAGNOSTICS 0
 #endif
 
 static void iprovider_iface_init(IAnjutaProviderIface* iface);
@@ -81,10 +84,10 @@ struct _ParserClangAssistPriv {
 	CXTranslationUnit clang_tu;
 	CXFile clang_file;
 	GList* clang_include_dirs;
-
-	/* Cache */
-	//TODO: gchar* cache_context;
-	//TODO: CXCursor cache_cursor;
+	
+	/* Context */
+	//gchar* context_cache;
+	//CXCursor context_cursor_cache;
 	
 	/* Calltips */
 	gchar* calltip_context;
@@ -174,6 +177,15 @@ parser_clang_assist_get_include_dirs (ParserClangAssist* assist)
 	include_dirs = g_list_append (include_dirs, g_strdup_printf ("%s",
 	                                               assist->priv->project_root));
 	
+#ifdef DEBUG
+	gchar *debug_text = "Include folders:\n";
+	GList* include_dir = include_dirs;
+	for (; include_dir != NULL; include_dir = g_list_next (include_dir))
+		debug_text = g_strdup_printf ("%s  %s\n", debug_text,
+		                              (gchar*) include_dir->data);
+	DEBUG_PRINT (debug_text);
+#endif
+	
 	return include_dirs;
 }
 
@@ -197,16 +209,6 @@ parser_clang_assist_clang_init (ParserClangAssist* assist,
 	guint i;
 	for (i = 0; i < argc; i++, include_dirs = g_list_next (include_dirs))
 		argv[i] = g_strdup_printf ("-I%s", (gchar*) include_dirs->data);
-
-//#ifdef DEBUG
-	include_dirs = assist->priv->clang_include_dirs;
-	gchar *debug_text = "Include folders:\n";
-	for (; include_dirs != NULL; include_dirs = g_list_next (include_dirs))
-		debug_text = g_strdup_printf ("%s  %s\n", debug_text,
-		                              (gchar*) include_dirs->data);
-	DEBUG_PRINT (debug_text);
-g_warning (debug_text);
-//#endif
 	
 	assist->priv->clang_index = clang_createIndex (0, DISPLAY_DIAGNOSTICS);
 	assist->priv->clang_tu = clang_parseTranslationUnit (
@@ -220,7 +222,6 @@ parser_clang_assist_clang_deinit (ParserClangAssist* assist)
 {
 	DEBUG_PRINT ("Deinitiate translation unit instance for %s",
 	             assist->priv->editor_filename);
-g_warning ("Deinitiate translation unit instance for %s", assist->priv->editor_filename);
 	
 	if (assist->priv->clang_tu)
 		clang_disposeTranslationUnit (assist->priv->clang_tu);
@@ -243,14 +244,11 @@ parser_clang_assist_parse (ParserClangAssist* assist, const gchar *unsavedConten
 	
 	if (unsavedContent)
 	{
-		g_warning ("Reparse code with unsaved content.");
+		DEBUG_PRINT ("Reparse code with unsaved content.");
 		numUnsaved = 1;
 		unsaved = g_malloc (2 * sizeof (struct CXUnsavedFile));
 		unsaved[0].Filename = assist->priv->editor_filename;
 		unsaved[0].Contents = unsavedContent;
-g_warning ("Length (g_strv_length): %u", g_strv_length ((gchar**) &unsavedContent));
-//		unsaved[0].Length = g_strv_length ((gchar**) &unsavedContent);
-g_warning ("Length (strlen): %zu", g_utf8_strlen (unsavedContent, -1));
 		unsaved[0].Length = g_utf8_strlen (unsavedContent, -1);
 		unsaved[1].Filename = NULL;
 		unsaved[1].Contents = NULL;
@@ -272,10 +270,10 @@ g_warning ("Length (strlen): %zu", g_utf8_strlen (unsavedContent, -1));
 	}
 	g_free (unsaved);
 	
-	//TODO: act accordingly...
+	//TODO: Act accordingly...
 	if (error)
 	{
-		g_warning ("Could not reparse! Abort here...");
+		DEBUG_PRINT ("Could not reparse! Abort here...");
 		parser_clang_assist_clang_deinit (assist);
 		return;
 	}
@@ -307,10 +305,16 @@ parser_clang_assist_get_definition (ParserClangAssist* assist,
 	
 	g_warning ("%s", locationString);
 	
-	//TODO: Why is definition mostly null, but not "cursor"?
-	CXCursor definition = clang_getCursorDefinition (cursor);
+	//TEST
+	cursor = clang_getCursorReferenced (cursor);
+	//END OF TEST
+	
+	
+	//TODO: Why is definition mostly null?
+//	if (!clang_isCursorDefinition (cursor))
+//		cursor = clang_getCursorDefinition (cursor);
 
-	if (clang_Cursor_isNull (definition))
+	if (clang_Cursor_isNull (cursor))
 	{
 		g_warning ("Cursor to the definition is null!");
 		return NULL;
@@ -319,14 +323,15 @@ parser_clang_assist_get_definition (ParserClangAssist* assist,
 
 
 	
-	CXSourceLocation definitionLocation = clang_getCursorLocation (definition);
+	CXSourceLocation definitionLocation = clang_getCursorLocation (cursor);
 
 	//get definition
+//	CXTranslationUnit tu = clang_Cursor_getTranslationUnit (cursor);
+//	CXCursor definitionCursor = clang_getCursor (tu, definitionLocation);
 	CXCursor definitionCursor = clang_getCursor (assist->priv->clang_tu, definitionLocation);
 	CXString definitionCursorSpelling = clang_getCursorDisplayName (definitionCursor);
 	g_warning ("Definition Cursor: %s", clang_getCString (definitionCursorSpelling));
 	clang_disposeString (definitionCursorSpelling);
-
 
 
 
@@ -342,14 +347,15 @@ parser_clang_assist_get_definition (ParserClangAssist* assist,
 	                                &definitionColumn,
 	                                &definitionOffset);
 	
-	definitionString = g_strdup_printf ("Definition: Cursor location: %u, %u",
-//	                                    clang_getFileName(definitionFile),
+	definitionString = g_strdup_printf ("Definition: Cursor location: %u, %u (%s)",
 								        definitionLine,
-	                                    definitionColumn);
+	                                    definitionColumn,
+	                                    clang_getCString (clang_getFileName(definitionFile)));
 
 	g_warning ("%s", definitionString);
 	
 	//TODO: String should be freed with g_free () 
+//	clang_disposeTranslationUnit (tu);
 	return g_strjoin (locationString, "\n", definitionString, NULL);
 	//return definitionOffset;
 }
@@ -881,19 +887,20 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 {
 	ParserClangAssist* assist = PARSER_CLANG_ASSIST (self);
 	gchar* calltip_context;
-	gint offset = ianjuta_iterable_get_position (iter, NULL);
-
-	//TODO: Check, if document is dirty
-	const gchar* unsavedContent =
-		ianjuta_editor_get_text_all (IANJUTA_EDITOR (assist->priv->iassist),
-		                             NULL);
+	
+	gint offset = ianjuta_iterable_get_position (iter, NULL) + 1;
+	
+	const gchar* unsavedContent = ianjuta_editor_get_text_all (
+	                            IANJUTA_EDITOR (assist->priv->iassist), NULL);
 	parser_clang_assist_parse (assist, unsavedContent);
 	
-g_warning ("get_calltip_context offset: %d", offset);
-	//TODO: memory fault
+g_warning ("Number of Symbols: %li", g_utf8_strlen (unsavedContent, -1));
+if (!assist->priv->clang_tu) g_warning ("assist->priv->clang_tu is NULL!");
+if (!assist->priv->clang_file) g_warning ("assist->priv->clang_fil is NULL!");
+g_warning ("Offset: %d", offset);
+	//TODO: Deal memory fault
 	CXSourceLocation location = clang_getLocationForOffset (
 	               assist->priv->clang_tu, assist->priv->clang_file, offset);
-g_warning ("get_calltip_context 2");
 	CXCursor cursor = clang_getCursor (assist->priv->clang_tu, location);
 	
 	CXString cursorSpelling = clang_getCursorSpelling (cursor);
@@ -1559,6 +1566,7 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	parser_clang_assist_parse (assist,  NULL);
 
 	//TODO: Some test code
+	g_warning ("#########################################");
 	g_warning ("get_definition:  4, 17");
 	parser_clang_assist_get_definition (assist, 4, 17);
 	g_warning ("get_definition: 13,  2");
@@ -1569,6 +1577,7 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	parser_clang_assist_get_definition (assist, 14, 12);
 	g_warning ("get_definition: 15,  8");
 	parser_clang_assist_get_definition (assist, 15, 8);
+	g_warning ("#########################################");
 	
 	return assist;
 }
