@@ -212,8 +212,8 @@ parser_clang_assist_clang_init (ParserClangAssist* assist,
 	
 	assist->priv->clang_index = clang_createIndex (0, DISPLAY_DIAGNOSTICS);
 	assist->priv->clang_tu = clang_parseTranslationUnit (
-	            assist->priv->clang_index, path, argv, argc, unsaved, numUnsaved,
-	            CXTranslationUnit_None);
+	                            assist->priv->clang_index, path, argv, argc,
+	                            unsaved, numUnsaved, CXTranslationUnit_None);
 	assist->priv->clang_file = clang_getFile (assist->priv->clang_tu, path);
 }
 
@@ -236,7 +236,7 @@ parser_clang_assist_clang_deinit (ParserClangAssist* assist)
 
 //TODO: Do this async...
 static void
-parser_clang_assist_parse (ParserClangAssist* assist, const gchar *unsavedContent)
+parser_clang_assist_parse (ParserClangAssist* assist, gchar *unsavedContent)
 {
 	int numUnsaved = 0;
 	gint error = 0;
@@ -246,21 +246,20 @@ parser_clang_assist_parse (ParserClangAssist* assist, const gchar *unsavedConten
 	{
 		DEBUG_PRINT ("Reparse code with unsaved content.");
 		numUnsaved = 1;
-		unsaved = g_malloc (2 * sizeof (struct CXUnsavedFile));
+		unsaved = g_new0 (struct CXUnsavedFile, 2);
 		unsaved[0].Filename = assist->priv->editor_filename;
 		unsaved[0].Contents = unsavedContent;
-		unsaved[0].Length = g_utf8_strlen (unsavedContent, -1);
-		unsaved[1].Filename = NULL;
-		unsaved[1].Contents = NULL;
-		unsaved[1].Length = 0;
+		unsaved[0].Length = strlen (unsavedContent);
 	}
-
+	
 	if (assist->priv->clang_tu)
 	{
+		guint options = clang_defaultReparseOptions (assist->priv->clang_tu);
+		//TODO: Crash source is here:
 		error = clang_reparseTranslationUnit (assist->priv->clang_tu,
-		                                      numUnsaved, unsaved,
-		                                      clang_defaultReparseOptions (
-		                                               assist->priv->clang_tu));
+		                                      numUnsaved, unsaved, options);
+		assist->priv->clang_file = clang_getFile (assist->priv->clang_tu,
+	                                              assist->priv->editor_filename);
 	}
 	else
 	{
@@ -268,14 +267,13 @@ parser_clang_assist_parse (ParserClangAssist* assist, const gchar *unsavedConten
 		if (!assist->priv->clang_tu)
 			error = 1;
 	}
+	g_free (unsavedContent);
 	g_free (unsaved);
 	
-	//TODO: Act accordingly...
-	if (error)
+	if (error != 0)
 	{
 		DEBUG_PRINT ("Could not reparse! Abort here...");
 		parser_clang_assist_clang_deinit (assist);
-		return;
 	}
 }
 
@@ -873,19 +871,27 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 	ParserClangAssist* assist = PARSER_CLANG_ASSIST (self);
 	gchar* calltip_context;
 	
-	gint offset = ianjuta_iterable_get_position (iter, NULL) + 1;
+	//TODO:
+	guint offset = ianjuta_iterable_get_position (iter, NULL)/*  + 1*/;
 	
-	const gchar* unsavedContent = ianjuta_editor_get_text_all (
+	gchar* unsavedContent = ianjuta_editor_get_text_all (
 	                            IANJUTA_EDITOR (assist->priv->iassist), NULL);
 	parser_clang_assist_parse (assist, unsavedContent);
 	
-g_warning ("Number of Symbols: %li", g_utf8_strlen (unsavedContent, -1));
-if (!assist->priv->clang_tu) g_warning ("assist->priv->clang_tu is NULL!");
-if (!assist->priv->clang_file) g_warning ("assist->priv->clang_fil is NULL!");
-g_warning ("Offset: %d", offset);
-	//TODO: Deal memory fault
+	//TODO: Crash:
 	CXSourceLocation location = clang_getLocationForOffset (
 	               assist->priv->clang_tu, assist->priv->clang_file, offset);
+/* TODO: Test code
+	gint line = ianjuta_editor_get_lineno (IANJUTA_EDITOR (assist->priv->iassist), NULL);
+	gint column = ianjuta_editor_get_column (IANJUTA_EDITOR (assist->priv->iassist), NULL);
+	guint offset = ianjuta_editor_get_offset (IANJUTA_EDITOR (assist->priv->iassist), NULL);
+	g_warning ("clang_getLocation ()");
+	CXSourceLocation location = clang_getLocation (assist->priv->clang_tu, assist->priv->clang_file, line, column);
+	g_warning ("clang_getLocationForOffset ()");
+	CXSourceLocation location2 = clang_getLocationForOffset (assist->priv->clang_tu, assist->priv->clang_file, offset2);
+	g_warning ("done");
+*/
+	
 	CXCursor cursor = clang_getCursor (assist->priv->clang_tu, location);
 	
 	CXString cursorSpelling = clang_getCursorSpelling (cursor);
