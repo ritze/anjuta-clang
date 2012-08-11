@@ -86,8 +86,8 @@ struct _ParserClangAssistPriv {
 	GList* clang_include_dirs;
 	
 	/* Context */
-	//gchar* context_cache;
-	//CXCursor context_cursor_cache;
+	gchar* context_cache;
+	CXCursor context_cursor_cache;
 	
 	/* Calltips */
 	gchar* calltip_context;
@@ -617,7 +617,6 @@ parser_clang_assist_parse_expression (ParserClangAssist* assist, IAnjutaIterable
 
 	if (stmt)
 	{
-		//gint lineno;
 		gchar *above_text;
 		IAnjutaIterable* start;
 		
@@ -631,16 +630,6 @@ parser_clang_assist_parse_expression (ParserClangAssist* assist, IAnjutaIterable
 		above_text = ianjuta_editor_get_text (editor, start, iter, NULL);
 		g_object_unref (start);
 		
-		//lineno = ianjuta_editor_get_lineno (editor, NULL);
-
-		/* the parser works even for the "Gtk::" like expressions, so it 
-		 * shouldn't be created a specific case to handle this.
-		 */
-		//TODO:
-		/*res = engine_parser_process_expression (stmt,
-		                                        above_text,
-		                                        assist->priv->editor_filename,
-		                                        lineno);*/
 		g_free (stmt);
 	}
 	g_object_unref (cur_pos);
@@ -893,17 +882,17 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 */
 	
 	CXCursor cursor = clang_getCursor (assist->priv->clang_tu, location);
-	
 	CXString cursorSpelling = clang_getCursorSpelling (cursor);
 	calltip_context = g_strdup_printf ("%s", clang_getCString (cursorSpelling));
-	
-	//TODO: Cache part
-	//assist->priv->cache_calltip_cursor = cursor;
-	//assist->priv->cache_calltip_context = calltip_context;
-	
 	clang_disposeString (cursorSpelling);
-g_warning ("calltip_context: %s", calltip_context);	
-	return calltip_context; 
+	
+	/* Abort, if calltip_context is empty */
+	if (*calltip_context == '\0')
+		return NULL;
+	
+	assist->priv->context_cache = calltip_context;
+	assist->priv->context_cursor_cache = cursor;
+	return calltip_context;
 }
 
 /**
@@ -1021,34 +1010,46 @@ on_calltip_search_complete (IAnjutaSymbolQuery *query, IAnjutaIterable* symbols,
  * Starts an async query for the calltip
  */
 static void
-parser_clang_assist_query_calltip (ParserClangAssist* assist,
-                                   const gchar *call_context,
-                                   IAnjutaIterable* calltip_iter)
+parser_clang_assist_query_calltip (ParserClangAssist* assist)
 {
-	/* Search file */
-	if (IANJUTA_IS_FILE (assist->priv->itip))
+	if (clang_Cursor_isNull (assist->priv->context_cursor_cache))
 	{
-		GFile *file = ianjuta_file_get_file (IANJUTA_FILE (assist->priv->itip),
-		                                     NULL);
-
-		if (file != NULL)
-		{
-			assist->priv->async_calltip_file = 1;
-			ianjuta_symbol_query_search_file (assist->priv->calltip_query_file,
-				                              call_context, file, NULL);
-			g_object_unref (file);
-		}
+		DEBUG_PRINT ("Context is not available in the cache! Abort calltip query here...");
+		return;
 	}
-
-	/* Search Project */
-	assist->priv->async_calltip_project = 1;
-	ianjuta_symbol_query_search (assist->priv->calltip_query_project,
-	                             call_context, NULL);
+		
+	//TODO:
+	CXCursor cursor = clang_getCursorReferenced (assist->priv->context_cursor_cache);
 	
-	/* Search system */
-	assist->priv->async_calltip_system = 1;
-	ianjuta_symbol_query_search (assist->priv->calltip_query_system,
-		                         call_context, NULL);
+	if (clang_Cursor_isNull (cursor))
+	{
+		g_warning ("Cursor to the definition is null!");
+		return NULL;
+	}
+	
+	CXSourceLocation definitionLocation = clang_getCursorLocation (cursor);
+	CXCursor definitionCursor = clang_getCursor (assist->priv->clang_tu, definitionLocation);
+	CXString definitionCursorSpelling = clang_getCursorSpelling (definitionCursor);
+	g_warning ("Definition Cursor: %s", clang_getCString (definitionCursorSpelling));
+	clang_disposeString (definitionCursorSpelling);
+
+	CXFile definitionFile;
+	guint definitionLine;
+	guint definitionColumn;
+	guint definitionOffset;
+	
+	clang_getInstantiationLocation (definitionLocation,
+	                                &definitionFile,
+	                                &definitionLine,
+	                                &definitionColumn,
+	                                &definitionOffset);
+	
+	gchar* definitionString = g_strdup_printf ("Definition: Cursor location: %u, %u (%s)",
+								        definitionLine,
+	                                    definitionColumn,
+	                                    clang_getCString (clang_getFileName(definitionFile)));
+
+	g_warning ("%s", definitionString);
 }
 
 /**
@@ -1136,10 +1137,24 @@ parser_clang_assist_new_calltip (IAnjutaLanguageProvider* self,
                                  IAnjutaIterable* cursor,
                                  GError** e)
 {
+g_warning ("parser_clang_assist_new_calltip (call_context = %s)", call_context);
 	ParserClangAssist* assist = PARSER_CLANG_ASSIST (self);
+	
+	if (clang_Cursor_isNull (assist->priv->context_cursor_cache)
+	    || g_strcmp0 (call_context, assist->priv->context_cache))
+	{
+		DEBUG_PRINT ("Context is not available in the cache! Abort new calltip here...");
+g_warning ("Context is not available in the cache! Abort new calltip here...");
+		//TODO: Get cursor
+		return;
+/*		assist->priv->context_cache = call_context;
+		assist->priv->context_cursor_cache =
+		                    clang_getCursor (assist->priv->clang_tu, location);
+*/	}
+	
 	parser_clang_assist_clear_calltip_context (assist);
 	parser_clang_assist_create_calltip_context (assist, call_context, cursor);
-	parser_clang_assist_query_calltip (assist, call_context, cursor);
+	parser_clang_assist_query_calltip (assist);
 }
 
 static IAnjutaIterable*
@@ -1279,7 +1294,7 @@ parser_clang_assist_finalize (GObject *object)
 	if (priv->clang_include_dirs)
 		anjuta_util_glist_strings_free (priv->clang_include_dirs);
 	priv->clang_include_dirs = NULL;
-	
+		
 	if (priv->calltip_query_file)
 		g_object_unref (priv->calltip_query_file);
 	priv->calltip_query_file = NULL;
