@@ -83,10 +83,13 @@ struct _ParserClangAssistPriv {
 	CXIndex clang_index;
 	CXTranslationUnit clang_tu;
 	CXFile clang_file;
+	struct CXUnsavedFile *clang_unsaved;
+	guint clang_unsaved_num;
 	GList* clang_include_dirs;
 	
 	/* Context */
 	gchar* context_cache;
+	IAnjutaIterable* context_start_iter;
 	CXCursor context_cursor_cache;
 	
 	/* Calltips */
@@ -231,7 +234,12 @@ parser_clang_assist_clang_deinit (ParserClangAssist* assist)
 		clang_disposeIndex (assist->priv->clang_index);
 	assist->priv->clang_index = NULL;
 	
+	if (!assist->priv->clang_unsaved)
+		g_free (assist->priv->clang_unsaved);
+	assist->priv->clang_unsaved = NULL;
+	
 	assist->priv->clang_file = NULL;
+	assist->priv->clang_unsaved_num = 0;
 }
 
 static struct CXUnsavedFile *
@@ -255,14 +263,21 @@ parser_clang_assist_get_unsaved (const gchar *filename, gchar *unsaved_content)
 static void
 parser_clang_assist_parse (ParserClangAssist* assist, gchar *unsaved_content)
 {
-	gint unsaved_num = 0;
 	gint error = 0;
-	struct CXUnsavedFile *unsaved = parser_clang_assist_get_unsaved (
-	                            assist->priv->editor_filename, unsaved_content);
+	
+	if (!assist->priv->clang_unsaved)
+	{
+		assist->priv->clang_unsaved_num = 0;
+		g_free (assist->priv->clang_unsaved);
+		assist->priv->clang_unsaved = NULL;
+	}
+	
 	if (unsaved_content)
 	{
 		DEBUG_PRINT ("Parse code with unsaved content.");
-		unsaved_num = 1;
+		assist->priv->clang_unsaved_num = 1;
+		assist->priv->clang_unsaved = parser_clang_assist_get_unsaved (
+		                        assist->priv->editor_filename, unsaved_content);
 	}
 	
 	if (assist->priv->clang_tu)
@@ -270,18 +285,20 @@ parser_clang_assist_parse (ParserClangAssist* assist, gchar *unsaved_content)
 		guint options = clang_defaultReparseOptions (assist->priv->clang_tu);
 		//TODO: Crash source is here:
 		error = clang_reparseTranslationUnit (assist->priv->clang_tu,
-		                                      unsaved_num, unsaved, options);
+		                                      assist->priv->clang_unsaved_num,
+		                                      assist->priv->clang_unsaved,
+		                                      options);
 		assist->priv->clang_file = clang_getFile (assist->priv->clang_tu,
 	                                              assist->priv->editor_filename);
 	}
 	else
 	{
-		parser_clang_assist_clang_init (assist, unsaved_num, unsaved);
+		parser_clang_assist_clang_init (assist, assist->priv->clang_unsaved_num,
+		                                assist->priv->clang_unsaved);
 		if (!assist->priv->clang_tu)
 			error = 1;
 	}
 	g_free (unsaved_content);
-	g_free (unsaved);
 	
 	if (error != 0)
 	{
@@ -453,12 +470,11 @@ static GList*
 parser_clang_assist_create_completion_from_cursor (ParserClangAssist* assist,
                                                    CXCursor cursor)
 {
+g_warning ("parser_clang_assist_create_completion_from_cursor");
 //DEBUG:
-	CXSourceLocation definitionLocation = clang_getCursorLocation (cursor);
-	CXCursor definitionCursor = clang_getCursor (assist->priv->clang_tu, definitionLocation);
-	CXString definitionCursorSpelling = clang_getCursorSpelling (definitionCursor);
-	g_warning ("Definition Cursor: %s", clang_getCString (definitionCursorSpelling));
-	clang_disposeString (definitionCursorSpelling);
+	CXString cursorSpelling = clang_getCursorSpelling (cursor);
+	g_warning ("Cursor: %s", clang_getCString (cursorSpelling));
+	clang_disposeString (cursorSpelling);
 //End of DEBUG
 
 	if (clang_Cursor_isNull (cursor))
@@ -467,29 +483,21 @@ parser_clang_assist_create_completion_from_cursor (ParserClangAssist* assist,
 	guint line;
 	guint column;
 	guint options;
-	gint unsaved_num = 0;
-	const gchar* filename;
-	gchar* unsaved_content;
-	struct CXUnsavedFile *unsaved;
 	CXSourceLocation location;
 	GList* list = NULL;
 	
-	filename = assist->priv->editor_filename;
-	//TODO: Incaid cast?
-	unsaved_content = ianjuta_editor_get_text_all (
-	                            IANJUTA_EDITOR (assist->priv->iassist), NULL);
-	unsaved = parser_clang_assist_get_unsaved (filename, unsaved_content);
-	if (unsaved_content)
-		unsaved_num = 1;
 	location = clang_getCursorLocation (cursor);
 	clang_getSpellingLocation (location, NULL, &line, &column, NULL);
 	options = clang_defaultReparseOptions (assist->priv->clang_tu);
 	
-	//TODO:
+g_warning ("%u:%u", line, column);
 	CXCodeCompleteResults *results = clang_codeCompleteAt (
-	                                     assist->priv->clang_tu, filename, line,
-	                                     column, unsaved, unsaved_num, options);
-	
+	                                         assist->priv->clang_tu,
+	                                         assist->priv->editor_filename,
+	                                         line, column,
+	                                         assist->priv->clang_unsaved,
+	                                         assist->priv->clang_unsaved_num,
+	                                         options);
 //DEBUG	
 	gchar *text = g_strdup_printf ("Completion:\n");
 	guint n = clang_getNumDiagnostics(assist->priv->clang_tu);
@@ -711,8 +719,8 @@ static void
 parser_clang_assist_create_completion_cache (ParserClangAssist* assist)
 {
 	g_assert (assist->priv->completion_cache == NULL);
-	assist->priv->completion_cache = 
-		g_completion_new (anjuta_proposal_completion_func);
+	assist->priv->completion_cache = g_completion_new (
+	                                        anjuta_proposal_completion_func);
 }
 
 /**
@@ -780,40 +788,27 @@ parser_clang_assist_populate_real (ParserClangAssist* assist, gboolean finished)
  * 
  * Create the completion_cache for member completion if possible
  *
- * Returns: the iter where a completion cache was build, NULL otherwise
+ * Returns: TRUE if a completion cache was build, FALSE otherwise
  */
-static IAnjutaIterable*
+static gboolean
 parser_clang_assist_create_member_completion_cache (ParserClangAssist* assist,
-                                                    IAnjutaIterable* cursor)
+                                                    CXCursor cursor)
 {
-	IAnjutaIterable* symbol = NULL;
-	IAnjutaIterable* start_iter = NULL;
-//TODO: Use the black magic of clang
+g_warning ("parser_clang_assist_create_member_completion_cache");
+	//TODO: Delete the following line
 //	symbol = parser_clang_assist_parse_expression (assist, cursor, &start_iter);
+	
+	if (clang_Cursor_isNull (cursor))
+		return FALSE;
+	
+	GList* proposals = parser_clang_assist_create_completion_from_cursor (
+	                                                            assist, cursor);
+	parser_clang_assist_create_completion_cache (assist);
+	g_completion_add_items (assist->priv->completion_cache, proposals);
 
-	if (symbol)
-	{
-		/* Query symbol children */
-		CXCursor children =  clang_getNullCursor ();/*ianjuta_symbol_query_search_members (
-		            assist->priv->query_members, IANJUTA_SYMBOL (symbol), NULL);*/
-		
-		g_object_unref (symbol);
-		if (!clang_Cursor_isNull (children))
-		{
-			GList* proposals =
-			    parser_clang_assist_create_completion_from_cursor (assist,
-			                                                       children);
-			parser_clang_assist_create_completion_cache (assist);
-			g_completion_add_items (assist->priv->completion_cache, proposals);
-
-			parser_clang_assist_populate_real (assist, TRUE);
-			g_list_free (proposals);
-			return start_iter;
-		}
-	}
-	else if (start_iter)
-		g_object_unref (start_iter);
-	return NULL;
+	parser_clang_assist_populate_real (assist, TRUE);
+	g_list_free (proposals);
+	return TRUE;
 }
 
 /**
@@ -828,6 +823,7 @@ parser_clang_assist_create_member_completion_cache (ParserClangAssist* assist,
 static void
 on_symbol_search_complete (CXCursor cursor, ParserClangAssist* assist)
 {
+g_warning ("on_symbol_search_complete");
 	GList* proposals;
 	proposals = parser_clang_assist_create_completion_from_cursor (assist,
 	                                                               cursor);
@@ -845,58 +841,40 @@ on_symbol_search_complete (CXCursor cursor, ParserClangAssist* assist)
 /**
  * parser_clang_assist_create_autocompletion_cache:
  * @assist: self
- * @cursor: Current cursor position
+ * @pre_word: the preword
  * 
  * Create completion cache for autocompletion. This is done async.
- *
- * Returns: the iter where a preword was detected, NULL otherwise
  */ 
-static IAnjutaIterable*
+static void
 parser_clang_assist_create_autocompletion_cache (ParserClangAssist* assist,
-                                                 IAnjutaIterable* cursor)
+                                                 gchar* pre_word)
 {
-	IAnjutaIterable* start_iter;
-	gchar* pre_word = anjuta_language_provider_get_pre_word (
-	                                  assist->priv->lang_prov,
-                                      IANJUTA_EDITOR (assist->priv->iassist),
-									  cursor, &start_iter, WORD_CHARACTER);
-	if (!pre_word || strlen (pre_word) < MIN_CODECOMPLETE)
-	{
-		if (start_iter)
-			g_object_unref (start_iter);
-		return NULL;
-	}
-	else
-	{
-		gchar *pattern = g_strconcat (pre_word, "%", NULL);
-		
-		parser_clang_assist_create_completion_cache (assist);
-		parser_clang_assist_update_pre_word (assist, pre_word);
+	gchar *pattern = g_strconcat (pre_word, "%", NULL);
+	
+	parser_clang_assist_create_completion_cache (assist);
+	parser_clang_assist_update_pre_word (assist, pre_word);
 
-		if (IANJUTA_IS_FILE (assist->priv->iassist))
+	if (IANJUTA_IS_FILE (assist->priv->iassist))
+	{
+		GFile *file = ianjuta_file_get_file (
+		                      IANJUTA_FILE (assist->priv->iassist), NULL);
+		if (file != NULL)
 		{
-			GFile *file = ianjuta_file_get_file (
-			                      IANJUTA_FILE (assist->priv->iassist), NULL);
-			if (file != NULL)
-			{
-				assist->priv->async_file_id = 1;
-				ianjuta_symbol_query_search_file (assist->priv->ac_query_file,
-												  pattern, file, NULL);
-				g_object_unref (file);
-			}
+			assist->priv->async_file_id = 1;
+			ianjuta_symbol_query_search_file (assist->priv->ac_query_file,
+											  pattern, file, NULL);
+			g_object_unref (file);
 		}
-		/* This will avoid duplicates of FUNCTION and PROTOTYPE */
-		assist->priv->async_project_id = 1;
-		ianjuta_symbol_query_search (assist->priv->ac_query_project, pattern,
-		                             NULL);
-		assist->priv->async_system_id = 1;
-		ianjuta_symbol_query_search (assist->priv->ac_query_system, pattern,
-		                             NULL);
-		g_free (pre_word);
-		g_free (pattern);
-		
-		return start_iter;
 	}
+	/* This will avoid duplicates of FUNCTION and PROTOTYPE */
+	assist->priv->async_project_id = 1;
+	ianjuta_symbol_query_search (assist->priv->ac_query_project, pattern,
+	                             NULL);
+	assist->priv->async_system_id = 1;
+	ianjuta_symbol_query_search (assist->priv->ac_query_system, pattern,
+	                             NULL);
+	g_free (pre_word);
+	g_free (pattern);
 }
 
 /**
@@ -915,18 +893,24 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
                                          GError** e)
 {
 	ParserClangAssist* assist = PARSER_CLANG_ASSIST (self);
+	guint offset;
+	guint start;
+	guint length;
 	gchar* calltip_context;
+	gchar* unsavedContent;
+	CXSourceLocation location;
+	CXCursor cursor;
+	CXString cursor_spelling;
 	
 	//TODO:
-	guint offset = ianjuta_iterable_get_position (iter, NULL)/*  + 1*/;
-	
-	gchar* unsavedContent = ianjuta_editor_get_text_all (
-	                            IANJUTA_EDITOR (assist->priv->iassist), NULL);
+	offset = ianjuta_iterable_get_position (iter, NULL)/*  + 1*/;
+	unsavedContent = ianjuta_editor_get_text_all (
+	                             IANJUTA_EDITOR (assist->priv->iassist), NULL);
 	parser_clang_assist_parse (assist, unsavedContent);
 	
 	//TODO: Crash:
-	CXSourceLocation location = clang_getLocationForOffset (
-	               assist->priv->clang_tu, assist->priv->clang_file, offset);
+	location = clang_getLocationForOffset (assist->priv->clang_tu,
+	                                       assist->priv->clang_file, offset);
 /* TODO: Test code
 	gint line = ianjuta_editor_get_lineno (IANJUTA_EDITOR (assist->priv->iassist), NULL);
 	gint column = ianjuta_editor_get_column (IANJUTA_EDITOR (assist->priv->iassist), NULL);
@@ -938,17 +922,27 @@ parser_clang_assist_get_calltip_context (IAnjutaLanguageProvider *self,
 	g_warning ("done");
 */
 	
-	CXCursor cursor = clang_getCursor (assist->priv->clang_tu, location);
-	CXString cursor_spelling = clang_getCursorSpelling (cursor);
+	cursor = clang_getCursor (assist->priv->clang_tu, location);
+	cursor_spelling = clang_getCursorSpelling (cursor);
 	calltip_context = g_strdup_printf ("%s", clang_getCString (cursor_spelling));
 	clang_disposeString (cursor_spelling);
 	
+	length = (guint) strlen (calltip_context);
+	
 	/* Abort, if calltip_context is empty */
-	if (*calltip_context == '\0')
+	if (length == 0)
 		return NULL;
 	
-	assist->priv->context_cache = calltip_context;
-	assist->priv->context_cursor_cache = cursor;
+	start = offset - length;
+	if (ianjuta_iterable_set_position (iter, start, NULL))
+	{
+		assist->priv->context_cache = calltip_context;
+		assist->priv->context_start_iter = iter;                                                
+		assist->priv->context_cursor_cache = cursor;
+	}
+	else
+g_warning ("Something went wrong...");
+	
 	return calltip_context;
 }
 
@@ -1075,13 +1069,6 @@ parser_clang_assist_query_calltip (ParserClangAssist* assist)
 	
 	//TODO: Do this async
 	CXCursor cursor = clang_getCursorReferenced (assist->priv->context_cursor_cache);
-	
-	if (clang_Cursor_isNull (cursor))
-	{
-g_warning ("Cursor to the definition is null!");
-		return;
-	}
-	
 	CXSourceLocation definitionLocation = clang_getCursorLocation (cursor);
 	CXCursor definitionCursor = clang_getCursor (assist->priv->clang_tu, definitionLocation);
 // Debug:
@@ -1089,8 +1076,8 @@ CXString definitionCursorSpelling = clang_getCursorSpelling (definitionCursor);
 g_warning ("Definition Cursor: %s", clang_getCString (definitionCursorSpelling));
 clang_disposeString (definitionCursorSpelling);
 	
-	
-	on_symbol_search_complete (definitionCursor, assist);
+	//TODO: Wrong use...
+	//on_symbol_search_complete (cursor, assist);
 }
 
 /**
@@ -1203,17 +1190,33 @@ parser_clang_assist_populate_completions (IAnjutaLanguageProvider* self,
                                           IAnjutaIterable* cursor,
                                           GError** e)
 {
+g_warning ("parser_clang_assist_populate_completions");
 	ParserClangAssist* assist = PARSER_CLANG_ASSIST (self);
-	IAnjutaIterable* start_iter = NULL;
+	
+/*	CXCursor cursor;
+	
+	if (clang_Cursor_isNull (assist->priv->context_cursor_cache))
+	{
+		DEBUG_PRINT ("Context is not available in the cache! Abort calltip query here...");
+		return;
+	}
+	
+	//TODO: Do this async
+	cursor = assist->priv->context_cursor_cache;
+	
+// Debug:
+CXString cursor_spelling = clang_getCursorSpelling (cursor);
+g_warning ("Definition Cursor: %s", clang_getCString (cursor_spelling));
+clang_disposeString (cursor_spelling);
+	
+	on_symbol_search_complete (cursor, assist);
+*/	
 	
 	/* Check if completion was in progress */
 	if (assist->priv->member_completion || assist->priv->autocompletion)
 	{
 		g_assert (assist->priv->completion_cache != NULL);
-		gchar* pre_word = anjuta_language_provider_get_pre_word (
-		                              assist->priv->lang_prov,
-		                              IANJUTA_EDITOR (assist->priv->iassist),
-		                              cursor, &start_iter, WORD_CHARACTER);
+		gchar* pre_word = assist->priv->context_cache;
 		DEBUG_PRINT ("Preword: %s", pre_word);
 		if (pre_word && g_str_has_prefix (pre_word, assist->priv->pre_word))
 		{
@@ -1223,27 +1226,28 @@ parser_clang_assist_populate_completions (IAnjutaLanguageProvider* self,
 			parser_clang_assist_update_pre_word (assist, pre_word);
 			parser_clang_assist_populate_real (assist, TRUE);
 			g_free (pre_word);
-			return start_iter;
-		}			
-		g_free (pre_word);
+			return assist->priv->context_start_iter;
+		}
 	}
 	
 	parser_clang_assist_clear_completion_cache (assist);
 	
 	/* Check for member completion */
-	start_iter = parser_clang_assist_create_member_completion_cache (assist,
-	                                                               cursor);
-	if (start_iter)
+	if (parser_clang_assist_create_member_completion_cache (
+	                                assist, assist->priv->context_cursor_cache))
 		assist->priv->member_completion = TRUE;
 	else
 	{
-		start_iter = parser_clang_assist_create_autocompletion_cache (assist,
-		                                                            cursor);
-		if (start_iter)
-			assist->priv->autocompletion = TRUE;
+		gchar* pre_word = assist->priv->context_cache;
+		if (pre_word && strlen (pre_word) >= MIN_CODECOMPLETE)
+		{
+			parser_clang_assist_create_autocompletion_cache (assist, pre_word);
+			assist->priv->autocompletion = TRUE;			
+			return assist->priv->context_start_iter;
+		}
 	}
 	
-	return start_iter;
+	return NULL;
 }
 
 /**
@@ -1335,6 +1339,10 @@ parser_clang_assist_finalize (GObject *object)
 	if (priv->clang_include_dirs)
 		anjuta_util_glist_strings_free (priv->clang_include_dirs);
 	priv->clang_include_dirs = NULL;
+	
+	if (priv->context_start_iter)
+		g_object_unref (priv->context_start_iter);
+	priv->context_start_iter = NULL;
 		
 	if (priv->calltip_query_file)
 		g_object_unref (priv->calltip_query_file);
@@ -1503,8 +1511,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                     NULL);
 	ianjuta_symbol_query_set_mode (assist->priv->ac_query_file,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
-	g_signal_connect (assist->priv->ac_query_file, "async-result",
-	                  G_CALLBACK (on_symbol_search_complete), assist);
+//	g_signal_connect (assist->priv->ac_query_file, "async-result",
+//	                  G_CALLBACK (on_symbol_search_complete), assist);
 	/* AC in project */
 	assist->priv->ac_query_project =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
@@ -1521,8 +1529,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                     NULL);
 	ianjuta_symbol_query_set_mode (assist->priv->ac_query_project,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
-	g_signal_connect (assist->priv->ac_query_project, "async-result",
-	                  G_CALLBACK (on_symbol_search_complete), assist);
+//	g_signal_connect (assist->priv->ac_query_project, "async-result",
+//	                  G_CALLBACK (on_symbol_search_complete), assist);
 	/* AC in system */
 	assist->priv->ac_query_system =
 		ianjuta_symbol_manager_create_query (isymbol_manager,
@@ -1539,8 +1547,8 @@ parser_clang_assist_new (IAnjutaEditor *ieditor,
 	                                     NULL);
 	ianjuta_symbol_query_set_mode (assist->priv->ac_query_system,
 	                               IANJUTA_SYMBOL_QUERY_MODE_ASYNC, NULL);
-	g_signal_connect (assist->priv->ac_query_system, "async-result",
-	                  G_CALLBACK (on_symbol_search_complete), assist);
+//	g_signal_connect (assist->priv->ac_query_system, "async-result",
+//	                  G_CALLBACK (on_symbol_search_complete), assist);
 
 	/* Members autocompletion */
 	assist->priv->query_members =
@@ -1664,6 +1672,8 @@ ilanguage_provider_iface_init (IAnjutaLanguageProviderIface* iface)
 {
 	iface->get_calltip_cache   = parser_clang_assist_get_calltip_cache;
 	iface->get_calltip_context = parser_clang_assist_get_calltip_context;
+	//TODO:
 	iface->new_calltip         = parser_clang_assist_new_calltip;
+	//TODO:
 	iface->populate_completions   = parser_clang_assist_populate_completions;
 }
